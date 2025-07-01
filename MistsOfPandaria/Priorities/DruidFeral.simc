@@ -1,0 +1,174 @@
+# Druid Feral - MoP 5.5.0 Beta - Advanced PQR/PQRotation Adaptation
+# ===========================================
+# VARIABLES AND CONDITIONS
+# ===========================================
+variable,name=use_thrash,value=spell_targets.swipe_cat>=4
+variable,name=use_rake,value=1
+variable,name=time_to_pool,value=0
+variable,name=shortest_ttd,value=target.time_to_die
+variable,name=longest_ttd,value=target.time_to_die
+variable,name=sr_up,value=buff.savage_roar.up
+variable,name=tf_up,value=buff.tigers_fury.up
+variable,name=incoming_damage,value=0
+
+# Multi-target scenarios
+variable,name=aoe,value=spell_targets.swipe_cat>=3
+variable,name=cleave,value=spell_targets.swipe_cat=2
+
+# Energy and combo point management
+variable,name=pool_energy,value=energy<50&!buff.omen_of_clarity.up&!buff.berserk.up
+variable,name=cp_max_spend,value=combo_points>=5|(combo_points>=4&buff.savage_roar.remains<2)
+variable,name=rip_refresh,value=dot.rip.remains<7.2&combo_points>=1
+
+# Target validation and threat
+variable,name=can_attack,value=target.exists&target.enemy&target.health.pct>0
+variable,name=threat_situation,value=0
+
+# ===========================================
+# PRECOMBAT PREPARATION
+# ===========================================
+actions.precombat+=/mark_of_the_wild,if=!buff.mark_of_the_wild.up
+actions.precombat+=/cat_form,if=!buff.cat_form.up
+actions.precombat+=/prowl,if=!in_combat&!buff.prowl.up
+
+# ===========================================
+# MAIN ACTION PRIORITY LIST
+# ===========================================
+# Essential form and emergency checks
+actions=cat_form,if=!buff.cat_form.up&!buff.bear_form.up
+actions+=/auto_attack,if=!auto_attack
+
+# Interrupt and defensive
+actions+=/skull_bash,if=target.casting
+actions+=/call_action_list,name=defensive
+
+# Stealth opener
+actions+=/prowl,if=!in_combat&!buff.prowl.up
+
+# Core rotation
+actions+=/call_action_list,name=cooldowns
+actions+=/call_action_list,name=finishers
+actions+=/call_action_list,name=generators
+actions+=/call_action_list,name=fillers
+
+# ===========================================
+# DEFENSIVE ACTIONS
+# ===========================================
+actions.defensive=survival_instincts,if=health.pct<30&incoming_damage>health.max*0.5
+actions.defensive+=/barkskin,if=health.pct<50&incoming_damage>health.max*0.3
+actions.defensive+=/frenzied_regeneration,if=buff.bear_form.up&health.pct<40
+actions.defensive+=/bear_form,if=health.pct<20&incoming_damage>health.max*0.4
+
+# Healing optimization
+actions.defensive+=/healing_touch,if=buff.predatory_swiftness.up&health.pct<70&!in_combat
+actions.defensive+=/rejuvenation,if=health.pct<50&!buff.rejuvenation.up&!in_combat
+
+# ===========================================
+# COOLDOWN MANAGEMENT
+# ===========================================
+# Major DPS cooldowns - synchronized usage
+actions.cooldowns=berserk,if=energy>=40&buff.savage_roar.up&(combo_points>=4|dot.rip.ticking)&cooldown.tigers_fury.remains<3
+
+# Tiger's Fury - energy management
+actions.cooldowns+=/tigers_fury,if=energy<=35&!buff.omen_of_clarity.up&cooldown.tigers_fury.ready
+
+# Faerie Fire for armor debuff
+actions.cooldowns+=/faerie_fire_feral,if=debuff.faerie_fire.down&debuff.armor.down&target.time_to_die>15
+
+# Nature's Swiftness for emergency healing or instant cast
+actions.cooldowns+=/nature_swiftness,if=combo_points>=4&energy<40&!buff.omen_of_clarity.up
+
+# Racial abilities
+actions.cooldowns+=/berserking,if=buff.tigers_fury.up|buff.berserk.up
+actions.cooldowns+=/blood_fury,if=buff.tigers_fury.up|buff.berserk.up
+
+# ===========================================
+# FINISHER PRIORITY (5CP SPENDING)
+# ===========================================
+# Execute range Ferocious Bite - highest priority
+actions.finishers=ferocious_bite,if=combo_points>=5&dot.rip.ticking&buff.savage_roar.up&target.health.pct<25&energy>=50
+
+# Savage Roar maintenance - critical buff
+actions.finishers+=/savage_roar,if=combo_points>=1&buff.savage_roar.remains<7.2&(combo_points>=5|buff.savage_roar.remains<2|energy>=80)
+
+# Rip application and pandemic refresh
+actions.finishers+=/rip,if=combo_points>=5&(!dot.rip.ticking|(dot.rip.remains<7.2&dot.rip.remains<target.time_to_die&target.time_to_die>dot.rip.duration))
+
+# Multi-target Rip spreading
+actions.finishers+=/rip,cycle_targets=1,if=combo_points>=5&!dot.rip.ticking&target.time_to_die>dot.rip.duration&active_enemies<=4
+
+# Ferocious Bite - energy dump
+actions.finishers+=/ferocious_bite,if=combo_points>=5&dot.rip.ticking&buff.savage_roar.up&(energy>=50|buff.berserk.up|buff.omen_of_clarity.up)
+
+# Emergency Savage Roar
+actions.finishers+=/savage_roar,if=combo_points>=1&buff.savage_roar.down
+
+# ===========================================
+# COMBO POINT GENERATORS
+# ===========================================
+# AoE generators
+actions.generators=thrash_cat,if=variable.use_thrash&!dot.thrash_cat.ticking&energy>=50
+actions.generators+=/swipe_cat,if=variable.aoe&energy>=45
+
+# Rake application and maintenance
+actions.generators+=/rake,if=!dot.rake.ticking&variable.use_rake&energy>=35
+actions.generators+=/rake,if=dot.rake.remains<3&dot.rake.remains<target.time_to_die&variable.use_rake&energy>=35&target.time_to_die>15
+
+# Multi-target rake spreading
+actions.generators+=/rake,cycle_targets=1,if=!dot.rake.ticking&active_enemies<=4&target.time_to_die>dot.rake.duration&energy>=35
+
+# Thrash for single target bleed
+actions.generators+=/thrash_cat,if=dot.thrash_cat.remains<3&dot.thrash_cat.remains<target.time_to_die&energy>=50&target.time_to_die>6
+
+# ===========================================
+# FILLER ACTIONS
+# ===========================================
+# Energy pooling
+actions.fillers=wait,sec=0.1,if=variable.pool_energy&cooldown.tigers_fury.remains>3
+
+# Mangle for combo points
+actions.fillers+=/mangle_cat,if=combo_points<5&energy>=40
+
+# Shred when behind target or with OoC
+actions.fillers+=/shred,if=(behind_target|buff.omen_of_clarity.up)&combo_points<5&energy>=40
+
+# Mangle when can't get behind
+actions.fillers+=/mangle_cat,if=combo_points<5&!behind_target&!buff.omen_of_clarity.up&energy>=40
+
+# Emergency filler
+actions.fillers+=/shred,if=combo_points<5&energy>=40
+
+# ===========================================
+# AOE ROTATION (3+ TARGETS)
+# ===========================================
+actions.aoe=thrash_cat,if=!dot.thrash_cat.ticking&energy>=50
+actions.aoe+=/rake,cycle_targets=1,if=!dot.rake.ticking&active_enemies<=6&energy>=35
+actions.aoe+=/swipe_cat,if=combo_points<5&energy>=45
+actions.aoe+=/savage_roar,if=combo_points>=1&buff.savage_roar.down
+actions.aoe+=/rip,cycle_targets=1,if=combo_points>=5&!dot.rip.ticking&target.time_to_die>dot.rip.duration
+actions.aoe+=/ferocious_bite,if=combo_points>=5&dot.rip.ticking&energy>=50
+
+# ===========================================
+# CLEAVE ROTATION (2 TARGETS)
+# ===========================================
+actions.cleave=rake,cycle_targets=1,if=!dot.rake.ticking&energy>=35
+actions.cleave+=/thrash_cat,if=!dot.thrash_cat.ticking&energy>=50
+actions.cleave+=/savage_roar,if=combo_points>=1&buff.savage_roar.remains<7.2
+actions.cleave+=/rip,cycle_targets=1,if=combo_points>=5&!dot.rip.ticking&target.time_to_die>dot.rip.duration
+actions.cleave+=/mangle_cat,if=combo_points<5&energy>=40
+actions.cleave+=/shred,if=combo_points<5&(behind_target|buff.omen_of_clarity.up)&energy>=40
+
+# ===========================================
+# UTILITY AND MOVEMENT
+# ===========================================
+actions.utility=faerie_fire_feral,if=debuff.faerie_fire.down&target.armor>0&energy>=25
+actions.utility+=/cat_form,if=!buff.cat_form.up&!buff.bear_form.up
+actions.utility+=/prowl,if=!in_combat&!buff.prowl.up
+
+# Movement abilities
+actions.utility+=/dash,if=movement.distance>20&!buff.dash.up&energy>=30
+actions.utility+=/wild_charge,if=movement.distance>8&movement.distance<25&energy>=25
+
+# Final resource management
+actions+=/tigers_fury,if=energy<30&!buff.tigers_fury.up&!buff.omen_of_clarity.up&cooldown.tigers_fury.ready
+actions+=/wait,sec=0.1,if=energy<50&energy.regen>10&!buff.omen_of_clarity.up&!buff.berserk.up&cooldown.tigers_fury.remains>3

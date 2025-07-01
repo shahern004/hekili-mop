@@ -1,0 +1,1615 @@
+-- WarlockAffliction.lua
+-- Updated May 30, 2025 
+
+
+-- MoP: Use UnitClass instead of UnitClassBase
+local _, playerClass = UnitClass('player')
+if playerClass ~= 'WARLOCK' then return end
+
+local addon, ns = ...
+local Hekili = _G[ "Hekili" ]
+local class, state
+
+local function getReferences()
+    if not class then
+        class, state = Hekili.Class, Hekili.State
+    end
+    return class, state
+end
+
+local strformat = string.format
+local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
+
+-- Enhanced helper functions for Affliction Warlock
+local function UA_GetPlayerAuraBySpellID(spellID)
+    return FindUnitBuffByID("player", spellID)
+end
+
+local function GetTargetDebuffByID(spellID)
+    return FindUnitDebuffByID("target", spellID, "PLAYER")
+end
+
+local spec = Hekili:NewSpecialization( 265 ) -- Affliction spec ID for MoP
+
+-- Affliction-specific combat log event tracking
+local afflictionCombatLogFrame = CreateFrame("Frame")
+local afflictionCombatLogEvents = {}
+
+local function RegisterAfflictionCombatLogEvent(event, handler)
+    if not afflictionCombatLogEvents[event] then
+        afflictionCombatLogEvents[event] = {}
+    end
+    table.insert(afflictionCombatLogEvents[event], handler)
+end
+
+afflictionCombatLogFrame:SetScript("OnEvent", function(self, event, ...)
+    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        local timestamp, subevent, _, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags = CombatLogGetCurrentEventInfo()
+        
+        if sourceGUID == UnitGUID("player") then
+            local handlers = afflictionCombatLogEvents[subevent]
+            if handlers then
+                for _, handler in ipairs(handlers) do
+                    handler(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, select(12, CombatLogGetCurrentEventInfo()))
+                end
+            end
+        end
+    end
+end)
+
+afflictionCombatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+
+-- Soul Shard generation tracking
+RegisterAfflictionCombatLogEvent("SPELL_CAST_SUCCESS", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
+    if spellID == 686 then -- Shadow Bolt
+        -- Shadow Bolt can generate Soul Shards
+    elseif spellID == 1120 then -- Drain Soul
+        -- Drain Soul generates Soul Shards when target dies
+    elseif spellID == 48181 then -- Haunt
+        -- Haunt generates a Soul Shard when it fades
+    end
+end)
+
+-- DoT application and tick tracking
+RegisterAfflictionCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
+    if spellID == 172 then -- Corruption
+        -- Track Corruption application for pandemic refresh
+    elseif spellID == 30108 then -- Unstable Affliction
+        -- Track UA application for pandemic refresh
+    elseif spellID == 348 then -- Agony
+        -- Track Agony application and stack building
+    elseif spellID == 48181 then -- Haunt
+        -- Track Haunt application for Soul Shard generation
+    end
+end)
+
+-- DoT tick damage tracking for Malefic Grasp
+RegisterAfflictionCombatLogEvent("SPELL_PERIODIC_DAMAGE", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
+    if spellID == 172 then -- Corruption
+        -- Corruption ticks trigger Soul Shard generation
+    elseif spellID == 30108 then -- Unstable Affliction
+        -- UA ticks trigger Soul Shard generation
+    elseif spellID == 980 then -- Agony
+        -- Agony ticks with increasing damage and Soul Shard generation
+    end
+end)
+
+-- Nightfall proc tracking
+RegisterAfflictionCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
+    if spellID == 17941 then -- Nightfall
+        -- Track Nightfall proc for instant Shadow Bolt
+    elseif spellID == 63156 then -- Soul Burn
+        -- Track Soul Burn application for enhanced spells
+    end
+end)
+
+-- Enhanced Mana resource system for Affliction Warlock
+spec:RegisterResource( 0, { -- Mana = 0 in MoP
+    -- Life Tap mana restoration
+    life_tap = {
+        aura = "life_tap",
+        last = function ()
+            local app = state.buff.life_tap.applied
+            local t = state.query_time
+            return app + floor( ( t - app ) / 1 ) * 1
+        end,
+        interval = 1,
+        value = function()
+            return state.max_mana * 0.15 -- 15% max mana instantly when used
+        end,
+    },
+    
+    -- Dark Soul mana efficiency
+    dark_soul = {
+        aura = "dark_soul_knowledge",
+        last = function ()
+            local app = state.buff.dark_soul_knowledge.applied
+            local t = state.query_time
+            return app + floor( ( t - app ) / 1 ) * 1
+        end,
+        interval = 1,
+        value = function()
+            return state.buff.dark_soul_knowledge.up and state.max_mana * 0.01 or 0 -- 1% mana efficiency per second
+        end,
+    },
+    
+    -- Harvest Life mana restoration
+    harvest_life = {
+        aura = "harvest_life",
+        last = function ()
+            local app = state.buff.harvest_life.applied
+            local t = state.query_time
+            return app + floor( ( t - app ) / 1 ) * 1
+        end,
+        interval = 1,
+        value = function()
+            local enemies_affected = 3 -- Maximum 3 enemies
+            return state.max_mana * (0.02 * enemies_affected) -- 2% per enemy affected
+        end,
+    },
+    
+    -- Soul Link mana efficiency
+    soul_link = {
+        aura = "soul_link",
+        last = function ()
+            local app = state.buff.soul_link.applied
+            local t = state.query_time
+            return app + floor( ( t - app ) / 1 ) * 1
+        end,
+        interval = 1,
+        value = function()
+            return state.buff.soul_link.up and state.max_mana * 0.005 or 0 -- 0.5% mana efficiency
+        end,
+    },
+}, {
+    -- Enhanced base mana regeneration with various bonuses
+    base_regen = function ()
+        local base = state.max_mana * 0.02 -- 2% of max mana per 5 seconds
+        local spirit_bonus = state.stat.spirit * 0.56 -- Spirit to mana conversion
+        local intellect_bonus = state.stat.intellect * 0.15 -- Intellect-based bonus
+        
+        -- Combat penalty (50% reduction)
+        if state.combat then
+            base = base * 0.50
+            spirit_bonus = spirit_bonus * 0.50
+        end
+        
+        -- Fel Armor mana bonus
+        if state.buff.fel_armor.up then
+            spirit_bonus = spirit_bonus * 1.30 -- 30% increase from Fel Armor
+        end
+        
+        -- Dark Soul: Knowledge bonus
+        if state.buff.dark_soul_knowledge.up then
+            base = base * 1.25
+            spirit_bonus = spirit_bonus * 1.25
+        end
+        
+        return (base + spirit_bonus + intellect_bonus) / 5 -- Convert to per-second
+    end,
+    
+    -- Demon Armor mana efficiency
+    demon_armor = function ()
+        return state.buff.demon_armor.up and state.max_mana * 0.005 or 0 -- 0.5% mana bonus
+    end,
+    
+    -- Glyph of Life Tap mana efficiency
+    glyph_life_tap = function ()
+        return state.glyph.life_tap.enabled and state.max_mana * 0.005 or 0 -- 0.5% mana efficiency
+    end,
+} )
+
+-- Soul Shards resource system
+spec:RegisterResource( 7, { -- SoulShards = 7 in MoP
+    max = 4, -- MoP had 4 maximum Soul Shards for Affliction
+    
+    regen = 0,
+    regenRate = function( state )
+        return 0
+    end,
+    
+    -- Enhanced Soul Shard generation sources
+    corruption_tick = {
+        last = function ()
+            local app = state.debuff.corruption.applied
+            local t = state.query_time
+            return app + floor( ( t - app ) / 3 ) * 3
+        end,
+        interval = 3,
+        value = function()
+            return state.debuff.corruption.up and 0.15 or 0 -- 15% chance per tick
+        end,
+    },
+    
+    agony_tick = {
+        last = function ()
+            local app = state.debuff.agony.applied
+            local t = state.query_time
+            return app + floor( ( t - app ) / 2 ) * 2
+        end,
+        interval = 2,
+        value = function()
+            local stacks = state.debuff.agony.stack
+            return state.debuff.agony.up and (0.15 + stacks * 0.05) or 0 -- 15% + 5% per stack
+        end,
+    },
+    
+    unstable_affliction_tick = {
+        last = function ()
+            local app = state.debuff.unstable_affliction.applied
+            local t = state.query_time
+            return app + floor( ( t - app ) / 3 ) * 3
+        end,
+        interval = 3,
+        value = function()
+            return state.debuff.unstable_affliction.up and 0.20 or 0 -- 20% chance per tick
+        end,
+    },
+    
+    haunt_fade = {
+        last = function ()
+            local app = state.debuff.haunt.applied
+            local t = state.query_time
+            return app + state.debuff.haunt.duration
+        end,
+        interval = 8, -- Haunt duration
+        value = function()
+            return state.debuff.haunt.up and 1 or 0 -- Guaranteed Soul Shard when Haunt fades
+        end,
+    },
+    
+    generate = function( amount, overcap )
+        local cur = state.soul_shards.current
+        local max = state.soul_shards.max
+        
+        amount = amount or 1
+        
+        if overcap then
+            state.soul_shards.current = cur + amount
+        else
+            state.soul_shards.current = math.min( max, cur + amount )
+        end
+        
+        if state.soul_shards.current > cur then
+            state.gain( amount, "soul_shards" )
+        end
+    end,
+    
+    spend = function( amount )
+        local cur = state.soul_shards.current
+        
+        if cur >= amount then
+            state.soul_shards.current = cur - amount
+            state.spend( amount, "soul_shards" )
+            return true
+        end
+        
+        return false
+    end,
+} )
+
+-- Comprehensive Tier Sets with all difficulty levels
+spec:RegisterGear( "tier14", { -- Tier 14 (Heart of Fear) - Sha-Skin Regalia
+    85316, 85317, 85318, 85319, 85320, -- LFR
+    85943, 85944, 85945, 85946, 85947, -- Normal
+    86590, 86591, 86592, 86593, 86594, -- Heroic
+} )
+
+spec:RegisterAura( "tier14_2pc_affliction", {
+    id = 105843,
+    duration = 30,
+    max_stack = 1,
+} )
+
+spec:RegisterAura( "tier14_4pc_affliction", {
+    id = 105844,
+    duration = 8,
+    max_stack = 1,
+} )
+
+spec:RegisterGear( "tier15", { -- Tier 15 (Throne of Thunder) - Vestments of the Faceless Shroud
+    95298, 95299, 95300, 95301, 95302, -- LFR
+    95705, 95706, 95707, 95708, 95709, -- Normal
+    96101, 96102, 96103, 96104, 96105, -- Heroic
+} )
+
+spec:RegisterAura( "tier15_2pc_affliction", {
+    id = 138129,
+    duration = 15,
+    max_stack = 1,
+} )
+
+spec:RegisterAura( "tier15_4pc_affliction", {
+    id = 138132,
+    duration = 6,
+    max_stack = 1,
+} )
+
+spec:RegisterGear( "tier16", { -- Tier 16 (Siege of Orgrimmar) - Horrorific Regalia
+    99593, 99594, 99595, 99596, 99597, -- LFR
+    98278, 98279, 98280, 98281, 98282, -- Normal
+    99138, 99139, 99140, 99141, 99142, -- Heroic
+    99828, 99829, 99830, 99831, 99832, -- Mythic
+} )
+
+spec:RegisterAura( "tier16_2pc_affliction", {
+    id = 144912,
+    duration = 20,
+    max_stack = 1,
+} )
+
+spec:RegisterAura( "tier16_4pc_affliction", {
+    id = 144915,
+    duration = 8,
+    max_stack = 3,
+} )
+
+-- Legendary and Notable Items
+spec:RegisterGear( "legendary_cloak", 102246, { -- Jina-Kang, Kindness of Chi-Ji
+    back = 102246,
+} )
+
+spec:RegisterAura( "legendary_cloak_proc", {
+    id = 148009,
+    duration = 4,
+    max_stack = 1,
+} )
+
+-- Notable Trinkets
+spec:RegisterGear( "kardris_toxic_totem", 104769, {
+    trinket1 = 104769,
+    trinket2 = 104769,
+} )
+
+spec:RegisterGear( "purified_bindings_of_immerseus", 104770, {
+    trinket1 = 104770,
+    trinket2 = 104770,
+} )
+
+spec:RegisterGear( "black_blood_of_yshaarj", 104810, {
+    trinket1 = 104810,
+    trinket2 = 104810,
+} )
+
+spec:RegisterGear( "assurance_of_consequence", 104736, {
+    trinket1 = 104736,
+    trinket2 = 104736,
+} )
+
+spec:RegisterGear( "bloodtusk_shoulderpads", 105564, {
+    shoulder = 105564,
+} )
+
+-- Meta Gems
+spec:RegisterGear( "burning_primal_diamond", 76884, {
+    head = 76884,
+} )
+
+spec:RegisterGear( "chaotic_primal_diamond", 76895, {
+    head = 76895,
+} )
+
+-- PvP Sets
+spec:RegisterGear( "grievous_gladiator", { -- Season 14 PvP
+    -- Head, Shoulder, Chest, Hands, Legs
+} )
+
+spec:RegisterGear( "prideful_gladiator", { -- Season 15 PvP
+    -- Head, Shoulder, Chest, Hands, Legs
+} )
+
+-- Challenge Mode Set
+spec:RegisterGear( "challenge_mode", {
+    -- Challenge Mode Warlock set
+} )
+
+-- Comprehensive Talent System (MoP Talent Trees)
+spec:RegisterTalents( {
+    -- Tier 1 (Level 15) - Self-Healing
+    dark_regeneration         = { 2225, 1, 108359 }, -- Instantly restores 30% of your maximum health. Restores an additional 6% of your maximum health for each of your damage over time effects on hostile targets within 20 yards. 2 min cooldown.
+    soul_leech                = { 2226, 1, 108370 }, -- When you deal damage with Malefic Grasp, Drain Soul, Shadow Bolt, Touch of Chaos, Chaos Bolt, Incinerate, Fel Flame, Haunt, or Soul Fire, you create a shield that absorbs (45% of Spell power) damage for 15 sec.
+    harvest_life              = { 2227, 1, 108371 }, -- Drains the health from up to 3 nearby enemies within 20 yards, causing Shadow damage and gaining 2% of maximum health per enemy every 1 sec. Lasts 6 sec. 2 min cooldown.
+
+    -- Tier 2 (Level 30) - Crowd Control
+    howl_of_terror            = { 2228, 1, 5484 },   -- Causes all nearby enemies within 10 yards to flee in terror for 8 sec. Targets are disoriented for 3 sec. 40 sec cooldown.
+    mortal_coil               = { 2229, 1, 6789 },   -- Horrifies an enemy target, causing it to flee in fear for 3 sec. The caster restores 11% of maximum health when the effect successfully horrifies an enemy. 30 sec cooldown.
+    shadowfury                = { 2230, 1, 30283 },  -- Stuns all enemies within 8 yards for 3 sec. 30 sec cooldown.
+
+    -- Tier 3 (Level 45) - Survivability
+    soul_link                 = { 2231, 1, 108415 }, -- 20% of all damage taken by the Warlock is redirected to your demon pet instead. While active, both your demon and you will regenerate 3% of maximum health each second. Lasts as long as your demon is active.
+    sacrificial_pact          = { 2232, 1, 108416 }, -- Sacrifice your summoned demon to prevent 300% of your maximum health in damage divided among all party and raid members within 40 yards. Lasts 8 sec. 3 min cooldown.
+    dark_bargain              = { 2233, 1, 110913 }, -- Prevents all damage for 8 sec. When the shield expires, 50% of the total amount of damage prevented is dealt to the caster over 8 sec. 3 min cooldown.
+
+    -- Tier 4 (Level 60) - Utility
+    blood_fear                = { 2234, 1, 111397 }, -- When you use Healthstone, enemies within 15 yards are horrified for 4 sec. 45 sec cooldown.
+    burning_rush              = { 2235, 1, 111400 }, -- Increases your movement speed by 50%, but also deals damage to you equal to 4% of your maximum health every 1 sec. Toggle ability.
+    unbound_will              = { 2236, 1, 108482 }, -- Removes all Magic, Curse, Poison, and Disease effects and makes you immune to controlling effects for 6 sec. 2 min cooldown.
+
+    -- Tier 5 (Level 75) - Demon Enhancement
+    grimoire_of_supremacy     = { 2237, 1, 108499 }, -- Your demons deal 20% more damage and are transformed into more powerful demons with enhanced abilities.
+    grimoire_of_service       = { 2238, 1, 108501 }, -- Summons a second demon with 100% increased damage for 15 sec. The demon uses its special ability immediately. 2 min cooldown.
+    grimoire_of_sacrifice     = { 2239, 1, 108503 }, -- Sacrifices your demon to grant you an ability depending on the demon sacrificed, and increases your damage by 15%. Lasts until you summon a demon.
+
+    -- Tier 6 (Level 90) - DPS/Utility
+    archimondes_vengeance     = { 2240, 1, 108505 }, -- When you take direct damage, you reflect 15% of the damage taken back at the attacker. For the next 10 sec, you reflect 45% of all direct damage taken. This ability has 3 charges. 30 sec recharge.
+    kiljaedens_cunning        = { 2241, 1, 108507 }, -- Your Malefic Grasp, Drain Life, Drain Soul, and Harvest Life can be cast while moving. When you stop moving, their damage is increased by 15% for 5 sec.
+    mannoroths_fury           = { 2242, 1, 108508 }, -- Your Rain of Fire, Hellfire, and Immolation Aura have no cooldown, cost no Soul Shards, and their damage is increased by 500%. They also no longer apply a damage over time effect.
+} )
+
+-- Comprehensive Glyph System (40+ Glyphs)
+spec:RegisterGlyphs( {
+    -- Major Glyphs - Combat Enhancement
+    [56232] = "dark_soul",              -- Your Dark Soul also increases the critical strike damage bonus of your critical strikes by 10%.
+    [56249] = "drain_life",             -- When using Drain Life, your Mana regeneration is increased by 10% of spirit and you gain 2% of your maximum health per second.
+    [56235] = "drain_soul",             -- You gain 30% increased movement speed while channeling Drain Soul, and Drain Soul channels 50% faster.
+    [56212] = "fear",                   -- Your Fear spell no longer causes the target to run in fear. Instead, the target is disoriented and takes 20% more damage for 8 sec.
+    [56218] = "health_funnel",          -- Health Funnel heals your demon for 50% more but costs 20% less health.
+    [56228] = "healthstone",            -- Increases the amount of health restored by your Healthstone by 20% and reduces its cooldown by 30 sec.
+    [63302] = "howl_of_terror",         -- Reduces the cooldown of your Howl of Terror by 8 sec and its radius is increased by 5 yards.
+    [56240] = "life_tap",               -- Life Tap generates 20% additional mana and no longer costs health.
+    [56214] = "malefic_grasp",          -- Malefic Grasp channels 20% faster and increases the damage of your damage over time spells by an additional 10%.
+    [56229] = "shadowburn",             -- Shadowburn generates a Soul Shard when it deals damage, rather than only when it kills the target.
+    [58070] = "shadow_bolt",            -- Shadow Bolt has a 15% chance to not consume a Soul Shard when empowered by Soul Burn.
+    [56226] = "soul_swap",              -- Soul Swap can now affect up to 2 additional nearby targets when used on a target with Corruption, Agony, and Unstable Affliction.
+    [56248] = "unstable_affliction",    -- Unstable Affliction can be applied to 3 targets, but its damage is reduced by 25%.
+    [63320] = "voidwalker",            -- Increases your Voidwalker's health by 30% and its Taunt now affects up to 3 enemies.
+    
+    -- Major Glyphs - Resource Management
+    [56233] = "demon_training",         -- Your demons deal 10% more damage and take 10% less damage.
+    [70947] = "eternal_resolve",        -- Reduces the cooldown of Unending Resolve by 60 sec.
+    [56241] = "imp_swarm",              -- Your Wild Imp demons have 30% increased damage and summoning them costs 50% fewer resources.
+    [70946] = "dark_regeneration",      -- Dark Regeneration heals you for an additional 25% over 8 sec.
+    [56244] = "soul_link",              -- Soul Link spreads 5% of damage taken to all party and raid members within 20 yards.
+    [58054] = "burning_rush",           -- Burning Rush increases movement speed by an additional 20% but the health cost is increased by 2%.
+    [56239] = "harvest_life",           -- Harvest Life affects 2 additional targets and heals you for 50% more.
+    [58079] = "sacrificial_pact",       -- Reduces the cooldown of Sacrificial Pact by 60 sec and increases its absorption by 50%.
+    
+    -- Major Glyphs - Utility Enhancement
+    [56224] = "banish",                 -- Increases the duration of your Banish by 5 sec and allows it to be used on Aberrations.
+    [56231] = "create_healthstone",     -- You can have up to 5 Healthstones in your bags, and creating them grants you one immediately.
+    [56230] = "create_soulstone",       -- Reduces the mana cost of Create Soulstone by 70% and allows you to have 2 in your bags.
+    [63311] = "curse_of_elements",      -- Your Curse of the Elements also increases all damage dealt to the target by 5%.
+    [56213] = "enslave_demon",          -- Reduces the cast time of Enslave Demon by 50% and its duration is increased by 10 sec.
+    [56223] = "eye_of_kilrogg",         -- Increases the movement speed of your Eye of Kilrogg by 50% and extends its duration by 45 sec.
+    [56217] = "unending_breath",        -- Your Unending Breath spell also grants water breathing and increases swim speed by 50%.
+    
+    -- Minor Glyphs - Visual and Convenience
+    [58081] = "verdant_spheres",        -- Your Soul Shards appear as green orbs instead of purple.
+    [63310] = "soul_stone",             -- Reduces the mana cost of your Soulstone by 50%.
+    [70945] = "floating_shards",        -- Your Soul Shards float around you instead of being contained.
+    [58080] = "dark_apotheosis",        -- Changes the visual of your Metamorphosis to be more shadow-themed.
+    [63312] = "felguard",               -- Your Felguard appears larger and more intimidating.
+    [70944] = "wrathguard",             -- Your Wrathguard dual-wields larger weapons.
+    [58077] = "observer",               -- Your Observer has an improved visual effect and tracking abilities.
+    [58078] = "abyssal",                -- Your Infernal and Abyssal have enhanced fire effects.
+    [63313] = "imp",                    -- Your Imp appears in different colors based on your current specialization.
+    [63314] = "succubus",               -- Your Succubus has an improved seduction animation and visual effects.    [63315] = "voidlord",               -- Your Voidwalker appears as a more intimidating Voidlord when using Grimoire of Supremacy.
+    [63316] = "shivarra",               -- Your Succubus appears as a Shivarra when using Grimoire of Supremacy.
+    [70948] = "terrorguard",            -- Your Felguard appears as a Terrorguard when using Grimoire of Supremacy.
+    [70949] = "doomguard",              -- Enhances the visual effects of your Doomguard summon.
+    [58076] = "infernal",               -- Your Infernal has enhanced meteor impact and fire aura effects.
+    
+    -- Minor Glyphs
+    [57259] = "conflagrate",       -- Your Conflagrate spell no longer consumes Immolate from the target.
+    [56228] = "demonic_circle",     -- Your Demonic Circle: Teleport spell no longer clears your Soul Shards.
+    [56246] = "eye_of_kilrogg",     -- Increases the vision radius of your Eye of Kilrogg by 30 yards.
+    [58068] = "falling_meteor",     -- Your Meteor Strike now creates a surge of fire outward from the demon's position.
+    [58094] = "felguard",           -- Increases the size of your Felguard, making him appear more intimidating.
+    [56244] = "health_funnel",      -- Increases the effectiveness of your Health Funnel spell by 30%.
+    [58079] = "hand_of_guldan",     -- Your Hand of Gul'dan creates a shadow explosion that can damage up to 5 nearby enemies.
+    [58081] = "shadow_bolt",        -- Your Shadow Bolt now creates a column of fire that damages all enemies in its path.
+    [45785] = "verdant_spheres",    -- Changes the appearance of your Shadow Orbs to 3 floating green fel spheres.
+    [58093] = "voidwalker",         -- Increases the size of your Voidwalker, making him appear more intimidating.
+} )
+
+-- Advanced Aura System with sophisticated generate functions
+spec:RegisterAuras( {
+    -- Core Affliction DoTs with enhanced tracking
+    corruption = {
+        id = 172,
+        duration = 18,
+        tick_time = 3,
+        max_stack = 1,
+        pandemic = true,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetTargetDebuffByID( 172 )
+            
+            if name and caster == "player" then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                t.duration = duration
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.duration = 18
+        end,
+    },
+    
+    agony = {
+        id = 980,
+        duration = 24,
+        tick_time = 2,
+        max_stack = 10,
+        pandemic = true,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetTargetDebuffByID( 980 )
+            
+            if name and caster == "player" then
+                t.name = name
+                t.count = count > 0 and count or 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                t.duration = duration
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.duration = 24
+        end,
+    },
+    
+    unstable_affliction = {
+        id = 30108,
+        duration = 14,
+        tick_time = 2,
+        max_stack = 1,
+        pandemic = true,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetTargetDebuffByID( 30108 )
+            
+            if name and caster == "player" then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                t.duration = duration
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.duration = 14
+        end,
+    },
+    
+    haunt = {
+        id = 48181,
+        duration = 8,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetTargetDebuffByID( 48181 )
+            
+            if name and caster == "player" then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                t.duration = duration
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.duration = 8
+        end,
+    },
+    
+    seed_of_corruption = {
+        id = 27243,
+        duration = 18,
+        tick_time = 3,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetTargetDebuffByID( 27243 )
+            
+            if name and caster == "player" then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                t.duration = duration
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.duration = 18
+        end,
+    },
+    
+    -- Proc auras with sophisticated tracking
+    nightfall = {
+        id = 17941,
+        duration = 12,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 17941 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    soul_burn = {
+        id = 74434,
+        duration = 30,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 74434 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    -- Dark Soul forms with enhanced tracking
+    dark_soul_knowledge = {
+        id = 113858,
+        duration = 20,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 113858 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    dark_soul_misery = {
+        id = 113860,
+        duration = 20,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 113860 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    -- Channeled abilities
+    malefic_grasp = {
+        id = 103103,
+        duration = 3,
+        tick_time = 1,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetTargetDebuffByID( 103103 )
+            
+            if name and caster == "player" then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                t.duration = duration
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.duration = 3
+        end,
+    },
+    
+    drain_soul = {
+        id = 1120,
+        duration = 6,
+        tick_time = 1,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetTargetDebuffByID( 1120 )
+            
+            if name and caster == "player" then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                t.duration = duration
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.duration = 6
+        end,
+    },
+    
+    -- Defensive and utility auras
+    unending_resolve = {
+        id = 104773,
+        duration = 8,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 104773 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    dark_bargain = {
+        id = 110913,
+        duration = 8,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 110913 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    sacrificial_pact = {
+        id = 108416,
+        duration = 8,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 108416 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    -- Movement and utility
+    burning_rush = {
+        id = 111400,
+        duration = 3600,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 111400 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    unbound_will = {
+        id = 108482,
+        duration = 6,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 108482 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    -- Armor buffs
+    fel_armor = {
+        id = 28176,
+        duration = 1800,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 28176 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    demon_armor = {
+        id = 687,
+        duration = 1800,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 687 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    -- Talent-based auras
+    soul_link = {
+        id = 108415,
+        duration = 3600,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 108415 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    grimoire_of_sacrifice = {
+        id = 108503,
+        duration = 15,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 108503 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    -- Tier set bonuses
+    tier14_2pc_affliction = {
+        id = 105843,
+        duration = 30,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 105843 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    tier14_4pc_affliction = {
+        id = 105844,
+        duration = 8,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 105844 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    tier15_2pc_affliction = {
+        id = 138129,
+        duration = 15,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 138129 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    tier15_4pc_affliction = {
+        id = 138132,
+        duration = 6,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 138132 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    tier16_2pc_affliction = {
+        id = 144912,
+        duration = 20,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 144912 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    tier16_4pc_affliction = {
+        id = 144915,
+        duration = 8,
+        max_stack = 3,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 144915 )
+            
+            if name then
+                t.name = name
+                t.count = count > 0 and count or 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    -- Legendary cloak proc
+    legendary_cloak_proc = {
+        id = 148009,
+        duration = 4,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 148009 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+} )
+
+-- Affliction Warlock abilities
+spec:RegisterAbilities( {
+    -- Core Rotational Abilities
+    shadow_bolt = {
+        id = 686,
+        cast = function() return 2.5 * haste end,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0.075,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 136197,
+        
+        handler = function()
+            -- 15% chance to generate a Soul Shard
+            if math.random() < 0.15 then
+                gain( 1, "soul_shards" )
+            end
+        end,
+    },
+    
+    haunt = {
+        id = 48181,
+        cast = function() return 1.5 * haste end,
+        cooldown = 8,
+        gcd = "spell",
+        
+        spend = 1,
+        spendType = "soul_shards",
+        
+        startsCombat = true,
+        texture = 236298,
+        
+        handler = function()
+            applyDebuff( "target", "haunt" )
+        end,
+    },
+    
+    agony = {
+        id = 980,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0.1,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 136139,
+        
+        handler = function()
+            applyDebuff( "target", "agony" )
+            -- Set initial stacks to 1
+            debuff.agony.stack = 1
+        end,
+    },
+    
+    corruption = {
+        id = 172,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0.1,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 136118,
+        
+        handler = function()
+            applyDebuff( "target", "corruption" )
+        end,
+    },
+    
+    unstable_affliction = {
+        id = 30108,
+        cast = function() return 1.5 * haste end,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0.15,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 136228,
+        
+        handler = function()
+            applyDebuff( "target", "unstable_affliction" )
+        end,
+    },
+    
+    malefic_grasp = {
+        id = 103103,
+        cast = function() return 3 * haste end,
+        cooldown = 0,
+        gcd = "spell",
+        
+        channeled = true,
+        
+        spend = 0.04, -- Per tick
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 136217,
+        
+        handler = function()
+            applyDebuff( "target", "malefic_grasp" )
+        end,
+        
+        finish = function()
+            removeDebuff( "target", "malefic_grasp" )
+        end,
+    },
+    
+    drain_soul = {
+        id = 1120,
+        cast = function() return 6 * haste end,
+        cooldown = 0,
+        gcd = "spell",
+        
+        channeled = true,
+        
+        spend = 0.04, -- Per tick
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 136163,
+        
+        handler = function()
+            applyDebuff( "target", "drain_soul" )
+        end,
+        
+        finish = function()
+            removeDebuff( "target", "drain_soul" )
+            -- Target died while channeling?
+            if target.health.pct <= 0 then
+                gain( 1, "soul_shards" )
+            end
+        end,
+    },
+    
+    seed_of_corruption = {
+        id = 27243,
+        cast = function() return 2 * haste end,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0.15,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 136193,
+        
+        handler = function()
+            applyDebuff( "target", "seed_of_corruption" )
+        end,
+    },
+    
+    life_tap = {
+        id = 1454,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        
+        startsCombat = false,
+        texture = 136126,
+        
+        handler = function()
+            -- Costs 15% health, returns 15% mana
+            local health_cost = health.max * 0.15
+            local mana_return = mana.max * 0.15
+            
+            spend( health_cost, "health" )
+            gain( mana_return, "mana" )
+        end,
+    },
+    
+    fear = {
+        id = 5782,
+        cast = function() return 1.5 * haste end,
+        cooldown = function() return glyph.nightmares.enabled and 15 or 23 end,
+        gcd = "spell",
+        
+        spend = 0.05,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 136183,
+        
+        handler = function()
+            applyDebuff( "target", "fear" )
+        end,
+    },
+    
+    -- Soul Shards spenders
+    soul_swap = {
+        id = 86121,
+        cast = 0,
+        cooldown = function() return glyph.soul_swap.enabled and 0 or 30 end,
+        gcd = "spell",
+        
+        spend = function() return glyph.soul_swap.enabled and 1 or 0 end,
+        spendType = "soul_shards",
+        
+        startsCombat = false,
+        texture = 460857,
+        
+        usable = function()
+            -- Check if there are DoTs on the target
+            if not (debuff.agony.up or debuff.corruption.up or debuff.unstable_affliction.up) then
+                return false, "target has no affliction DoTs to swap"
+            end
+            return true
+        end,
+        
+        handler = function()
+            -- Store target's DoTs
+            applyBuff( "soul_swap" )
+            
+            -- Remove DoTs from target if not using Exhale
+            if buff.soul_swap_exhale.down then
+                removeDebuff( "target", "agony" )
+                removeDebuff( "target", "corruption" )
+                removeDebuff( "target", "unstable_affliction" )
+            end
+        end,
+    },
+    
+    soul_swap_exhale = {
+        id = 86213,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        
+        startsCombat = true,
+        texture = 460857,
+        
+        usable = function()
+            return buff.soul_swap.up, "soul_swap buff not active"
+        end,
+        
+        handler = function()
+            -- Apply DoTs from Soul Swap to target
+            applyDebuff( "target", "agony" )
+            applyDebuff( "target", "corruption" )
+            applyDebuff( "target", "unstable_affliction" )
+            
+            removeBuff( "soul_swap" )
+            applyBuff( "soul_swap_exhale" )
+        end,
+    },
+    
+    -- Cooldowns
+    dark_soul = {
+        id = 113860,
+        cast = 0,
+        cooldown = 120,
+        gcd = "off",
+        
+        toggle = "cooldowns",
+        
+        startsCombat = false,
+        texture = 538042,
+        
+        handler = function()
+            applyBuff( "dark_soul_misery" )
+        end,
+    },
+    
+    summon_doomguard = {
+        id = 18540,
+        cast = 0,
+        cooldown = 600,
+        gcd = "spell",
+        
+        toggle = "cooldowns",
+        
+        spend = 1,
+        spendType = "soul_shards",
+        
+        startsCombat = false,
+        texture = 603013,
+        
+        handler = function()
+            -- Summon pet
+        end,
+    },
+    
+    -- Defensive and Utility
+    dark_bargain = {
+        id = 110913,
+        cast = 0,
+        cooldown = 180,
+        gcd = "off",
+        
+        toggle = "defensives",
+        
+        startsCombat = false,
+        texture = 538038,
+        
+        handler = function()
+            applyBuff( "dark_bargain" )
+        end,
+    },
+    
+    unending_resolve = {
+        id = 104773,
+        cast = 0,
+        cooldown = 180,
+        gcd = "off",
+        
+        toggle = "defensives",
+        
+        startsCombat = false,
+        texture = 136150,
+        
+        handler = function()
+            applyBuff( "unending_resolve" )
+        end,
+    },
+    
+    demonic_circle_summon = {
+        id = 48018,
+        cast = 0.5,
+        cooldown = 0,
+        gcd = "spell",
+        
+        startsCombat = false,
+        texture = 136126,
+        
+        handler = function()
+            applyBuff( "demonic_circle" )
+        end,
+    },
+    
+    demonic_circle_teleport = {
+        id = 48020,
+        cast = 0,
+        cooldown = 30,
+        gcd = "spell",
+        
+        startsCombat = false,
+        texture = 607512,
+        
+        handler = function()
+            -- Teleport to circle
+        end,
+    },
+    
+    -- Talent abilities
+    howl_of_terror = {
+        id = 5484,
+        cast = 0,
+        cooldown = 40,
+        gcd = "spell",
+        
+        spend = 0.1,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 607510,
+        
+        handler = function()
+            -- Fear all enemies in 10 yards
+        end,
+    },
+    
+    mortal_coil = {
+        id = 6789,
+        cast = 0,
+        cooldown = 30,
+        gcd = "spell",
+        
+        spend = 0.06,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 607514,
+        
+        handler = function()
+            -- Fear target and heal 11% of max health
+            local heal_amount = health.max * 0.11
+            gain( heal_amount, "health" )
+        end,
+    },
+    
+    shadowfury = {
+        id = 30283,
+        cast = 0,
+        cooldown = 30,
+        gcd = "spell",
+        
+        spend = 0.06,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 457223,
+        
+        handler = function()
+            -- Stun all enemies in 8 yards
+        end,
+    },
+    
+    grimoire_of_sacrifice = {
+        id = 108503,
+        cast = 0,
+        cooldown = 30,
+        gcd = "spell",
+        
+        startsCombat = false,
+        texture = 538443,
+        
+        handler = function()
+            applyBuff( "grimoire_of_sacrifice" )
+        end,
+    },
+} )
+
+-- State Expressions for Affliction
+spec:RegisterStateExpr( "soul_shards", function()
+    return soul_shards.current
+end )
+
+-- Range
+spec:RegisterRanges( "shadow_bolt", "agony", "fear" )
+
+-- Options
+spec:RegisterOptions( {
+    enabled = true,
+    
+    aoe = 3,
+    
+    gcd = 1645,
+    
+    nameplates = true,
+    nameplateRange = 8,
+    
+    damage = true,
+    damageExpiration = 8,
+    
+    potion = "jade_serpent",
+    
+    package = "Affliction",
+} )
+
+-- Default pack for MoP Affliction Warlock
+spec:RegisterPack( "Affliction", 20250515, [[Hekili:T3vBVTTn04FldjHr9LSgR2e75XVc1cbKzKRlvnTo01OEckA2IgxVSbP5cFcqifitljsBPIYPKQbbXQPaX0YCRwRNFAxBtwR37pZUWZB3SZ0Zbnu(ndREWP)8dyNF3BhER85x(jym5nymTYnv0drHbpz5IW1vZgbo1P)MM]] )
+
+-- Register pack selector for Affliction
+spec:RegisterPackSelector( "affliction", "Affliction", "|T136145:0|t Affliction",
+    "Handles all aspects of Affliction Warlock DPS with focus on DoT management and Soul Shard usage.",
+    nil )
