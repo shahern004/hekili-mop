@@ -226,7 +226,7 @@ end
 
 
 ns.fsub = function( s, pattern, repl )
-    return s:gsub( "%f[%w]" .. s .. "%f[%W]", repl )
+    return s:gsub( "%f[%w]" .. pattern .. "%f[%W]", repl )
 end
 
 

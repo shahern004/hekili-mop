@@ -22,12 +22,11 @@ if playerClass ~= 'DEATHKNIGHT' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -1706,6 +1705,3 @@ end )
 spec:RegisterPack( "Blood", 20250515, [[Hekili:T3vBVTTnu4FlXnHr9LsojdlJE7Kf7K3KRLvAm7njb5L0Svtla8Xk20IDngN7ob6IPvo9CTCgbb9DZJdAtP8dOn3zoIHy(MWDc)a5EtbWaVdFz6QvBB5Q(HaNUFxdH8c)y)QvNRCyPKU2k9yQ1qkE5nE)waT58Pw(aFm0P)MM]]  )
 
 -- Register pack selector for Blood
-spec:RegisterPackSelector( "blood", "Blood", "|T237517:0|t Blood",
-    "Handles all aspects of Blood Death Knight tanking with priority on survivability and threat generation.",
-    nil )

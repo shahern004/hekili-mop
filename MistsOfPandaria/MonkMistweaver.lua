@@ -9,12 +9,11 @@ if playerClass ~= 'MONK' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -622,33 +621,9 @@ spec:RegisterAuras( {
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
-        end
-    },
+        end    },
 
-    -- Enveloping Mist: Strong single-target heal over time
-    enveloping_mist = {
-        id = 124682,
-        duration = 6,
-        tick_time = 1,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "target", 124682, "PLAYER" )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
+    -- Removed duplicate enveloping_mist definition (kept later definition at line 1255)
 
     -- === Advanced Mistweaver Mechanics ===
 
@@ -673,80 +648,13 @@ spec:RegisterAuras( {
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
-        end
-    },
+        end    },    -- Removed duplicate teachings_of_the_monastery definition (kept later definition at line 1303)
 
-    -- Teachings of the Monastery: Damage spell stacks for enhanced healing
-    teachings_of_the_monastery = {
-        id = 118672,
-        duration = 30,
-        max_stack = 3,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 118672 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
+    -- Removed duplicate muscle_memory definition (kept later definition at line 1375)
 
-    -- Muscle Memory: Jab and Spinning Crane Kick stack for Chi generation
-    muscle_memory = {
-        id = 139598,
-        duration = 30,
-        max_stack = 3,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 139598 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
+    -- Removed duplicate vital_mists definition (kept later definition at line 1351)
 
-    -- Vital Mists: Surging Mist stacks for enhanced healing
-    vital_mists = {
-        id = 118674,
-        duration = 30,
-        max_stack = 5,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 118674 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },    -- === Defensive and Utility Auras ===
+    -- === Defensive and Utility Auras ===
 
     -- Fortifying Brew: Damage reduction
     fortifying_brew = {
@@ -938,33 +846,10 @@ spec:RegisterAuras( {
             t.count = 0
             t.expires = 0
             t.applied = 0
-            t.caster = "nobody"
-        end
+            t.caster = "nobody"        end
     },
 
-    -- Momentum: Movement speed after Roll
-    momentum = {
-        id = 119085,
-        duration = 10,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 119085 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
+    -- Removed duplicate momentum definition (kept later definition at line 1471)
 
     -- Chi Torpedo: Enhanced movement
     chi_torpedo = {
@@ -2175,6 +2060,3 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Mistweaver", 20250517, [[Hekili:v3vBVnTns4FthjJY5gC03WlKGSqLVA2qzDXDZfbgJt)g7oLK7pszKDQAXnr5JTOl3JNPh3KiBSWCPHEyI6DfWo7bU5WHuT09qSHGzrtbcnZ5YXXsxGBpXlpjDRBl(mGfKiLsf6n5PZpC8MO2)W7cIRPqn5rCRgk5wQxrpCXrRH72sOoHJUu1HPOujjrKxTdF2HZ5wNXLk(kC9OQTgDxXQgOuZkExxDxXQYEQnQrtcxPxuQFbTe1sGvzsgLo0n4U8zYkm55aZQm5u8sfLnkLl81hskEqrMzXlSE3tvY3MBbCvZli5lQnY3mMh)ENKvTMBJTkV8CsVMoOvHXLsH3aOkYUkj(5RZgGTxHnJ3B(j44FWr)lXH06W9GCbg)Z8VuCLo0hVZmEPsOUbRrz5G5jQo0rzt)8VbbYAM2jkz5Y1qkiG8NnQEzRq(4cYOb7UCOmrCkebZoVOkL9KM9B1JMDDVGnzrCVYgYbAXrxNv6kTyK)YKj4MaLO)5jZi)bKLSxlQMfVf4eN3Q)ycUhD3cV9eLc8Vu9TjAo69R)SyEz1p)rIJ93Dl2mOF0Qx4aCkqpj(KmcqcRfhT)]] )
 
 -- Register pack selector for Mistweaver
-spec:RegisterPackSelector( "mistweaver", "Mistweaver", "|T627487:0|t Mistweaver",
-    "Handles all aspects of Mistweaver Monk healing rotation with focus on effective Chi usage.",
-    nil )

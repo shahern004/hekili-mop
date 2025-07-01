@@ -24,10 +24,22 @@ local GetDetailedItemLevelInfo = function(itemLink)
 end
 
 -- MoP: GetTalentInfoByID compatibility
-local GetTalentInfoByID = GetTalentInfoByID or function(talentID, groupIndex)
-    -- In MoP, talents work differently - try to check if it's a player spell
-    -- This is a fallback that may not be perfect
-    local enabled = IsPlayerSpell(talentID)
+local OriginalGetTalentInfoByID = GetTalentInfoByID
+local GetTalentInfoByID = function(talentID, groupIndex)
+    if OriginalGetTalentInfoByID then
+        -- If the original function exists, try to use it with proper arguments
+        groupIndex = groupIndex or (GetActiveSpecGroup and GetActiveSpecGroup()) or 1
+        local success, id, name, tier, enabled, available, sID, icon, row, column, known = pcall(OriginalGetTalentInfoByID, talentID, groupIndex)
+        if success then
+            return id, name, tier, enabled, available, sID, icon, row, column, known
+        end
+    end
+    
+    -- Fallback for MoP - check if it's a player spell
+    local enabled = false
+    if talentID and type(talentID) == "number" and talentID > 0 then
+        enabled = IsPlayerSpell(talentID)
+    end
     return nil, nil, nil, enabled, nil, talentID, nil, nil, nil, nil, enabled
 end
 
@@ -45,9 +57,20 @@ end
 
 -- MoP: GetSpecialization/GetSpecializationInfo compatibility
 local GetSpecialization = GetSpecialization or function()
-    -- In MoP, use talent group to determine spec
+    -- Enhanced MoP Classic spec detection
+    local _, class = UnitClass("player")
+    
+    if class == "DRUID" then
+        -- Detect Druid specialization based on abilities and forms
+        if IsPlayerSpell(33876) or IsPlayerSpell(5221) then return 1 -- Feral (maps to 103)
+        elseif IsPlayerSpell(33878) or IsPlayerSpell(6807) then return 2 -- Guardian (maps to 104)  
+        elseif IsPlayerSpell(78674) or IsPlayerSpell(8921) then return 3 -- Balance (maps to 102)
+        elseif IsPlayerSpell(18562) or IsPlayerSpell(2908) then return 4 -- Restoration (maps to 105)
+        else return 1 end -- Default to Feral
+    end
+    
+    -- For other classes, use talent group as fallback
     local activeTalentGroup = GetActiveTalentGroup and GetActiveTalentGroup() or 1
-    -- Simplified: return 1 for primary spec, 2 for secondary
     return activeTalentGroup
 end
 
@@ -70,6 +93,31 @@ local GetSpecializationInfo = GetSpecializationInfo or function(specIndex)
         elseif IsPlayerSpell(31850) then specID = 66; specName = "Protection"  -- Ardent Defender
         elseif IsPlayerSpell(20473) then specID = 65; specName = "Holy"  -- Holy Shock
         else specID = 70; specName = "Retribution" end
+    elseif class == "HUNTER" then
+        if IsPlayerSpell(19574) then specID = 253; specName = "Beast Mastery"  -- Bestial Wrath
+        elseif IsPlayerSpell(19506) then specID = 254; specName = "Marksmanship"  -- Improved Tracking
+        elseif IsPlayerSpell(53301) then specID = 255; specName = "Survival"  -- Explosive Shot
+        else 
+            -- Fallback detection based on other abilities
+            if IsPlayerSpell(34026) then specID = 253; specName = "Beast Mastery"  -- Kill Command
+            elseif IsPlayerSpell(82928) then specID = 254; specName = "Marksmanship"  -- Aimed Shot
+            elseif IsPlayerSpell(3674) then specID = 255; specName = "Survival"  -- Black Arrow
+            else specID = 255; specName = "Survival" end -- Default to Survival
+        end
+    elseif class == "DRUID" then
+        -- Druid spec detection for MoP Classic
+        if IsPlayerSpell(78674) then specID = 102; specName = "Balance"  -- Starsurge
+        elseif IsPlayerSpell(33876) then specID = 103; specName = "Feral"  -- Mangle (Cat)
+        elseif IsPlayerSpell(33878) then specID = 104; specName = "Guardian"  -- Mangle (Bear)
+        elseif IsPlayerSpell(18562) then specID = 105; specName = "Restoration"  -- Swiftmend
+        else 
+            -- Additional fallback detection
+            if IsPlayerSpell(5221) then specID = 103; specName = "Feral"  -- Shred
+            elseif IsPlayerSpell(6807) then specID = 104; specName = "Guardian"  -- Maul
+            elseif IsPlayerSpell(2908) then specID = 105; specName = "Restoration"  -- Soothe
+            elseif IsPlayerSpell(8921) then specID = 102; specName = "Balance"  -- Moonfire
+            else specID = 103; specName = "Feral" end -- Default to Feral
+        end
     -- Add more classes as needed
     else
         specID = 1
@@ -488,11 +536,16 @@ function ns.updateTalents()
     -- local specGroup = GetSpecialization()
 
     for k, v in pairs( class.talents ) do
-        local _, name, _, enabled, _, sID, _, _, _, _, known = GetTalentInfoByID( v, 1 )
+        local enabled, name, sID, known
+        
+        -- Use the compatibility function that handles MoP differences
+        _, name, _, enabled, _, sID, _, _, _, _, known = GetTalentInfoByID( v, 1 )
 
         if not name then
             -- We probably used a spellID.
-            enabled = IsPlayerSpell( v )
+            if v and type(v) == "number" and v > 0 then
+                enabled = IsPlayerSpell( v )
+            end
         end
 
         enabled = enabled or known

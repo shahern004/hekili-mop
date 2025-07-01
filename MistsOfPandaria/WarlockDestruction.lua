@@ -8,12 +8,11 @@ if playerClass ~= 'WARLOCK' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -1349,6 +1348,3 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Destruction", 20250515, [[Hekili:T3vBVTTn04FldjHr9LSgR2e75XVc1cbKzKRlvnTo01OEckA2IgxVSbP5cFcqifitljsBPIYPKQbbXQPaX0YCRwRNFAxBtwR37pZUWZB3SZ0Zbnu(ndREWP)8dyNF3BhER85x(jym5nymTYnv0drHbpz5IW1vZgbo1P)MM]] )
 
 -- Register pack selector for Destruction
-spec:RegisterPackSelector( "destruction", "Destruction", "|T136186:0|t Destruction",
-    "Handles all aspects of Destruction Warlock DPS with focus on Burning Ember generation and Chaos Bolt usage.",
-    nil )

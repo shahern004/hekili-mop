@@ -8,19 +8,8 @@ if not Hekili or not Hekili.NewSpecialization then return end
 if select(2, UnitClass('player')) ~= 'HUNTER' then return end
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
-
-local spec
-
-local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
-    if not spec and class and Hekili.NewSpecialization then
-        spec = Hekili:NewSpecialization( 254 ) -- Marksmanship spec ID for MoP
-    end
-    return class, state, spec
-end
+local class = Hekili.Class
+local state = Hekili.State
 
 local strformat = string.format
 local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
@@ -64,7 +53,9 @@ mmCombatLogFrame:SetScript("OnEvent", function(self, event)
 end)
 
 local function RegisterMarksmanshipSpec()
-    local class, state, spec = getReferences()
+    if not class or not state or not Hekili.NewSpecialization then return end
+    
+    local spec = Hekili:NewSpecialization( 254 ) -- Marksmanship spec ID for MoP
     if not spec then return end -- Not ready yet
 
 -- Enhanced Resource System for Marksmanship
@@ -1953,11 +1944,6 @@ spec:RegisterSetting( "mark_boss_only", true, {
 
 -- Register default pack for MoP Marksmanship Hunter
 spec:RegisterPack( "Marksmanship", 20250515, [[Hekili:T1nBVTnUr8FlSnLLAWOoYHTO4yrwMQLf8SKPLynoS49AOPrRkvaN1HA2YIPvrsSsTkSiRKQfaLBYuZ1Ya3MFtFJpNvFtNLzZYvyeoKq)QL9aP6WLL3aUckUk(ifF9719nEY78dcN3w(GiIrD0H))scKuHteK0o1IrFIIS4mPxpw)mHkP8kHbFCGcQeDzGK9Sc9OVqTSdErLzLuXwvgnt0usg0y3OcvLsciToasrJIPzvzzyyHkFasw1us5czKzSkH1agzQu5Gunv0QOsnwCPl0bvzLKQ2YXKtvn...]] )
-
--- Register pack selector for Marksmanship
-spec:RegisterPackSelector( "marksmanship", "Marksmanship", "|T132222:0|t Marksmanship",
-    "Handles all aspects of Marksmanship Hunter rotation with focus on Aimed Shot and Chimera Shot.",
-    nil )
 
 end
 

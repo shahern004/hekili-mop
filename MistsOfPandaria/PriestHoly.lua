@@ -8,12 +8,11 @@ if playerClass ~= 'PRIEST' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -1105,6 +1104,3 @@ spec:RegisterAbilities( {
 spec:RegisterPack( "Holy", 20250528, [[Hekili:T1PBVTTn04FlXjHj0Ofnr0i4Lvv9n0KxkzPORkyzyV1ikA2mzZ(fQ1Hm8kkjjjjlvQKKQKYfan1Y0YPpNvFupNLJLhum9DbDps9yVDJnLHrdlRJsrkzpNISnPnkTkUk(qNGYXnENRNpnS2)YBFm(nEF5(wB5OxZ)m45MyiytnisgMPzJfW2vZYwbpzw0aD6w)aW]] )
 
 -- Register pack selector for Holy
-spec:RegisterPackSelector( "holy", "Holy", "|T135920:0|t Holy",
-    "Handles all aspects of Holy Priest healing with focus on AoE healing and chakra states.",
-    nil )

@@ -220,9 +220,10 @@ do
 
   --- Sets the cursor position relative to un-colored text.
   local function SetCursorPosition ( self, Cursor, ... )
+    if not Cursor then Cursor = 0 end
     local _, Cursor = lib.FormatCode( GetCodeCached( self ),
       nil, self.faiap_colorTable, Cursor );
-    return SetCursorPositionBackup( self, Cursor, ... );
+    return SetCursorPositionBackup( self, Cursor or 0, ... );
   end
 
   --- Highlights a substring relative to un-colored text.
@@ -529,6 +530,9 @@ end
 
 --- @return Token type or nil if end of string, position of char after token.
 local function NextToken ( Text, Pos )
+  if not Text or type(Text) ~= "string" then
+    return;
+  end
   local Byte = strbyte( Text, Pos );
   if ( not Byte ) then
     return;
@@ -667,9 +671,13 @@ local Buffer = {}
 -- @param CursorOld  Optional cursor position to keep track of.
 -- @see lib.Enable
 -- @return Formatted text, and an updated cursor position if requested.
-function lib:FormatCode ( TabWidth, ColorTable, CursorOld )
+function lib:FormatCode ( Code, TabWidth, ColorTable, CursorOld )
+  if not Code or type(Code) ~= "string" then
+    return Code or "", CursorOld;
+  end
+  
   if ( not ( TabWidth or ColorTable ) ) then
-    return self, CursorOld;
+    return Code, CursorOld;
   end
 
   wipe( Buffer );
@@ -682,13 +690,13 @@ function lib:FormatCode ( TabWidth, ColorTable, CursorOld )
 
   local TokenType, PosNext, Pos = TK_UNKNOWN, 1, nil;
   while ( TokenType ) do
-    Pos, TokenType, PosNext = PosNext, NextToken( self, PosNext );
+    Pos, TokenType, PosNext = PosNext, NextToken( Code, PosNext );
 
     if ( TokenType
       and ( PassedIndent or not TabWidth or TokenType ~= TK_WHITESPACE )
       ) then
       PassedIndent = true; -- Passed leading whitespace
-      local Token = strsub( self, Pos, PosNext - 1 );
+      local Token = strsub( Code, Pos, PosNext - 1 );
 
       local ColorCode;
       if ( ColorTable ) then -- Add coloring

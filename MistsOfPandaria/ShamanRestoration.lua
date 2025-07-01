@@ -8,12 +8,11 @@ if playerClass ~= 'SHAMAN' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -1416,6 +1415,3 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Restoration", 20250515, [[Hekili:T1vBVTTnu4FlXiPaQWKrdpvIbKmEbvJRLwwxP2rI1mzQiQ1GIugwwtyQsyBvHnYJP6LP56NHJUHX2Z)OnRXYQZl6R)UNB6QL(zhdkr9bQlG(tB8L4Wdpb3NNVh(GWdFOdpNFpdO8Hdm6Tw(acm2nDWZ5MjsXyJKCtj3cU5sIVOd8jkzPsMLIX65MuLY1jrwLkKWrZA3CluOKCvId8LHIyyIeLSr1WIJ1jPr7cYeKwrJIuWXRKtFDlYkLmCPFJr(4OsZQR]] )
 
 -- Register pack selector for Restoration
-spec:RegisterPackSelector( "restoration", "Restoration", "|T136052:0|t Restoration",
-    "Handles all aspects of Restoration Shaman healing with focus on totems and Chain Heal usage.",
-    nil )

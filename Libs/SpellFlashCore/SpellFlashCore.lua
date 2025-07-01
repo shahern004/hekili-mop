@@ -55,7 +55,7 @@ local GetSpellInfo, GetSpellSubtext = GetSpellInfo, GetSpellSubtext or function(
 local LegacyGetItemInfo = GetItemInfo
 
 local ItemCache = setmetatable({}, {__index = function(t, v) 
-    local itemInfo = LegacyGetItemInfo(v)
+    local itemInfo = _G.GetItemInfo(v) -- Changed LegacyGetItemInfo to _G.GetItemInfo
     if itemInfo then 
         t[v] = {itemInfo} 
         return t[v] 
@@ -85,9 +85,21 @@ end
 
 function SpellFlashCore.ItemName(ItemID)
     if type(ItemID) == "number" then
-        return (LegacyGetItemInfo(ItemID))
+        if _G.GetItemInfo and type(_G.GetItemInfo) == "function" then
+            -- GetItemInfo can return multiple values; the name is the first.
+            local name = select(1, _G.GetItemInfo(ItemID))
+            if name then
+                return name
+            else
+                -- _G.GetItemInfo was called but didn't return a name.
+                return tostring(ItemID) -- Fallback to ItemID string.
+            end
+        else
+            -- _G.GetItemInfo is not available or not a function.
+            return tostring(ItemID) -- Fallback to ItemID string.
+        end
     end
-    return ItemID
+    return ItemID -- If ItemID wasn't a number.
 end
 
 function SpellFlashCore.Replace(...)

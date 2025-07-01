@@ -10,12 +10,11 @@ if playerClass ~= 'WARRIOR' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -1809,6 +1808,3 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Fury", 20250515, [[Hekili:TznBVTTnu4FlXjHjMjENnWUYJaUcMLf8KvAm7nYjPPQonGwX2jzlkiuQumzkaLRQiQOeH9an1Y0YnpYoWgwlYFltwGtRJ(aiCN9tobHNVH)8TCgF)(5ElyJlFNlcDnPXD5A8j0)(MNZajDa3aNjp2QphnPtoKvyF)GcKKOzjI08QjnOVOCXMj3nE)waT58Pw(aFm0P)MM]] )
 
 -- Register pack selector for Fury
-spec:RegisterPackSelector( "fury", "Fury", "|T132347:0|t Fury",
-    "Handles all aspects of Fury Warrior DPS with focus on dual-wielding and Blood Thirst usage.",
-    nil )

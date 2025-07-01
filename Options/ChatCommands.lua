@@ -87,7 +87,10 @@ function Hekili:CmdLine( input )
         dotinfo  = function () self:DumpDotInfo( args[2] ) end,
         recover  = function () self:HandleRecoverCommand() end,
         fix      = function () self:HandleFixCommand( args ) end,
-        snapshot = function () self:MakeSnapshot() end,
+        snapshot = function () 
+            print("Snapshot command handler called")
+            self:MakeSnapshot() 
+        end,
         skeleton = function () self:HandleSkeletonCommand( input ) end
     }
 

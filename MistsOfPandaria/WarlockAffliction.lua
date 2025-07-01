@@ -8,12 +8,11 @@ if playerClass ~= 'WARLOCK' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -488,16 +487,15 @@ spec:RegisterGlyphs( {
     [70948] = "terrorguard",            -- Your Felguard appears as a Terrorguard when using Grimoire of Supremacy.
     [70949] = "doomguard",              -- Enhances the visual effects of your Doomguard summon.
     [58076] = "infernal",               -- Your Infernal has enhanced meteor impact and fire aura effects.
-    
-    -- Minor Glyphs
+      -- Minor Glyphs
     [57259] = "conflagrate",       -- Your Conflagrate spell no longer consumes Immolate from the target.
-    [56228] = "demonic_circle",     -- Your Demonic Circle: Teleport spell no longer clears your Soul Shards.
+    [57260] = "demonic_circle",     -- Your Demonic Circle: Teleport spell no longer clears your Soul Shards.
     [56246] = "eye_of_kilrogg",     -- Increases the vision radius of your Eye of Kilrogg by 30 yards.
     [58068] = "falling_meteor",     -- Your Meteor Strike now creates a surge of fire outward from the demon's position.
     [58094] = "felguard",           -- Increases the size of your Felguard, making him appear more intimidating.
-    [56244] = "health_funnel",      -- Increases the effectiveness of your Health Funnel spell by 30%.
-    [58079] = "hand_of_guldan",     -- Your Hand of Gul'dan creates a shadow explosion that can damage up to 5 nearby enemies.
-    [58081] = "shadow_bolt",        -- Your Shadow Bolt now creates a column of fire that damages all enemies in its path.
+    [57261] = "health_funnel",      -- Increases the effectiveness of your Health Funnel spell by 30%.
+    [57262] = "hand_of_guldan",     -- Your Hand of Gul'dan creates a shadow explosion that can damage up to 5 nearby enemies.
+    [57263] = "shadow_bolt",        -- Your Shadow Bolt now creates a column of fire that damages all enemies in its path.
     [45785] = "verdant_spheres",    -- Changes the appearance of your Shadow Orbs to 3 floating green fel spheres.
     [58093] = "voidwalker",         -- Increases the size of your Voidwalker, making him appear more intimidating.
 } )
@@ -1610,6 +1608,3 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Affliction", 20250515, [[Hekili:T3vBVTTn04FldjHr9LSgR2e75XVc1cbKzKRlvnTo01OEckA2IgxVSbP5cFcqifitljsBPIYPKQbbXQPaX0YCRwRNFAxBtwR37pZUWZB3SZ0Zbnu(ndREWP)8dyNF3BhER85x(jym5nymTYnv0drHbpz5IW1vZgbo1P)MM]] )
 
 -- Register pack selector for Affliction
-spec:RegisterPackSelector( "affliction", "Affliction", "|T136145:0|t Affliction",
-    "Handles all aspects of Affliction Warlock DPS with focus on DoT management and Soul Shard usage.",
-    nil )

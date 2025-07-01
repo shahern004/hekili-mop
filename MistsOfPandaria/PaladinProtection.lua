@@ -8,12 +8,11 @@ if playerClass ~= 'PALADIN' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -1227,6 +1226,3 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Protection", 20250515, [[Hekili:T1PBVTTn04FlXjHj0OfnrQ97Lvv9n0KxkzPORkyzyV1ikA2JC7fSOhtkfLjjRKKGtkLQfifs4YC7O3MF11Fw859fNZXPb72TQWN3yiOtto8jREEP(D)CaaR7oXR]hYdVp)NhS4(SZdhFpzmYBPn2qGdjcw5Jt8jc((52Lbb6W0P)MM]] )
 
 -- Register pack selector for Protection
-spec:RegisterPackSelector( "protection", "Protection", "|T236264:0|t Protection",
-    "Handles all aspects of Protection Paladin tanking with focus on active mitigation and Holy Power usage.",
-    nil )

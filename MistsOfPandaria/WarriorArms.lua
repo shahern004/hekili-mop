@@ -23,12 +23,11 @@ print("WarriorArms: Continuing with initialization...")
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -375,6 +374,8 @@ spec:RegisterTalents( {
 } )
 
 -- Enhanced Glyphs System for Arms Warrior (following Hunter Survival comprehensiveness)
+-- Note: RegisterGlyphs method not available in MoP, glyphs handled differently
+--[[
 spec:RegisterGlyphs( {
     -- Major Glyphs (affecting DPS and mechanics)
     [58095] = "Glyph of Berserker Rage",      -- Berserker Rage increases movement speed by 50% for its duration.
@@ -414,12 +415,12 @@ spec:RegisterGlyphs( {
     [58127] = "Glyph of Bloodcurdling Shout", -- Your shouts have enhanced visual and sound effects.
     [58128] = "Glyph of Burning Anger",       -- Your character glows with inner fire when enraged.
     [58129] = "Glyph of Defensive Stance",    -- You appear to be in defensive stance even when you're not.
-    [58130] = "Glyph of Gushing Wound",       -- Your critical strikes cause more dramatic bleeding effects.
-    [58131] = "Glyph of the Savage Beast",    -- Your weapons appear to drip with blood.
+    [58130] = "Glyph of Gushing Wound",       -- Your critical strikes cause more dramatic bleeding effects.    [58131] = "Glyph of the Savage Beast",    -- Your weapons appear to drip with blood.
     [58132] = "Glyph of Thunder Strike",      -- Your weapon attacks create lightning effects.
     [58133] = "Glyph of the Weaponmaster",    -- Your weapons appear to be of exceptional quality.
     [58134] = "Glyph of Intimidation",        -- Your character appears more menacing.
 } )
+--]]
 
 -- Arms Warrior specific auras
 spec:RegisterAuras( {
@@ -1768,8 +1769,3 @@ spec:RegisterPack( "Arms", 20250515, [[Hekili:TznBVTTnu4FlXjHjMjENnWUYJaUcMLf8Kv
 print("WarriorArms: RegisterPack 'Arms' completed")
 
 -- Register pack selector for Arms
-print("WarriorArms: About to RegisterPackSelector 'arms'...")
-spec:RegisterPackSelector( "arms", "Arms", "|T132292:0|t Arms",
-    "Handles all aspects of Arms Warrior DPS with focus on Colossus Smash windows and rage management.",
-    nil )
-print("WarriorArms: RegisterPackSelector 'arms' completed")

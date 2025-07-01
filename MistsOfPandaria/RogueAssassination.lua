@@ -8,12 +8,11 @@ if playerClass ~= 'ROGUE' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -1715,9 +1714,6 @@ spec:RegisterAbilities( {
 spec:RegisterPack( "Assassination", 20250517, [[Hekili:T1tBVTnUr8pkEYV8iQu0j)Nf5aP38KYDXtl9i5rPjbJPNH1YAksY(OkvoS5Q2O5vbgdIUw2dejxvLvuPzQdxiMmmpFmShjl3ZxaeHTWwodzLbh7(Gg35W)IVxtdNmTzpF(S)T3BtPS8wtpA5CELlztZQeX0BP8kaOBcbpNFgmrW68YHL0pCc6uzVqBNsxIxMTmppQKlu5lpdVMXHrMVNtSM(6awj4Mjdq1Q5lhhpZIWUq6jYBzNxZFs2dk6VtCzItwKJFriiKsOFJ0iBjzvQxEReb4KGkAwLYoTkELuUKyEPbzR4kWKV9zhHjevQi5Qemi93kj8QBdH3(S86R1viPsvoMqv0imVScGvGnml2CkD7OJkpz7LfbATIYs0ccnTZvmM(4cfS0dpEPTw3jEasRlSyqUoJdlsNzYX0LiKpyihcDJYiLza9admWK8I3hb4aUAHkoJ62ZA1cfUDO9vcOF1]])
 
 -- Register pack selector for Assassination
-spec:RegisterPackSelector( "assassination", "Assassination", "|T132292:0|t Assassination",
-    "Handles all aspects of Assassination Rogue rotation with focus on poison and bleed damage.",
-    nil )
 
 -- Assassination-specific state tables
 spec:RegisterStateTable("stealthed", { all = false, rogue = false })

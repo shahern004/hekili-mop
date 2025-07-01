@@ -10,12 +10,11 @@ if playerClass ~= 'WARRIOR' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -804,15 +803,12 @@ spec:RegisterAuras( {
             t.count = 0
             t.expires = 0
             t.applied = 0
-            t.caster = "nobody"
-        end,
+            t.caster = "nobody"        end,
     },
-    
-    hamstring = {
-        id = 6673,
-        duration = 3600,
-        max_stack = 1,
-    },
+} )
+
+-- Protection Warrior abilities
+spec:RegisterAbilities( {
     commanding_shout = {
         id = 469,
         duration = 3600,
@@ -920,19 +916,7 @@ spec:RegisterAuras( {
     },
     staggering_shout = {
         id = 107566,
-        duration = 15,
-        max_stack = 1,
-    },
-    shockwave = {
-        id = 46968,
-        duration = 4,
-        max_stack = 1,
-    },
-    storm_bolt = {
-        id = 107570,
-        duration = 3,
-        max_stack = 1,
-    },
+        duration = 15,        max_stack = 1,    },
     war_banner = {
         id = 114207,
         duration = 15,
@@ -940,23 +924,11 @@ spec:RegisterAuras( {
     },
     rallying_cry = {
         id = 97462,
-        duration = 10,
-        max_stack = 1,
-    },
-    demoralizing_shout = {
-        id = 1160,
-        duration = 10,
-        max_stack = 1,
+        duration = 10,        max_stack = 1,
     },
     disrupting_shout = {
         id = 102060,
-        duration = 4,
-        max_stack = 1,
-    },
-    intimidating_shout = {
-        id = 5246,
-        duration = 8,
-        max_stack = 1,
+        duration = 4,        max_stack = 1,
     },
     taunt = {
         id = 355,
@@ -1845,6 +1817,3 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Protection", 20250515, [[Hekili:TznBVTTnu4FlXjHjMjENnWUYJaUcMLf8KvAm7nYjPPQonGwX2jzlkiuQumzkaLRQiQOeH9an1Y0YnpYoWgwlYFltwGtRJ(aiCN9tobHNVH)8TCgF)(5ElyJlFNlcDnPXD5A8j0)(MNZajDa3aNjp2QphnPtoKvyF)GcKKOzjI08QjnOVOCXMj3nE)waT58Pw(aFm0P)MM]] )
 
 -- Register pack selector for Protection
-spec:RegisterPackSelector( "protection", "Protection", "|T132341:0|t Protection",
-    "Handles all aspects of Protection Warrior tanking with focus on Shield Block/Barrier usage and rage management.",
-    nil )

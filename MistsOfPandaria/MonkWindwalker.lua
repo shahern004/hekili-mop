@@ -8,12 +8,11 @@ if playerClass ~= 'MONK' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -581,10 +580,9 @@ spec:RegisterGlyphs( {
     [125769] = "Glyph of Zen Sphere",           -- +8 sec duration, +25% cooldown, duration vs frequency
     [125770] = "Glyph of Chi Burst",            -- +10 yard range, +10 sec cooldown, range vs frequency
     [125736] = "Glyph of Energizing Brew",      -- +3 sec duration, +30 sec cooldown, efficiency choice
-    
-    -- Mobility and Positioning Glyphs (Windwalker Specialty)
+      -- Mobility and Positioning Glyphs (Windwalker Specialty)
     [125676] = "Glyph of Fighting Pose",        -- Combat Stance grants 10% movement speed
-    [125755] = "Glyph of Retreat",              -- Roll removes movement impairing effects
+    -- Removed duplicate [125755] = "Glyph of Retreat" (kept later "Glyph of Serenity" definition)
     [125681] = "Glyph of Transcendence",        -- Transcendence Spirit +10 yard placement range
     [125737] = "Glyph of Flying Serpent Kick",  -- +100% travel distance, +50% cooldown
     [125738] = "Glyph of Roll",                 -- Roll and Chi Torpedo +30% movement speed for 3 sec
@@ -618,8 +616,7 @@ spec:RegisterGlyphs( {
     [125745] = "Glyph of Invoke Xuen",          -- Xuen attacks grant 10% haste for 6 sec (25% chance)
     [125746] = "Glyph of Spinning Fire Blossom", -- Fire Blossom confuses enemies
     [125756] = "Glyph of Invoke Niuzao",        -- Niuzao taunts have extended duration
-    [125757] = "Glyph of Invoke Yu'lon",        -- Yu'lon healing effects enhanced
-    [125758] = "Glyph of Invoke Chi-Ji",        -- Chi-Ji flight speed and healing boosted
+    [125757] = "Glyph of Invoke Yu'lon",        -- Yu'lon healing effects enhanced    [125758] = "Glyph of Invoke Chi-Ji",        -- Chi-Ji flight speed and healing boosted
     
     -- Specialized Combat Mechanics Glyphs
     [125759] = "Glyph of Windwalking",          -- Enhanced movement abilities coordination
@@ -627,15 +624,7 @@ spec:RegisterGlyphs( {
     [125761] = "Glyph of Chi Mastery",          -- Chi generation and consumption optimization
     [125762] = "Glyph of Energy Mastery",       -- Energy regeneration and spending efficiency
     [125763] = "Glyph of Crane Style",          -- Stance switching and style bonuses
-    [125764] = "Glyph of Tiger Style",          -- Tiger style combat enhancements
-    [125765] = "Glyph of Ox Style",             -- Ox style defensive improvements
-    [125766] = "Glyph of Serpent Style",        -- Serpent style utility and damage
-    
-    -- Defensive and Utility Major Glyphs
-    [125767] = "Glyph of Inner Peace",          -- Meditation and inner focus bonuses
-    [125768] = "Glyph of Harmony",              -- Balanced combat and healing effects
-    [125769] = "Glyph of Zen Mastery",          -- Enhanced Zen abilities and meditation
-    [125770] = "Glyph of Chi Flow",             -- Improved Chi management and flow
+    -- Removed duplicate numerical glyph entries [125764]-[125770] to avoid conflicts
     [125771] = "Glyph of Life Force",           -- Enhanced life and energy regeneration
     [125772] = "Glyph of Spiritual Mastery",    -- Spirit-based ability enhancements
     [125773] = "Glyph of Elemental Harmony",    -- Enhanced elemental ability coordination
@@ -1295,34 +1284,9 @@ spec:RegisterAuras( {
         id = 119381,        duration = 3,
         max_stack = 1,
     },
-    
-    -- ===================
+      -- ===================
     -- MOVEMENT AND MOBILITY
     -- ===================
-    
-    -- Tiger's Lust (sprint effect)
-    tigers_lust = {
-        id = 116841,
-        duration = 6,
-        max_stack = 1,
-        generate = function( t, auraType )
-            local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "player", 116841 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
     
     -- Momentum (movement speed from Roll)
     momentum = {
@@ -1372,146 +1336,13 @@ spec:RegisterAuras( {
         end,
     },
     
-    -- ===================
-    -- TALENT ABILITIES
-    -- ===================
-    
-    -- Ascension (passive resource bonus)
-    ascension = {
-        id = 115396,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( t, auraType )
-            if talent.ascension.enabled then
-                t.name = "Ascension"
-                t.count = 1
-                t.expires = now + 3600
-                t.applied = now
-                t.caster = "player"
-                
-                -- Bonuses: +1 max Chi, +15% energy regen
-                state.ascension_max_chi_bonus = 1
-                state.ascension_energy_bonus = 0.15
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-            state.ascension_max_chi_bonus = 0
-            state.ascension_energy_bonus = 0
-        end,
-    },
-    
-    -- Chi Wave (bouncing heal/damage)
-    chi_wave = {
-        id = 115098,
-        duration = 0.5, -- Per bounce
-        max_stack = 7, -- Max bounces
-        generate = function( t, auraType )
-            local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "player", 115098 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                
-                -- Track bounces for optimization
-                state.chi_wave_bounces_remaining = 7 - (count or 0)
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-            state.chi_wave_bounces_remaining = 0
-        end,
-    },
-    
+    -- ===================    -- TALENT ABILITIES    -- ===================
+      -- Chi Wave (bouncing heal/damage)
     -- Zen Sphere (protective orb)
-    zen_sphere = {
-        id = 124081,
-        duration = function() return glyph.zen_sphere.enabled and 24 or 16 end,
-        max_stack = 1,
-        generate = function( t, auraType )
-            local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "player", 124081 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-    
     -- ===================
     -- DEFENSIVE ABILITIES
-    -- ===================
-    
-    -- Fortifying Brew (damage reduction)
-    fortifying_brew = {
-        id = 115203,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t, auraType )
-            local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "player", 115203 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-    
+    -- ===================      -- Fortifying Brew (damage reduction)
     -- Dampen Harm (big hit reduction)
-    dampen_harm = {
-        id = 122278,
-        duration = 45,
-        max_stack = 3, -- Blocks next 3 big hits
-        generate = function( t, auraType )
-            local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "player", 122278 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 3
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                
-                -- Track damage reduction
-                state.dampen_harm_reduction = 0.50 -- 50% reduction per charge
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-            state.dampen_harm_reduction = 0
-        end,
-    },
-    
     -- Diffuse Magic (magic immunity)
     diffuse_magic = {
         id = 122783,
@@ -1567,89 +1398,13 @@ spec:RegisterAuras( {
             t.applied = 0
             t.caster = "nobody"
             state.rushing_jade_wind_ticks_remaining = 0
-        end,
-    },
+        end,    },
     
     -- Invoke Xuen (White Tiger summon)
-    invoke_xuen = {
-        id = 123904,
-        duration = function() return glyph.xuen_the_white_tiger.enabled and 60 or 45 end,
-        max_stack = 1,
-        generate = function( t, auraType )
-            local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "player", 123904 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                
-                -- Track pet damage bonus
-                state.xuen_damage_bonus = 1.0 -- 100% pet damage
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-            state.xuen_damage_bonus = 0
-        end,
-    },
-    
-    -- ===================
-    -- CROWD CONTROL DEBUFFS
-    -- ===================
+    -- ===================    -- CROWD CONTROL DEBUFFS    -- ===================
     
     -- Paralysis (incapacitate)
-    paralysis = {
-        id = 115078,
-        duration = function() return glyph.paralysis.enabled and 5 or 4 end,
-        max_stack = 1,
-        generate = function( t, auraType )
-            local name, _, count, _, duration, expires, caster = FindUnitDebuffByID( "target", 115078, "player" )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-    
     -- Disable (movement impairment)
-    disable = {
-        id = 116095,
-        duration = function() return glyph.disable.enabled and 10 or 8 end,
-        max_stack = 1,
-        generate = function( t, auraType )
-            local name, _, count, _, duration, expires, caster = FindUnitDebuffByID( "target", 116095, "player" )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-    
     -- ===================
     -- TIER SET BONUSES
     -- ===================
@@ -1726,38 +1481,10 @@ spec:RegisterAuras( {
         end,
     },
     
-    -- ===================
-    -- RESOURCE MANAGEMENT AURAS
+    -- ===================    -- RESOURCE MANAGEMENT AURAS
     -- ===================
     
     -- Energizing Brew (energy regeneration)
-    energizing_brew = {
-        id = 115288,
-        duration = function() return glyph.energizing_brew.enabled and 18 or 15 end,
-        max_stack = 1,
-        generate = function( t, auraType )
-            local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "player", 115288 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                
-                -- Enhanced energy regeneration
-                state.energizing_brew_regen_bonus = 10 -- +10 energy/sec
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-            state.energizing_brew_regen_bonus = 0
-        end,
-    },
-    
     -- Mana Tea (mana restoration)
     mana_tea = {
         id = 115867,
@@ -1778,408 +1505,13 @@ spec:RegisterAuras( {
                 state.mana_tea_restoration_per_stack = state.mana.max * 0.04 -- 4% per stack
                 return
             end
-            
-            t.count = 0
+              t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
             state.mana_tea_stacks = 0
-            state.mana_tea_restoration_per_stack = 0        end,
-    },
-} )
-
--- ===================
--- AURAS REGISTRATION
--- ===================
-
-spec:RegisterAuras( {
-    -- Combo Breaker: Tiger Palm
-    combo_breaker_tiger_palm = {
-        id = 118864,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 118864 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Combo Breaker: Blackout Kick
-    combo_breaker_blackout_kick = {
-        id = 116768,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 116768 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-      -- Rising Sun Kick debuff (MoP 5.3.0: 20% increased damage from monk abilities)
-    rising_sun_kick = {
-        id = 130320,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 130320, "PLAYER" )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Energizing Brew buff
-    energizing_brew = {
-        id = 115288,
-        duration = 6,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 115288 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Tigereye Brew stacks
-    tigereye_brew_stack = {
-        id = 125195,
-        duration = 120,
-        max_stack = 20,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 125195 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Tigereye Brew buff
-    tigereye_brew = {
-        id = 116740,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 116740 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Legacy of the White Tiger (group buff)
-    legacy_of_the_white_tiger = {
-        id = 116781,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 116781 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Fists of Fury channel
-    fists_of_fury = {
-        id = 113656,
-        duration = 4,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 113656 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Path of Blossoms from Chi Torpedo
-    path_of_blossoms = {
-        id = 121027,
-        duration = 10,
-        max_stack = 2,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 121027 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Momentum from talent
-    momentum = {
-        id = 119085,
-        duration = 10,
-        max_stack = 2,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 119085 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Touch of Karma
-    touch_of_karma = {
-        id = 125174,
-        duration = 10,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 125174 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Disable
-    disable = {
-        id = 116095,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 116095, "PLAYER" )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Flying Serpent Kick
-    flying_serpent_kick = {
-        id = 123586,
-        duration = 2,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 123586 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Paralysis
-    paralysis = {
-        id = 115078,
-        duration = 30,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 115078, "PLAYER" )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-      -- Mastery: Bottled Fury
-    bottled_fury = {
-        id = 115636,
-        duration = 3600,
-        max_stack = 1,
-    },
-    
-    -- Mortal Wounds debuff from Rising Sun Kick
-    mortal_wounds = {
-        id = 115804,
-        duration = 10,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 115804, "PLAYER" )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Fists of Fury stun debuff
-    fists_of_fury_stun = {
-        id = 117418,
-        duration = 4,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 117418, "PLAYER" )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
+            state.mana_tea_restoration_per_stack = 0
+        end,
     },
 } )
 
@@ -2826,6 +2158,3 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Windwalker", 20250517, [[Hekili:T3vBVTTn04FldjTrXocoqRiKMh7KvA3KRJ1AWTLr0cbrjdduiHZLPLtfJ1JdKiLmoQiUAWtlW5)GLYmvoWpXIYofJNVQP3YZVCtDw7ZlUm74NwF2G5xnC7JA3YnxFDWp8Yv6(oOV94A7zL9ooX60FsNn2GxV3cW0CwVdF9C4O83PhEKwmDDVF8W)V65a89FdFCRV7uCHthVJ6kXbqnuSmQbCG45DYCFND7zs0MYVsHvyeTDxJzKWx0yZlzZZmylTiWOZ(vPzZIx1uUZE7)aXuZ(qx45sNUZbkn(BNUgCn(RcYdVS(RYqxP2tixP5wOLLNcXE0mbYTj81zg7a8uHMtlP(vHJYTF1Z2ynOBMd6YoLAvJVS3QVdVJOUjP(WV8jntTj63bRuvuV5JaEHN0VEvZP4JNpEvX7P4OeJUFPTxuTSU5tP5wm)8j]] )
 
 -- Register pack selector for Windwalker
-spec:RegisterPackSelector( "windwalker", "Windwalker", "|T627606:0|t Windwalker",
-    "Handles all aspects of Windwalker Monk DPS rotation with focus on managing Combo Breaker procs and Chi regeneration.",
-    nil )

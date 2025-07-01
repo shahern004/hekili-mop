@@ -344,7 +344,22 @@ ns.getSpecializationID = function ( index )
     end
     local GetSpecialization = GetSpecialization or function() return 1 end
     
-    return GetSpecializationInfo( index or GetSpecialization() or 0 )
+    -- MoP Classic spec-ID mapping override
+    local currentSpecIndex = index or GetSpecialization() or 0
+    local _, playerClass = UnitClass("player")
+    
+    -- Map MoP Classic spec indices (1-4) to retail spec IDs (102-105) for druids
+    if playerClass == "DRUID" and currentSpecIndex >= 1 and currentSpecIndex <= 4 then
+        local druidSpecMapping = {
+            [1] = 103, -- Feral
+            [2] = 104, -- Guardian  
+            [3] = 102, -- Balance
+            [4] = 105, -- Restoration
+        }
+        currentSpecIndex = druidSpecMapping[currentSpecIndex] or currentSpecIndex
+    end
+    
+    return GetSpecializationInfo( currentSpecIndex )
 end
 
 

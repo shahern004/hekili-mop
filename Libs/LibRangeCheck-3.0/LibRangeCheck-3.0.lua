@@ -1829,7 +1829,7 @@ else
       180899, -- Riding Hook
       193212, -- Marmoni Rescue Pack
     },
-    [38] = {
+    [39] = {
       140786, -- Ley Spider Eggs
     },
     [40] = {
@@ -2854,10 +2854,24 @@ else
       207165, -- Bandolier of Twisted Blades
       207783, -- Cruel Dreamcarver
       212449, -- Sikran's Endless Arsenal      219915, -- Foul Behemoth's Chelicera
-    },
-    [15] = {
+    },    [15] = {
       164766, -- Iwen's Enchanting Rod
       219525, -- Globe of Nourishment
+      30651,  -- Dertrok's First Wand
+      30652,  -- Dertrok's Second Wand
+      30653,  -- Dertrok's Third Wand
+      30654,  -- Dertrok's Fourth Wand
+      31129,  -- Blackwhelp Net
+      32907,  -- Wolpertinger Net
+      33069,  -- Sturdy Rope
+      33621,  -- Plague Spray
+      36764,  -- Shard of the Earth
+      38573,  -- RJR Rifle
+      39268,  -- Medallion of Mam'toth
+      42480,  -- Ebon Blade Banner
+      44959,  -- Soothing Totem
+      46722,  -- Grol'dom Net
+      50741,  -- Vile Fumigator's Mask
     },
     [7] = {
       61323,  -- Ruby Seeds
@@ -2977,66 +2991,9 @@ else
       205276, -- Deepflayer Lure
       207632, -- Dream-Attuned Crystal
       219469, -- Fog Beast Tracker
-      223322, -- Hannan's Scythe
-    },
+      223322, -- Hannan's Scythe    },
     [12] = {
       208068, -- Rotten Delicious
-    },
-    [15] = {
-      30651,  -- Dertrok's First Wand
-      30652,  -- Dertrok's Second Wand
-      30653,  -- Dertrok's Third Wand
-      30654,  -- Dertrok's Fourth Wand
-      31129,  -- Blackwhelp Net
-      32907,  -- Wolpertinger Net
-      33069,  -- Sturdy Rope
-      33621,  -- Plague Spray
-      36764,  -- Shard of the Earth
-      38573,  -- RJR Rifle
-      39268,  -- Medallion of Mam'toth
-      42480,  -- Ebon Blade Banner
-      44959,  -- Soothing Totem
-      46722,  -- Grol'dom Net
-      50741,  -- Vile Fumigator's Mask
-      52481,  -- Blastshadow's Soulstone
-      53101,  -- Tessina's Wisp Call
-      53104,  -- Tessina's Hippogryph Call
-      53105,  -- Tessina's Treant Call
-      54455,  -- Paint Bomb
-      56184,  -- Duarn's Net
-      58169,  -- Elementium Grapple Line
-      58966,  -- Jesana's Faerie Dragon Call
-      58967,  -- Jesana's Giant Call
-      79027,  -- Saltback Meat
-      115475, -- Vial of Untested Serum
-      115533, -- Vial of Refined Serum
-      152395, -- Counter Spell Charm
-      152613, -- Sar'jun's Torch
-      153024, -- Scroll of Combustion
-      158935, -- Depleted Soul Shard
-      161333, -- Ultra-Safe Electrified Alpaca Lasso
-      165723, -- Embiggifier Core
-      165762, -- Embiggifier Core
-      165815, -- Tranquilizer Dart
-      170557, -- Re-Sizer v9.0.1
-      173691, -- Anima Drainer
-      178051, -- Re-Sizer v9.0.1
-      179359, -- Sinstone Fragment
-      179921, -- Hydra Gutter
-      179978, -- Infused Animacones
-      179983, -- Infused Animacones
-      186089, -- Niya's Staff
-      186102, -- Lady Moonberry's Wand
-      186199, -- Lady Moonberry's Wand
-      186569, -- Angry Needler Nest
-      188252, -- Chains of Domination
-      189384, -- Ornithological Medical Kit
-      193064, -- Smoke Diffuser
-      197928, -- Captivating Cap
-      219322, -- Malodorous Philter
-      219323, -- Gelatinous Unguent
-      219324, -- Roiling Elixir
-      224194, -- Fashion Frenzy Ribbon
     },
     [20] = {
       1191,   -- Bag of Marbles
@@ -3422,7 +3379,7 @@ else
       180899, -- Riding Hook
       193212, -- Marmoni Rescue Pack
     },
-    [38] = {
+    [39] = {
       140786, -- Ley Spider Eggs
     },
     [40] = {
@@ -3476,34 +3433,6 @@ else
       132507, -- Ironsight Cranial Cannon
       132510, -- Gunpowder Charge
       133706, -- Mossgill Bait
-      133761, -- Flintlocke's Headgun Prototype
-      133775, -- Gunpowder Charges
-      133928, -- Prototype Pump-Action Bandage Gun
-      133998, -- Rainbow Generator
-      133999, -- Inert Crystal
-      137329, -- Figurehead of the Naglfar
-      138116, -- Throwing Torch
-      139589, -- Poisoned Throwing Knives
-      139882, -- Vial of Hippogryph Pheromones
-      141005, -- Vial of Hippogryph Pheromones
-      141306, -- Wisp in a Bottle
-      141411, -- Translocation Anomaly Neutralization Crystal
-      142173, -- Ring of Collapsing Futures
-      144331, -- Tailored Skullblasters
-      144332, -- Rugged Skullblasters
-      144333, -- Chain Skullblasters
-      144334, -- Heavy Skullblasters
-      147882, -- Celebration Wand - Trogg
-      147883, -- Celebration Wand - Quilboar
-      151368, -- Experimental Alchemy Reagent
-      151369, -- Lightning Absorption Capsule
-      151370, -- Military Explosives
-      152574, -- Corbyn's Beacon
-      153483, -- Modified Blood Fetish
-      153571, -- Poisoned Blow Dart
-      153675, -- Scroll of Capsizing
-      156528, -- Titan Manipulator
-      156649, -- Zandalari Effigy Amulet
       159796, -- Meatification Potion
       159882, -- Bug Zapper
       160052, -- Flour Bomb
@@ -3524,7 +3453,7 @@ else
       169490, -- Relic of the Black Empire
       169769, -- Remote Guidance Device
       169816, -- Quasi-Faceted Scanner
-      169858, -- \"Bee Bee\" Gun
+      169858, -- "Bee Bee" Gun
       170252, -- Pouch of Gangrenous Spores
       171373, -- Introspection
       172672, -- Corrupted Gladiator's Maledict
@@ -3577,62 +3506,8 @@ else
       212450, -- Swarmlord's Authority
       212963, -- Fleeting Potion of Unwavering Focus
       212964, -- Fleeting Potion of Unwavering Focus
-      212965, -- Fleeting Potion of Unwavering Focus
-      213629, -- Debugger Hat
-      224047, -- Water Blast
-      225651, -- Kaheti Shadeweaver's Emblem
-    },
-    [45] = {
-      23836,  -- Goblin Rocket Launcher
-      28369,  -- Battery Recharging Blaster
-      32698,  -- Wrangling Rope
-      34691,  -- Arcane Binder
-      34812,  -- Crafty's Ultra-Advanced Proto-Typical Shortening Blaster
-      35352,  -- Sage's Lightning Rod
-      49647,  -- Drum of the Soothed Earth
-      52059,  -- Murloc Leash
-      52833,  -- Modified Soul Orb
-      62794,  -- Licensed Proton Accelerator Cannon
-      64445,  -- Banshee Mirror
-      167870, -- G99.99 Landshark
-      179719, -- Anima Lure
-      194304, -- Iceblood Deathsnare
-      194310, -- Desperate Invoker's Codex
-      203963, -- Beacon to the Beyond
-      207057, -- Gift of the White War Wolf
-      207083, -- Gift of the Ravenous Black Gryphon
-      208615, -- Nymue's Unraveling Spindle
-      208616, -- Dreambinder, Loom of the Great Cycle
-    },
-    [46] = {
-      202610, -- Dragonfire Bomb Dispenser
-    },
-    [50] = {
-      116139, -- Haunting Memento
-      129372, -- Spymaster Jenri's Scope
-      134836, -- Trident
-      147017, -- Tarnished Sentinel Medallion
-      147019, -- Tome of Unraveling Sanity
-      151960, -- Carafe of Searing Light
-      151970, -- Vitality Resonator
-      155565, -- Trunksy
-      158216, -- Living Oil Canister
-      159624, -- Rotcrusted Voodoo Doll
-      160443, -- The Glaive of Vol'jin
-      160557, -- Pungent Onion
-      161452, -- The Glaive of Vol'jin
-      165576, -- Tidestorm Codex
-      168905, -- Shiver Venom Relic
-      173944, -- Forbidden Obsidian Claw
-      184021, -- Glyph of Assimilation
-      184030, -- Dreadfire Vessel
-      186422, -- Tome of Monstrous Constructions
-      186437, -- Relic of the Frozen Wastes
-      207084, -- Auebry's Marker Pistol
-      208389, -- Spear of the Wilds
-      211344, -- Miniaturizer
-      212454, -- Mad Queen's Mandate
-      219313, -- Mereldar's Toll
+      212965, -- Fleeting Potion of Unwavering Focus      213629, -- Debugger Hat
+      224047, -- Water Blast      225651, -- Kaheti Shadeweaver's Emblem
     },
     [55] = {
       74637,  -- Kiryn's Poison Vial
@@ -3744,10 +3619,10 @@ else
     --   210248, -- Vantus Rune: Amirdrassil, the Dream's Hope
     --   210249, -- Vantus Rune: Amirdrassil, the Dream's Hope
     --   226034, -- Vantus Rune: Nerub-ar Palace
-    --   226035, -- Vantus Rune: Nerub-ar Palace
-    --   226036, -- Vantus Rune: Nerub-ar Palace
+    --   226035, -- Vantus Rune: Nerub-ar Palace    --   226036, -- Vantus Rune: Nerub-ar Palace
     -- },
   }
+}
 end
 
 -- This could've been done by checking player race as well and creating tables for those, but it's easier like this
@@ -3920,13 +3795,14 @@ local function addChecker(t, range, minRange, checker, info)
 end
 
 local function createCheckerList(spellList, itemList, interactList)
-  local res, resInCombat = {}, {}
-  if itemList then
+  local res, resInCombat = {}, {}  if itemList then
     for range, items in pairs(itemList) do
       for i = 1, #items do
         local item = items[i]
-        if Item:CreateFromItemID(item):IsItemDataCached() and C_Item.GetItemInfo(item) then
-          addChecker(res, range, nil, checkers_Item[item], "item:" .. item)
+        -- Handle if item is a table, extract the actual itemID
+        local itemID = type(item) == "table" and item[1] or item
+        if itemID and Item:CreateFromItemID(itemID):IsItemDataCached() and C_Item.GetItemInfo(itemID) then
+          addChecker(res, range, nil, checkers_Item[itemID], "item:" .. itemID)
           break
         end
       end
@@ -4501,43 +4377,46 @@ function lib:processItemRequests(itemRequests)
     local range, items = next(itemRequests)
     if not range then
       return
-    end
-    while true do
+    end    while true do
       local i, item = next(items)
       if not i then
         itemRequests[range] = nil
         break
-      elseif Item:CreateFromItemID(item):IsItemEmpty() or self.failedItemRequests[item] then
-        -- print("### processItemRequests: failed: " .. tostring(item))
+      end
+      -- Handle if item is a table, extract the actual itemID
+      local itemID = type(item) == "table" and item[1] or item
+      if not itemID then
         tremove(items, i)
-      elseif pendingItemRequest[item] and GetTime() < itemRequestTimeoutAt[item] then
+      elseif Item:CreateFromItemID(itemID):IsItemEmpty() or self.failedItemRequests[itemID] then
+        -- print("### processItemRequests: failed: " .. tostring(itemID))
+        tremove(items, i)      elseif pendingItemRequest[itemID] and GetTime() < itemRequestTimeoutAt[itemID] then
         return true -- still waiting for server response
-      elseif C_Item.GetItemInfo(item) then
-        -- print("### processItemRequests: found: " .. tostring(item))
+      elseif C_Item.GetItemInfo(itemID) then
+        -- print("### processItemRequests: found: " .. tostring(itemID))
         foundNewItems = true
-        itemRequestTimeoutAt[item] = nil
-        pendingItemRequest[item] = nil
+        itemRequestTimeoutAt[itemID] = nil
+        pendingItemRequest[itemID] = nil
         if not cacheAllItems then
           itemRequests[range] = nil
           break
         end
         tremove(items, i)
-      elseif not itemRequestTimeoutAt[item] then
-        -- print("### processItemRequests: waiting: " .. tostring(item))
-        itemRequestTimeoutAt[item] = GetTime() + ItemRequestTimeout
-        pendingItemRequest[item] = true
+      elseif not itemRequestTimeoutAt[itemID] then
+        -- print("### processItemRequests: waiting: " .. tostring(itemID))
+        itemRequestTimeoutAt[itemID] = GetTime() + ItemRequestTimeout
+        pendingItemRequest[itemID] = true
         if not self.frame:IsEventRegistered("GET_ITEM_INFO_RECEIVED") then
           self.frame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
         end
         return true
-      elseif GetTime() >= itemRequestTimeoutAt[item] then
-        -- print("### processItemRequests: timeout: " .. tostring(item))
+      elseif GetTime() >= itemRequestTimeoutAt[itemID] then
+        -- print("### processItemRequests: timeout: " .. tostring(itemID))
         if cacheAllItems then
-          print(MAJOR_VERSION .. ": timeout for item: " .. tostring(item))
+          print(MAJOR_VERSION .. ": timeout for item: " .. tostring(itemID))
         end
-        self.failedItemRequests[item] = true
-        itemRequestTimeoutAt[item] = nil
-        pendingItemRequest[item] = nil
+        self.failedItemRequests[itemID] = true
+        itemRequestTimeoutAt[itemID] = nil
+        pendingItemRequest[itemID] = nil
         tremove(items, i)
       else
         return true -- still waiting for server response

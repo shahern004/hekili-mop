@@ -8,12 +8,11 @@ if playerClass ~= 'PALADIN' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -1951,6 +1950,3 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Retribution", 20250515, [[Hekili:T1PBVTTn04FlXjHj0OfnrQ97Lvv9n0KxkzPORkyzyV1ikA2JC7fSOhtkfLjjRKKGtkLQfifs4YC7O3MF11Fw859fNZXPb72TQWN3yiOtto8jREEP(D)CaaR7oXR]hYdVp)NhS4(SZdhFpzmYBPn2qGdjcw5Jt8jc((52Lbb6W0P)MM]] )
 
 -- Register pack selector for Retribution
-spec:RegisterPackSelector( "retribution", "Retribution", "|T135873:0|t Retribution",
-    "Handles all aspects of Retribution Paladin DPS with focus on Holy Power generation and spending.",
-    nil )

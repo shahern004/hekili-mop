@@ -3,6 +3,9 @@
 
 local addon, ns = ...
 
+-- Initialize MoP compatibility tables
+ns.TargetDummies = ns.TargetDummies or {}
+
 -- MoP API compatibility - Set up early for libraries
 if not _G.GetSpecialization then
     _G.GetSpecialization = _G.GetActiveTalentGroup or function() return 1 end
@@ -21,28 +24,33 @@ if not _G.GetSpecializationInfo then
             return nil
         end
         
-        -- Return basic spec info based on index
-        local specNames = {
-            ["WARRIOR"] = { "Arms", "Fury", "Protection" },
-            ["PALADIN"] = { "Holy", "Protection", "Retribution" },
-            ["HUNTER"] = { "Beast Mastery", "Marksmanship", "Survival" },
-            ["ROGUE"] = { "Assassination", "Combat", "Subtlety" },
-            ["PRIEST"] = { "Discipline", "Holy", "Shadow" },
-            ["DEATHKNIGHT"] = { "Blood", "Frost", "Unholy" },
-            ["SHAMAN"] = { "Elemental", "Enhancement", "Restoration" },
-            ["MAGE"] = { "Arcane", "Fire", "Frost" },
-            ["WARLOCK"] = { "Affliction", "Demonology", "Destruction" },
-            ["MONK"] = { "Brewmaster", "Mistweaver", "Windwalker" },
-            ["DRUID"] = { "Balance", "Feral", "Guardian", "Restoration" }
-        }
+        -- Map spec indices to actual MoP spec IDs based on class and abilities
+        local specID = 0
+        local specName = "Unknown"
         
-        local classSpecs = specNames[class]
-        if not classSpecs or specIndex > #classSpecs then
-            return nil
+        if class == "HUNTER" then
+            if IsPlayerSpell(19574) then specID = 253; specName = "Beast Mastery"  -- Bestial Wrath
+            elseif IsPlayerSpell(19506) then specID = 254; specName = "Marksmanship"  -- Improved Tracking
+            elseif IsPlayerSpell(53301) then specID = 255; specName = "Survival"  -- Explosive Shot
+            else 
+                -- Fallback detection based on other abilities
+                if IsPlayerSpell(34026) then specID = 253; specName = "Beast Mastery"  -- Kill Command
+                elseif IsPlayerSpell(82928) then specID = 254; specName = "Marksmanship"  -- Aimed Shot
+                elseif IsPlayerSpell(3674) then specID = 255; specName = "Survival"  -- Black Arrow
+                else specID = 255; specName = "Survival" end -- Default to Survival
+            end
+        elseif class == "WARRIOR" then
+            -- Add warrior detection as needed
+            specID = 71; specName = "Arms"
+        elseif class == "PALADIN" then
+            -- Add paladin detection as needed
+            specID = 70; specName = "Retribution"
+        else
+            specID = 1; specName = "Unknown"
         end
         
         -- Return: specID, name, description, icon, role, class
-        return specIndex, classSpecs[specIndex], classSpecs[specIndex], nil, nil, class
+        return specID, specName, specName, nil, nil, class
     end
 end
 
@@ -50,7 +58,7 @@ if not _G.CanPlayerUseTalentSpecUI then
     _G.CanPlayerUseTalentSpecUI = function() return true end
 end
 
-Hekili = LibStub("AceAddon-3.0"):NewAddon( "Hekili", "AceConsole-3.0", "AceSerializer-3.0" )
+Hekili = LibStub("AceAddon-3.0"):NewAddon( "Hekili", "AceConsole-3.0", "AceSerializer-3.0", "AceTimer-3.0" )
 
 -- MoP compatibility - simple version detection
 Hekili.Version = "v5.4.0-1.0.0-MoP"
@@ -261,9 +269,9 @@ Hekili.Class = {
     initialized = false,
 
 	resources = {},
-	resourceAuras = {},
-    talents = {},
+	resourceAuras = {},    talents = {},
     pvptalents = {},
+    glyphs = {},
 	auras = {},
 	auraList = {},
     powers = {},
@@ -414,9 +422,23 @@ local snapshots = ns.snapshots
 local hasScreenshotted = false
 
 function Hekili:SaveDebugSnapshot( dispName )
+    print("SaveDebugSnapshot called with dispName:", tostring(dispName))
+    
     local snapped = false
     local formatKey = ns.formatKey
     local state = Hekili.State
+    
+    local debugCount = 0
+    if debug then
+        for _ in pairs(debug) do debugCount = debugCount + 1 end
+    end
+    print("Debug table entries count:", debugCount)
+    
+    if debug then
+        for debugKey, debugData in pairs(debug) do
+            print("Debug entry:", debugKey, "log size:", debugData.log and #debugData.log or "no log")
+        end
+    end
 
 	for k, v in pairs( debug ) do
 		if not dispName or dispName == k then
@@ -866,6 +888,13 @@ function Hekili:OnEnable()
         ns.UI:StartUpdates()
     end
 
+    -- MoP Classic: Force spec detection on enable
+    if not self.IsRetail() then
+        C_Timer.After(1, function()
+            self:ForceSpecDetection()
+        end)
+    end
+
     self:Print("Hekili Enabled!")
 end
 
@@ -893,3 +922,132 @@ if not callHook then
 end
 
 -- Fallback for GetSpecialization / GetSpecializationInfo / CanPlayerUseTalentSpecUI
+
+-- MoP Classic spec detection function
+function Hekili:GetMoPSpecialization()
+    local _, class = UnitClass("player")
+    if not class then
+        return nil, nil
+    end
+    
+    local specID = 0
+    local specName = "Unknown"
+      if class == "HUNTER" then
+        if IsPlayerSpell(19574) then specID = 253; specName = "Beast Mastery"  -- Bestial Wrath
+        elseif IsPlayerSpell(19506) then specID = 254; specName = "Marksmanship"  -- Improved Tracking
+        elseif IsPlayerSpell(53301) then specID = 255; specName = "Survival"  -- Explosive Shot
+        else 
+            -- Fallback detection based on other abilities
+            if IsPlayerSpell(34026) then specID = 253; specName = "Beast Mastery"  -- Kill Command
+            elseif IsPlayerSpell(82928) then specID = 254; specName = "Marksmanship"  -- Aimed Shot
+            elseif IsPlayerSpell(3674) then specID = 255; specName = "Survival"  -- Black Arrow
+            else specID = 255; specName = "Survival" end -- Default to Survival
+        end
+    elseif class == "DRUID" then
+        -- Druid spec detection for MoP Classic - more comprehensive checks
+        
+        -- Check for Feral-specific spells first (highest priority)
+        if IsPlayerSpell(1822) then -- Rake - Core Feral ability
+            specID = 103; specName = "Feral"
+        elseif IsPlayerSpell(5221) then -- Shred - Core Feral ability
+            specID = 103; specName = "Feral"  
+        elseif IsPlayerSpell(33876) then -- Mangle (Cat) - Feral specific
+            specID = 103; specName = "Feral"
+        elseif IsPlayerSpell(22568) then -- Ferocious Bite - Feral specific
+            specID = 103; specName = "Feral"
+        elseif IsPlayerSpell(52610) then -- Savage Roar - Feral specific  
+            specID = 103; specName = "Feral"
+        
+        -- Check for Guardian-specific spells
+        elseif IsPlayerSpell(33878) or IsPlayerSpell(6807) then 
+            specID = 104; specName = "Guardian"  -- Mangle (Bear) or Maul
+        
+        -- Check for Balance-specific spells  
+        elseif IsPlayerSpell(78674) or IsPlayerSpell(8921) then 
+            specID = 102; specName = "Balance"  -- Starsurge or Moonfire
+        
+        -- Check for Restoration-specific spells
+        elseif IsPlayerSpell(18562) or IsPlayerSpell(2908) then 
+            specID = 105; specName = "Restoration"  -- Swiftmend or Soothe
+        
+        else 
+            -- If no specific spells found, try to detect based on current form or basic abilities
+            
+            -- Check if player is in Cat Form or has Cat Form ability
+            if GetShapeshiftForm and (GetShapeshiftForm() == 1 or IsPlayerSpell(768)) then -- Cat Form
+                specID = 103; specName = "Feral"
+            elseif GetShapeshiftForm and (GetShapeshiftForm() == 2 or IsPlayerSpell(5487)) then -- Bear Form  
+                specID = 104; specName = "Guardian"
+            else
+                -- Last resort: check talent group or default to Feral
+                local activeGroup = GetActiveTalentGroup and GetActiveTalentGroup() or 1
+                specID = 103; specName = "Feral" -- Default to Feral for Druids
+            end
+        end
+    elseif class == "WARRIOR" then
+        -- Add warrior detection as needed
+        specID = 71; specName = "Arms"
+    elseif class == "PALADIN" then
+        -- Add paladin detection as needed
+        specID = 70; specName = "Retribution"
+    else
+        specID = 1; specName = "Unknown"
+    end
+    
+    -- Safety check: Ensure we never return 0 or invalid spec IDs for known classes
+    if class == "DRUID" and (specID == 0 or specID == 1) then
+        specID = 103; specName = "Feral"
+    end
+    
+    return specID, specName
+end
+
+-- Manual function to force spec detection and update
+function Hekili:ForceSpecDetection()
+    local specID, specName = self:GetMoPSpecialization()
+    
+    if specID and specID > 0 then
+        -- Manually set state.spec values
+        if not self.State then
+            self.State = { spec = {}, role = {} }
+        end
+        if not self.State.spec then
+            self.State.spec = {}
+        end
+        
+        self.State.spec.id = specID
+        self.State.spec.name = specName
+        self.State.spec.key = ns.getSpecializationKey(specID)
+        print("DEBUG: state.spec.name:", self.State.spec.name)
+        print("DEBUG: state.spec.key:", self.State.spec.key)
+        
+        -- Force a spec change event
+        if self.SpecializationChanged then
+            self:SpecializationChanged()
+        end
+        
+        return true
+    else
+        print("DEBUG: ForceSpecDetection failed - invalid spec ID")
+        return false
+    end
+end
+
+-- Slash command for debugging spec detection
+SLASH_HEKILISPEC1 = "/hekilispec"
+SlashCmdList["HEKILISPEC"] = function(msg)
+    if Hekili and Hekili.ForceSpecDetection then
+        print("=== Hekili Spec Detection Debug ===")
+        local success = Hekili:ForceSpecDetection()
+        if success then
+            print("Spec detection successful!")
+            print("Current state.spec.id:", Hekili.State and Hekili.State.spec and Hekili.State.spec.id)
+            print("Current state.spec.name:", Hekili.State and Hekili.State.spec and Hekili.State.spec.name)
+        else
+            print("Spec detection failed!")
+        end
+        print("=== End Debug ===")
+    else
+        print("Hekili not loaded or ForceSpecDetection not available")
+    end
+end

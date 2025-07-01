@@ -81,7 +81,7 @@ end
 local floor, format, insert = math.floor, string.format, table.insert
 
 -- MoP API compatibility
-local HasVehicleActionBar, HasOverrideActionBar, IsInPetBattle, UnitHasVehicleUI, UnitOnTaxi = HasVehicleActionBar, HasOverrideActionBar, false, UnitHasVehicleUI, UnitOnTaxi
+local HasVehicleActionBar, HasOverrideActionBar, IsInPetBattle, UnitHasVehicleUI, UnitOnTaxi = HasVehicleActionBar, HasOverrideActionBar, IsInPetBattle or function() return false end, UnitHasVehicleUI, UnitOnTaxi
 local Tooltip = ns.Tooltip
 
 local Masque, MasqueGroup
@@ -769,7 +769,7 @@ do
                                         return setting.info.set( menu.args, val )
                                     end )
 
-                                    cf.Slider:SetMinMaxValues( setting.info.min, setting.info.max )
+                                    cf.Slider:SetMinMaxValues( setting.info.min or 0, setting.info.max or 100 )
                                     cf.Slider:SetValueStep( setting.info.step or 1 )
                                     cf.Slider:SetObeyStepOnDrag( true )
 
@@ -1091,11 +1091,11 @@ do
             self.timer = ( self.timer or 0 ) - elapsed
             self.alphaCheck = self.alphaCheck - elapsed
 
-            if alphaCheck then
+            if self.alphaCheck then
                 self:UpdateAlpha()
             end
 
-            if not self.id == "Primary" and not ( self.Buttons[ 1 ] and self.Buttons[ 1 ].Action ) and not ( self.HasRecommendations and not self.NewRecommendations ) then
+            if self.id ~= "Primary" and not ( self.Buttons[ 1 ] and self.Buttons[ 1 ].Action ) and not ( self.HasRecommendations and not self.NewRecommendations ) then
                 return
             end
 
@@ -1115,12 +1115,14 @@ do
             self.timer = pulseDisplay
             self.NewRecommendations = nil
 
-            local now = GetTime()
-
-            if fullUpdate then
+            local now = GetTime()            if fullUpdate then
                 madeUpdate = true
 
                 local alpha = self.alpha
+                -- Ensure Hekili is properly initialized before calling methods
+                if not Hekili or not Hekili.GetActiveSpecOption or Hekili.PendingSpecializationChange then
+                    return
+                end
                 local options = Hekili:GetActiveSpecOption( "abilities" )
 
                 if self.HasRecommendations and self.RecommendationsStr and self.RecommendationsStr:len() == 0 then
@@ -2889,14 +2891,27 @@ function Hekili:BuildUI()
     Hekili:ProfileFrame( "KeyhandlerFrame", ns.UI.Keyhandler )
 
     local scaleFactor = self:GetScale()
-    local mouseInteract = self.Pause
-
-    -- Notification Panel
+    local mouseInteract = self.Pause    -- Notification Panel
     local notif = self.DB.profile.notifications
+
+    -- Safety check for notification settings
+    if not notif then
+        notif = { enabled = false, width = 200, height = 50, x = 0, y = 0, font = "Friz Quadrata TT", fontSize = 12, fontStyle = "OUTLINE" }
+        self.DB.profile.notifications = notif
+    end
 
     local f = ns.UI.Notification or CreateFrame( "Frame", "HekiliNotification", UIParent )
     Hekili:ProfileFrame( "HekiliNotification", f )
 
+    -- Safety check for notification dimensions
+    notif.width = notif.width or 200
+    notif.height = notif.height or 50
+    notif.x = notif.x or 0
+    notif.y = notif.y or 0
+    notif.font = notif.font or "Friz Quadrata TT"
+    notif.fontSize = notif.fontSize or 12
+    notif.fontStyle = notif.fontStyle or "OUTLINE"
+    
     f:SetSize( notif.width * scaleFactor, notif.height * scaleFactor )
     f:SetClampedToScreen( true )
     f:ClearAllPoints()

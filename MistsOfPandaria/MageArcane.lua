@@ -9,12 +9,11 @@ if playerClass ~= 'MAGE' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -30,14 +29,7 @@ local function GetTargetDebuffByID(spellID)
     return FindUnitDebuffByID("target", spellID, "PLAYER")
 end
 
--- DEBUG: Check Hekili state at file load
-print("DEBUG [MageArcane]: File loading, Hekili exists:", Hekili ~= nil)
-if Hekili then
-    print("DEBUG [MageArcane]: Hekili.NewSpecialization exists:", Hekili.NewSpecialization ~= nil)
-end
-
 local spec = Hekili:NewSpecialization( 62 ) -- Arcane spec ID for MoP
-print("DEBUG [MageArcane]: NewSpecialization called with ID 62, result:", spec ~= nil)
 
 -- Arcane-specific combat log event tracking
 local arcaneCombatLogFrame = CreateFrame("Frame")
@@ -1691,6 +1683,3 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Arcane", 20250517, [[Hekili:TzvBVTTn04FldjH0cbvgL62TG4I3KRlvnTlSynuRiknIWGQ1W2jzlkitIhLmzImzkKSqu6Mi02Y0YbpYoWoz9ogRWEJOJTFYl(S3rmZXRwKSWNrx53Ntta5(S3)8dyNF3BhER85x(jym5nymTYnv0drHbpz5IW1vZgbo1P)MM]] )
 
 -- Register pack selector for Arcane
-spec:RegisterPackSelector( "arcane", "Arcane", "|T135932:0|t Arcane",
-    "Handles all aspects of Arcane Mage rotation with focus on Arcane Blast/Barrage and mana management.",
-    nil )

@@ -9,12 +9,11 @@ if playerClass ~= 'DRUID' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -349,29 +348,14 @@ spec:RegisterAuras( {
         max_stack = 1,
         -- Healing spells deal nature damage to nearby enemies
         -- Damage spells heal nearby allies
-    },
-    heart_of_the_wild = {
+    },    heart_of_the_wild = {
         id = 108291,
         duration = 45,
         max_stack = 1,
         -- Increases stats and allows use of abilities from other specs
     },
-    soul_of_the_forest = {
-        id = 114108,  -- Restoration version
-        duration = 15,        max_stack = 1,
-        -- Swiftmend increases healing of next Wild Growth by 50%
-    },
     
-    natures_vigil = {
-        id = 124974,
-        duration = 30,
-        max_stack = 1,
-    },
-    heart_of_the_wild = {
-        id = 108291,
-        duration = 45,
-        max_stack = 1,
-    },    symbiosis = {
+    symbiosis = {
         id = 110309,
         duration = 3600,  -- 1 hour duration
         max_stack = 1,
@@ -432,8 +416,7 @@ spec:RegisterAuras( {
         id = 5215,
         duration = 3600,
         max_stack = 1,
-    },
-    travel_form = {
+    },    travel_form = {
         id = 783,
         duration = 3600,
         max_stack = 1,
@@ -904,25 +887,7 @@ spec:RegisterAbilities( {
         
         handler = function ()
             -- Resurrect target with 60% health and mana
-        end,
-    },
-    
-    symbiosis = {
-        id = 110309,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        
-        spend = 0.12,
-        spendType = "mana",
-        
-        startsCombat = false,
-        texture = 135789,
-        
-        handler = function ()
-            applyBuff("symbiosis")
-        end,
-    },
+        end,    },
     
     survival_instincts = {
         id = 61336,
@@ -1204,49 +1169,13 @@ spec:RegisterAbilities( {
         
         handler = function ()
             -- AoE slow and pull effect
-        end,
-    },
-    
-    heart_of_the_wild = {
-        id = 108288,
-        cast = 0,
-        cooldown = 360,
-        gcd = "spell",
-        
-        toggle = "cooldowns",
-        
-        startsCombat = false,
-        texture = 135879,
-        
-        handler = function ()
-            applyBuff("heart_of_the_wild")
-        end,
-    },
-    
-    natures_vigil = {
-        id = 124974,
-        cast = 0,
-        cooldown = 90,
-        gcd = "spell",
-        
-        toggle = "cooldowns",
-        
-        startsCombat = false,
-        texture = 236180,
-        
-        handler = function ()
-            applyBuff("natures_vigil")
-        end,
-    },
+        end,    },
 } )
 
 -- Register default pack for MoP Restoration Druid
 spec:RegisterPack( "Restoration", 20250515, [[Hekili:TzTBVTTnu4FlXSwQZzfn6t7wGvv9vpr8KvAm7nYn9DAMQ1ijxJZwa25JdwlRcl9dglLieFL52MpyzDoMZxhF7b)MFd9DjdLtuRdh7iiRdxGt)8h6QN0xHgyR37F)5dBEF5(yJ9Np)1hgn3dB4(l)ofv5k3HbNcO8zVcGqymUvZYwbVBdY0P)MM]]  )
 
 -- Register pack selector for Restoration
-spec:RegisterPackSelector( "restoration", "Restoration", "|T136041:0|t Restoration",
-    "Handles all aspects of Restoration Druid healing with focus on HoT management and mana efficiency.",
-    nil )
 
 -- Add state handlers for common Druid mechanics
 do

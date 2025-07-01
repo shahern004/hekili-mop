@@ -7,12 +7,11 @@ if not Hekili or not Hekili.NewSpecialization then return end
 if select(2, UnitClass('player')) ~= 'HUNTER' then return end
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -35,18 +34,10 @@ end
 
 local spec
 
-local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
-    if not spec and class and Hekili.NewSpecialization then
-        spec = Hekili:NewSpecialization( 253 ) -- Beast Mastery spec ID for MoP
-    end
-    return class, state, spec
-end
-
 local function RegisterBeastMasterySpec()
-    local class, state, spec = getReferences()
+    if not class or not state or not Hekili.NewSpecialization then return end
+    
+    local spec = Hekili:NewSpecialization( 253 ) -- Beast Mastery spec ID for MoP
     if not spec then return end -- Not ready yet
 
 -- Enhanced Resources with proper MoP mechanics
@@ -828,174 +819,19 @@ spec:RegisterAuras( {
         max_stack = 1
     },    
     t15_2p_bm = {
-        duration = 3600,
-        max_stack = 1
+        duration = 3600,        max_stack = 1
     },
     
     t15_4p_bm = {
         duration = 3600,
         max_stack = 1
-    },
+    }
+} )
 
-    -- Advanced Aura System for Beast Mastery Hunter
+-- Enhanced Abilities (MoP - Beast Mastery Comprehensive)
+spec:RegisterAbilities( {
     -- Core Beast Mastery Signature Abilities
     bestial_wrath = {
-        id = 19574,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Bestial Wrath" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    kill_command = {
-        id = 34026,
-        duration = 10,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitDebuff( "target", "Kill Command" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    intimidation = {
-        id = 19577,
-        duration = 5,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitDebuff( "target", "Intimidation" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    -- Pet Focus Management and Abilities
-    focus_fire = {
-        id = 82692,
-        duration = 20,
-        max_stack = 5,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Focus Fire" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    frenzy = {
-        id = 19615,
-        duration = 8,
-        max_stack = 5,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "pet", "Frenzy" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    beast_within = {
-        id = 34471,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "pet", "The Beast Within" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    -- Hunter Utility and Defensive Tracking
-    aspect_of_the_hawk = {
-        id = 13165,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Aspect of the Hawk" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    aspect_of_the_cheetah = {
         id = 5118,
         duration = 3600,
         max_stack = 1,
@@ -2100,54 +1936,11 @@ spec:RegisterAbilities( {
         gcd = "off",
         school = "physical",
         
-        usable = function() return pet.alive, "requires a living pet" end,
-        
-        handler = function ()
+        usable = function() return pet.alive, "requires a living pet" end,        handler = function ()
             applyBuff( "masters_call", 4 )
-        end,        copy = { 53271, "masters" }
-    },
-    
-    deterrence = {
-        id = 19263,
-        cast = 0,
-        cooldown = 180,
-        gcd = "off",
-        
-        defensive = true,
-        
-        startsCombat = false,
-        
-        handler = function ()
-            applyBuff( "deterrence", 5 )
         end,
-    },
-    
-    feign_death = {
-        id = 5384,
-        cast = 0,
-        cooldown = 30,
-        gcd = "off",
-        school = "physical",
         
-        startsCombat = false,
-        
-        handler = function ()
-            -- Not modeled in sim
-        end,
-    },
-    
-    hunters_mark = {
-        id = 1130,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        school = "arcane",
-        
-        startsCombat = false,
-        
-        handler = function ()
-            applyDebuff( "target", "hunters_mark", 300 )
-        end,
+        copy = { 53271, "masters" }
     },
     
     rapid_fire = {
@@ -2165,20 +1958,8 @@ spec:RegisterAbilities( {
             applyBuff( "rapid_fire", 15 )
             stat.haste = stat.haste + 0.4
         end,
-    },
-    
-    misdirection = {
-        id = 34477,
-        cast = 0,
-        cooldown = 30,
-        gcd = "off",
-        school = "physical",
         
-        startsCombat = false,
-        
-        handler = function ()
-            applyBuff( "misdirection", 30 )
-        end,
+        copy = { 3045, "rf" }
     },
     
     freezing_trap = {
@@ -2394,31 +2175,7 @@ spec:RegisterAbilities( {
         handler = function ()
             -- Apply rabid buff to pet
             -- This is handled by the pet's AI, but we track it for simulation
-        end,
-
-        copy = { 53401, "rabid" }
-    },
-    
-    -- Emergency abilities
-    rapid_fire = {
-        id = 3045,
-        cast = 15,
-        channeled = true,
-        cooldown = 300,
-        gcd = "spell",
-        school = "physical",
-        
-        toggle = "cooldowns",
-        
-        start = function ()
-            applyBuff( "rapid_fire", 15 )
-        end,
-        
-        finish = function ()
-            removeBuff( "rapid_fire" )
-        end,
-
-        copy = { 3045, "rapid" }
+        end,        copy = { 53401, "rabid" }
     },
     
     readiness = {

@@ -45,6 +45,87 @@ local GetSpellInfo = ns.GetUnpackedSpellInfo
 -- MoP: C_Spell.GetSpellDescription not available, use GetSpellDescription
 local GetSpellDescription = GetSpellDescription or function(spellID) return "" end
 
+-- MoP: Specialization system fallbacks (similar to Wrath)
+local GetSpecialization = _G.GetSpecialization or function() return GetActiveTalentGroup() end
+
+-- Force override GetSpecializationInfo for MoP since the native one is incomplete
+local GetSpecializationInfo = function(index)
+    -- MoP spec mapping based on class and talent group
+    local className, classFile, classID = UnitClass("player")
+    if not className then return nil end
+    
+    -- Basic spec info for each class in MoP
+    local specData = {
+        HUNTER = {
+            [1] = { 253, "Beast Mastery", "Master of pets and beasts", "Interface\\Icons\\Ability_Hunter_BeastMastery", "DAMAGER" },
+            [2] = { 254, "Marksmanship", "Ranged weapon specialist", "Interface\\Icons\\Ability_Hunter_Marksmanship", "DAMAGER" },
+            [3] = { 255, "Survival", "Traps and survival expert", "Interface\\Icons\\Ability_Hunter_Survival", "DAMAGER" },
+        },
+        WARRIOR = {
+            [1] = { 71, "Arms", "Two-handed weapon specialist", "Interface\\Icons\\Ability_Warrior_StrategicAttack", "DAMAGER" },
+            [2] = { 72, "Fury", "Dual-wield berserker", "Interface\\Icons\\Ability_Warrior_DualWield", "DAMAGER" },
+            [3] = { 73, "Protection", "Shield and defense specialist", "Interface\\Icons\\Ability_Warrior_DefensiveStance", "TANK" },
+        },
+        PALADIN = {
+            [1] = { 65, "Holy", "Healing and support", "Interface\\Icons\\Spell_Holy_HolyBolt", "HEALER" },
+            [2] = { 66, "Protection", "Shield and defense", "Interface\\Icons\\Ability_Paladin_ShieldofVengeance", "TANK" },
+            [3] = { 70, "Retribution", "Two-handed combat", "Interface\\Icons\\Spell_Holy_AuraOfLight", "DAMAGER" },
+        },
+        ROGUE = {
+            [1] = { 259, "Assassination", "Poisons and stealth", "Interface\\Icons\\Ability_Rogue_DeadlyBrew", "DAMAGER" },
+            [2] = { 260, "Combat", "Melee combat specialist", "Interface\\Icons\\Ability_BackStab", "DAMAGER" },
+            [3] = { 261, "Subtlety", "Stealth and shadows", "Interface\\Icons\\Ability_Stealth", "DAMAGER" },
+        },
+        PRIEST = {
+            [1] = { 256, "Discipline", "Damage prevention", "Interface\\Icons\\Spell_Holy_PowerWordShield", "HEALER" },
+            [2] = { 257, "Holy", "Healing specialist", "Interface\\Icons\\Spell_Holy_GuardianSpirit", "HEALER" },
+            [3] = { 258, "Shadow", "Shadow magic and damage", "Interface\\Icons\\Spell_Shadow_ShadowWordPain", "DAMAGER" },
+        },
+        DEATHKNIGHT = {
+            [1] = { 250, "Blood", "Tank specialization", "Interface\\Icons\\Spell_Deathknight_BloodPresence", "TANK" },
+            [2] = { 251, "Frost", "Dual-wield DPS", "Interface\\Icons\\Spell_Deathknight_FrostPresence", "DAMAGER" },
+            [3] = { 252, "Unholy", "Disease and pets", "Interface\\Icons\\Spell_Deathknight_UnholyPresence", "DAMAGER" },
+        },
+        SHAMAN = {
+            [1] = { 262, "Elemental", "Ranged spell damage", "Interface\\Icons\\Spell_Nature_Lightning", "DAMAGER" },
+            [2] = { 263, "Enhancement", "Melee combat", "Interface\\Icons\\Spell_Nature_LightningShield", "DAMAGER" },
+            [3] = { 264, "Restoration", "Healing specialist", "Interface\\Icons\\Spell_Nature_MagicImmunity", "HEALER" },
+        },
+        MAGE = {
+            [1] = { 62, "Arcane", "Arcane magic specialist", "Interface\\Icons\\Spell_Holy_MagicalSentry", "DAMAGER" },
+            [2] = { 63, "Fire", "Fire magic specialist", "Interface\\Icons\\Spell_Fire_FlameBolt", "DAMAGER" },
+            [3] = { 64, "Frost", "Frost magic specialist", "Interface\\Icons\\Spell_Frost_FrostBolt02", "DAMAGER" },
+        },
+        WARLOCK = {
+            [1] = { 265, "Affliction", "Damage over time", "Interface\\Icons\\Spell_Shadow_DeathCoil", "DAMAGER" },
+            [2] = { 266, "Demonology", "Demon summoning", "Interface\\Icons\\Spell_Shadow_Metamorphosis", "DAMAGER" },
+            [3] = { 267, "Destruction", "Direct damage", "Interface\\Icons\\Spell_Shadow_RainOfFire", "DAMAGER" },
+        },
+        MONK = {
+            [1] = { 268, "Brewmaster", "Tank specialization", "Interface\\Icons\\Spell_Monk_BrewmasterSpec", "TANK" },
+            [2] = { 270, "Mistweaver", "Healing specialist", "Interface\\Icons\\Spell_Monk_MistweaverSpec", "HEALER" },
+            [3] = { 269, "Windwalker", "Melee damage", "Interface\\Icons\\Spell_Monk_WindwalkerSpec", "DAMAGER" },
+        },
+        DRUID = {
+            [1] = { 102, "Balance", "Ranged spell damage", "Interface\\Icons\\Spell_Nature_StarFall", "DAMAGER" },
+            [2] = { 103, "Feral", "Melee damage in cat form", "Interface\\Icons\\Ability_Druid_CatForm", "DAMAGER" },
+            [3] = { 104, "Guardian", "Tank in bear form", "Interface\\Icons\\Ability_Racial_BearForm", "TANK" },
+            [4] = { 105, "Restoration", "Healing specialist", "Interface\\Icons\\Spell_Nature_HealingTouch", "HEALER" },
+        },
+    }
+    
+    local classSpecs = specData[classFile]
+    if not classSpecs or not classSpecs[index] then return nil end
+    
+    local spec = classSpecs[index]
+    return spec[1], spec[2], spec[3], spec[4], spec[5]
+end
+local GetNumSpecializations = _G.GetNumSpecializations or function()
+    local className, classFile = UnitClass("player")
+    if classFile == "DRUID" then return 4 end
+    return 3
+end
+
 -- One Time Fixes
 local oneTimeFixes = {
     resetAberrantPackageDates_20190728_1 = function( p )
@@ -789,11 +870,29 @@ return end
 
     local multiSet = false
     local timer    local function QueueRebuildUI()
-        -- MoP: Use Hekili timer instead of C_Timer
-        if timer then Hekili:CancelTimer( timer ) end
-        timer = Hekili:ScheduleTimer( function ()
+        -- Use appropriate timer method
+        if timer then 
+            if Hekili.CancelTimer then
+                Hekili:CancelTimer( timer )
+            elseif type(timer) == "function" then
+                -- C_Timer handle
+                timer = nil
+            end
+        end
+        
+        if Hekili.ScheduleTimer then
+            timer = Hekili:ScheduleTimer( function ()
+                Hekili:BuildUI()
+            end, 0.5 )
+        elseif C_Timer and C_Timer.After then
+            -- Fallback to C_Timer
+            timer = C_Timer.After(0.5, function()
+                Hekili:BuildUI()
+            end)
+        else
+            -- Last resort - direct call
             Hekili:BuildUI()
-        end, 0.5 )
+        end
     end
 
     function Hekili:SetDisplayOption( info, val, v2, v3, v4 )
@@ -4643,8 +4742,6 @@ found = true end
 
         self.NewItemInfo = false
     end
-
-
     local ToggleCount = {}
     local tAbilities = {}
     local tItems = {}
@@ -4655,24 +4752,43 @@ found = true end
         if not db then return end
 
         local i = 1
+        local numSpecs = GetNumSpecializations()
 
-        while( true ) do
-            local id, name, description, texture, role = GetSpecializationInfo( i )
+        -- First, populate specs table for dropdown usage
+        for specIndex = 1, numSpecs do
+            local id, name, description, texture, role = GetSpecializationInfo( specIndex )
+            
+            if id and name then
+                if description then description = description:match( "^(.-)\n" ) end
 
-            if not id then break end            if description then description = description:match( "^(.-)\n" ) end
-
-            local spec = class and class.specs and class.specs[ id ]
-
-            if spec then
                 local sName = lower( name )
                 specNameByID[ id ] = sName
                 specIDByName[ sName ] = id
 
-                specs[ id ] = Hekili:ZoomedTextureWithText( texture, name )
+                -- Create display name with safe fallbacks
+                local displayName = name or ("Spec " .. tostring(id))
+                local safeTexture = texture or 134400
+                
+                specs[ id ] = Hekili:ZoomedTextureWithText( safeTexture, displayName )
+            end
+        end
+
+        -- Now create options only for specs that are defined in class.specs
+        i = 1
+        while( true ) do
+            local id, name, description, texture, role = GetSpecializationInfo( i )
+
+            if not id then break end
+
+            if description then description = description:match( "^(.-)\n" ) end            local spec = class and class.specs and class.specs[ id ]
+
+            if spec then
+                local sName = lower( name or ("spec_" .. tostring(id)) )
+                specNameByID[ id ] = sName
+                specIDByName[ sName ] = id
 
                 local options = {
                     type = "group",
-                    -- name = specs[ id ],
                     name = name,
                     icon = texture,
                     iconCoords = { 0.15, 0.85, 0.15, 0.85 },
@@ -4686,12 +4802,12 @@ found = true end
                         core = {
                             type = "group",
                             name = "Specialization Settings",
-                            desc = "Core features and specialization options for " .. specs[ id ] .. ".",
+                            desc = "Core features and specialization options for " .. (specs[ id ] or name) .. ".",
                             order = 1,
                             args = {
                                 enabled = {
                                     type = "toggle",
-                                    name = specs[ id ] .. " Enabled",
+                                    name = (specs[ id ] or name) .. " Enabled",
                                     desc = "If checked, the addon will provide priority recommendations for " .. name .. " based on the selected priority list.",
                                     order = 0,
                                     width = "full",
@@ -5120,11 +5236,9 @@ found = true end
                         name = " ",
                         order = 100,
                         width = "full"
-                    }
-
-                    options.args.core.plugins.settings.prefHeader = {
+                    }                    options.args.core.plugins.settings.prefHeader = {
                         type = "header",
-                        name = specs[ id ] .. " Preferences",
+                        name = (specs[ id ] or name or "Unknown") .. " Preferences",
                         order = 100.1,
                     }
 
@@ -5137,9 +5251,14 @@ found = true end
                                 width = "full",
                                 order = option.info.order - 0.01
                             }
+                        end                        options.args.core.plugins.settings[ option.name ] = option.info
+                        -- Ensure spec profile exists and has settings table
+                        if not self.DB.profile.specs[ id ] then
+                            self.DB.profile.specs[ id ] = {}
                         end
-
-                        options.args.core.plugins.settings[ option.name ] = option.info
+                        if not self.DB.profile.specs[ id ].settings then
+                            self.DB.profile.specs[ id ].settings = {}
+                        end
                         if self.DB.profile.specs[ id ].settings[ option.name ] == nil then
                             self.DB.profile.specs[ id ].settings[ option.name ] = option.default
                         end
@@ -5188,6 +5307,63 @@ found = true end
         use_off_gcd = true,
         use_while_casting = true
     }
+
+    -- Updated GetActionList to include all internal handlers, abilities, and items.
+    local GetActionList = function( packName, listName, i )
+        local p = Hekili.DB.profile
+        local pack = p.packs[ packName ]
+        local list = pack and pack.lists and pack.lists[ listName ]
+
+        local actions = {
+            -- Internal Handlers
+            auto_attack = "Auto Attack",
+            auto_shot = "Auto Shot",
+            call_action_list = "Call Action List",
+            cancel_action = "Cancel Action",
+            cancel_aura = "Cancel Aura",
+            custom = "Custom",
+            flask = "Flask",
+            food = "Food",
+            pause = "Pause",
+            potion = "Potion",
+            run_action_list = "Run Action List",
+            snapshot_stats = "Snapshot Stats",
+            start_moving = "Start Moving",
+            stop_moving = "Stop Moving",
+            use_item = "Use Item",
+            variable = "Variable",
+            wait = "Wait",
+        }
+
+        -- Merge abilities from abilityList if available
+        if class and class.abilityList then
+            for k, v in pairs( class.abilityList ) do
+                if type(k) == 'string' and not actions[k] then
+                    actions[k] = v
+                end
+            end
+        end
+
+        -- Fallback: Merge Abilities from class.abilities if abilityList is empty/missing
+        if class and class.abilities then
+            for k, v in pairs( class.abilities ) do
+                if type(k) == 'string' and not actions[k] then
+                    actions[k] = v.name or k
+                end
+            end
+        end
+
+        -- Merge Items
+        if class and class.items then
+            for k, v in pairs( class.items ) do
+                if type(k) == 'string' and not actions[k] then
+                    actions[k] = v.name or k
+                end
+            end
+        end
+        
+        return actions
+    end
 
     local function GetListEntry( pack )
         local entry = rawget( Hekili.DB.profile.packs, pack )
@@ -5542,82 +5718,89 @@ found = true end
                                             set = function () end,
                                             width = "full",
                                             disabled = true,
-                                        },
+                                        },                        packSpec = {
+                            type = "input",
+                            order = 3,
+                            name = "Pack Specialization",
+                            get = function () 
+                                if shareDB.imported.payload and shareDB.imported.payload.spec then
+                                    return select( 2, GetSpecializationInfoByID( shareDB.imported.payload.spec ) ) or "No Specialization Set"
+                                else
+                                    return "No Specialization Set"
+                                end
+                            end,
+                            set = function () end,
+                            width = "full",
+                            disabled = true,
+                        },                        guide = {
+                            type = "description",
+                            name = function ()
+                                local listNames = {}
 
-                                        packSpec = {
-                                            type = "input",
-                                            order = 3,
-                                            name = "Pack Specialization",
-                                            get = function () return select( 2, GetSpecializationInfoByID( shareDB.imported.payload.spec or 0 ) ) or "No Specialization Set" end,
-                                            set = function () end,
-                                            width = "full",
-                                            disabled = true,
-                                        },
+                                if shareDB.imported.payload and shareDB.imported.payload.lists then
+                                    for k, v in pairs( shareDB.imported.payload.lists ) do
+                                        insert( listNames, k )
+                                    end
+                                end
 
-                                        guide = {
-                                            type = "description",
-                                            name = function ()
-                                                local listNames = {}
+                                table.sort( listNames )
 
-                                                for k, v in pairs( shareDB.imported.payload.lists ) do
-                                                    insert( listNames, k )
-                                                end
+                                local o
 
-                                                table.sort( listNames )
+                                if #listNames == 0 then
+                                    o = "The imported Priority has no lists included."
+                                elseif #listNames == 1 then
+                                    o = "The imported Priority has one action list:  " .. listNames[1] .. "."
+                                elseif #listNames == 2 then
+                                    o = "The imported Priority has two action lists:  " .. listNames[1] .. " and " .. listNames[2] .. "."
+                                else
+                                    o = "The imported Priority has the following lists included:  "
+                                    for i, name in ipairs( listNames ) do
+                                        if i == 1 then o = o .. name
+                                        elseif i == #listNames then o = o .. ", and " .. name .. "."
+                                        else o = o .. ", " .. name end
+                                    end
+                                end
 
-                                                local o
-
-                                                if #listNames == 0 then
-                                                    o = "The imported Priority has no lists included."
-                                                elseif #listNames == 1 then
-                                                    o = "The imported Priority has one action list:  " .. listNames[1] .. "."
-                                                elseif #listNames == 2 then
-                                                    o = "The imported Priority has two action lists:  " .. listNames[1] .. " and " .. listNames[2] .. "."
-                                                else
-                                                    o = "The imported Priority has the following lists included:  "
-                                                    for i, name in ipairs( listNames ) do
-                                                        if i == 1 then o = o .. name
-                                                        elseif i == #listNames then o = o .. ", and " .. name .. "."
-                                                        else o = o .. ", " .. name end
-                                                    end
-                                                end
-
-                                                return o
-                                            end,
-                                            order = 4,
-                                            width = "full",
-                                            fontSize = "medium",
-                                        },
+                                return o
+                            end,
+                            order = 4,
+                            width = "full",
+                            fontSize = "medium",
+                        },
 
                                         separator = {
                                             type = "header",
                                             name = "Apply Changes",
                                             order = 10,
-                                        },
+                                        },                        apply = {
+                            type = "execute",
+                            name = "Apply Changes",
+                            order = 11,
+                            confirm = function ()
+                                if rawget( self.DB.profile.packs, shareDB.imported.name ) then
+                                    return "You already have a \"" .. shareDB.imported.name .. "\" Priority.\nOverwrite it?"
+                                end
+                                return "Create a new Priority named \"" .. shareDB.imported.name .. "\" from the imported data?"
+                            end,
+                            func = function ()
+                                if shareDB.imported.payload then
+                                    self.DB.profile.packs[ shareDB.imported.name ] = shareDB.imported.payload
+                                    shareDB.imported.payload.date = shareDB.imported.date
+                                    shareDB.imported.payload.version = shareDB.imported.date
+                                end
 
-                                        apply = {
-                                            type = "execute",
-                                            name = "Apply Changes",
-                                            order = 11,
-                                            confirm = function ()
-                                                if rawget( self.DB.profile.packs, shareDB.imported.name ) then
-                                                    return "You already have a \"" .. shareDB.imported.name .. "\" Priority.\nOverwrite it?"
-                                                end
-                                                return "Create a new Priority named \"" .. shareDB.imported.name .. "\" from the imported data?"
-                                            end,
-                                            func = function ()
-                                                self.DB.profile.packs[ shareDB.imported.name ] = shareDB.imported.payload
-                                                shareDB.imported.payload.date = shareDB.imported.date
-                                                shareDB.imported.payload.version = shareDB.imported.date
+                                shareDB.import = ""
+                                shareDB.imported = {}
+                                shareDB.importStage = 2
 
-                                                shareDB.import = ""
-                                                shareDB.imported = {}
-                                                shareDB.importStage = 2
-
-                                                self:LoadScripts()
-                                                self:EmbedPackOptions()
-                                            end,
-                                        },
+                                self:LoadScripts()
+                                self:EmbedPackOptions()
+                            end,
+                            disabled = function ()
+                                return not shareDB.imported.payload
+                            end,
+                        },
 
                                         reset = {
                                             type = "execute",
@@ -6118,10 +6301,11 @@ found = true end
                                         if not p.lists[ packControl.listName ][ id ] then packControl.actionID = "zzzzzzzzzz" end
 
                                         self:LoadScripts()
-                                    end,
-                                    disabled = function()
+                                    end,                                    disabled = function()
                                         local p = rawget( Hekili.DB.profile.packs, pack )
-                                        return p.spec ~= state.spec.id
+                                        local disabled = p.spec ~= state.spec.id
+                                        -- Import disabled check
+                                        return disabled
                                     end,
                                 },
                                 importWarningSpace = {
@@ -6129,24 +6313,39 @@ found = true end
                                     name = " ",
                                     width = 0.1,
                                     order = 5.11
-                                },
-                                importWarning = {
+                                },                                importWarning = {
                                     type = "description",                                    name = function()
                                         local p = rawget( Hekili.DB.profile.packs, pack )
                                         if class and class.specs and p and p.spec and class.specs[ p.spec ] then
-                                            return format( "You must be in the |T%d:0|t |cFFFFD100%s|r specialization to import this priority.", class.specs[ p.spec ].texture, class.specs[ p.spec ].name )
+                                            local spec = class.specs[ p.spec ]
+                                            local texture = spec.texture or 136012
+                                            local name = spec.name or "Unknown"
+                                            return format( "You must be in the |T%d:0|t |cFFFFD100%s|r specialization to import this priority.", texture, name )
                                         else
-                                            return "You must be in the correct specialization to import this priority."
+                                            -- Debug information
+                                            local debugInfo = ""
+                                            if p and p.spec then
+                                                debugInfo = debugInfo .. " Priority spec: " .. tostring(p.spec)
+                                            end
+                                            if state and state.spec and state.spec.id then
+                                                debugInfo = debugInfo .. " Current spec: " .. tostring(state.spec.id)
+                                            end
+                                            if class and class.specs then
+                                                local specExists = class.specs[ p and p.spec ] ~= nil
+                                                debugInfo = debugInfo .. " Spec exists: " .. tostring(specExists)
+                                            end
+                                            return "You must be in the correct specialization to import this priority." .. debugInfo
                                         end
                                     end,
                                     image = GetAtlasFile( "Ping_Chat_Warning" ),
                                     imageCoords = GetAtlasCoords( "Ping_Chat_Warning" ),
                                     fontSize = "medium",
                                     width = 2.2,
-                                    order = 5.12,
-                                    hidden = function()
+                                    order = 5.12,                                    hidden = function()
                                         local p = rawget( Hekili.DB.profile.packs, pack )
-                                        return p.spec == state.spec.id
+                                        local hidden = p.spec == state.spec.id
+                                        -- Import warning hidden check
+                                        return hidden
                                     end
                                 },
                                 profileConsiderations = {
@@ -6547,8 +6746,47 @@ packControl.actionID = format( "%04d", id ) end
                                             main_hand = actual_main_hand
                                         }
 
-                                        for k, v in pairs( class.abilityList ) do
-                                            list[ k ] = bypass[ k ] or v
+                                        -- Add internal handlers first
+                                        local internalHandlers = {
+                                            auto_attack = "Auto Attack",
+                                            auto_shot = "Auto Shot",
+                                            call_action_list = "Call Action List",
+                                            cancel_action = "Cancel Action",
+                                            cancel_aura = "Cancel Aura",
+                                            custom = "Custom",
+                                            flask = "Flask",
+                                            food = "Food",
+                                            pause = "Pause",
+                                            potion = "Potion",
+                                            run_action_list = "Run Action List",
+                                            snapshot_stats = "Snapshot Stats",
+                                            start_moving = "Start Moving",
+                                            stop_moving = "Stop Moving",
+                                            use_item = "Use Item",
+                                            variable = "Variable",
+                                            wait = "Wait",
+                                        }
+                                        
+                                        for k, v in pairs( internalHandlers ) do
+                                            list[ k ] = v
+                                        end
+
+                                        -- Add abilities from abilityList if available
+                                        if class and class.abilityList then
+                                            for k, v in pairs( class.abilityList ) do
+                                                if not list[ k ] then  -- Don't overwrite internal handlers
+                                                    list[ k ] = bypass[ k ] or v
+                                                end
+                                            end
+                                        end
+
+                                        -- Fallback: add abilities from class.abilities if abilityList is empty/missing
+                                        if class and class.abilities then
+                                            for k, v in pairs( class.abilities ) do
+                                                if type(k) == "string" and not list[ k ] then
+                                                    list[ k ] = bypass[ k ] or v.name or k
+                                                end
+                                            end
                                         end
 
                                         return list
@@ -6561,13 +6799,12 @@ packControl.actionID = format( "%04d", id ) end
                                         end
 
                                         sort( list, function( a, b )
-                                            local bypass = {
-                                                trinket1 = actual_trinket1,
+                                            local bypass = {                                                trinket1 = actual_trinket1,
                                                 trinket2 = actual_trinket2,
                                                 main_hand = actual_main_hand
                                             }
-                                            local aName = bypass[ a ] or class.abilities[ a ].name
-                                            local bName = bypass[ b ] or class.abilities[ b ].name
+                                            local aName = bypass[ a ] or (class.abilities[ a ] and class.abilities[ a ].name) or a
+                                            local bName = bypass[ b ] or (class.abilities[ b ] and class.abilities[ b ].name) or b
                                             if aName ~= nil and type( aName.name ) == "string" then aName = aName.name end
                                             if bName ~= nil and type( bName.name ) == "string" then bName = bName.name end
                                             return aName < bName
@@ -7411,18 +7648,15 @@ n = tonumber( n ) + 1
             else
                 print( "EmbedPackOptions: Pack '" .. pack .. "' FILTERED OUT" )
             end
-        end
-
-        collectgarbage()
+        end        collectgarbage()
         db.args.packs = packs
     end
 
-end
-
-
 do
     local completed = false
-    local SetOverrideBinds    SetOverrideBinds = function ()
+    local SetOverrideBinds
+
+    SetOverrideBinds = function ()
         if InCombatLockdown() then
             local timer = C_Timer and C_Timer.After or function(delay, func)
                 return Hekili:ScheduleTimer(func, delay)
@@ -7992,13 +8226,14 @@ do
                                     name = "",
                                     width  = 0.15,
                                     order = 7.1,
-                                },
-
-                                reactiveDesc = {
+                                },                                reactiveDesc = {
                                     type = "description",
-                                    name = function() return format( "%s Uses Two Displays: Primary and AOE\n"
+                                    name = function() 
+                                        local specID = state.spec and state.spec.id or 0
+                                        local aoeCount = self.DB.profile.specs and self.DB.profile.specs[ specID ] and self.DB.profile.specs[ specID ].aoe or 3
+                                        return format( "%s Uses Two Displays: Primary and AOE\n"
                                         .. "%s Primary Display's Recommendations based on 1 Target\n"
-                                        .. "%s AOE Display Shown when |cFFFFD100%d|r+ Targets Detected", Bullet, Bullet, Bullet, self.DB.profile.specs[ state.spec.id ].aoe or 3 )
+                                        .. "%s AOE Display Shown when |cFFFFD100%d|r+ Targets Detected", Bullet, Bullet, Bullet, aoeCount )
                                     end,
                                     fontSize = "medium",
                                     width = 2.85,
@@ -8899,7 +9134,9 @@ end
 
 function Hekili:TotalRefresh( noOptions )
     if Hekili.PLAYER_ENTERING_WORLD then
-        self:SpecializationChanged()
+        if self.SpecializationChanged then
+            self:SpecializationChanged()
+        end
         self:RestoreDefaults()
     end
 
@@ -9780,17 +10017,53 @@ end
 
 -- Key Bindings
 function Hekili:MakeSnapshot( isAuto )
+    print("MakeSnapshot called with isAuto:", tostring(isAuto))
+    print("DB profile exists:", self.DB and self.DB.profile and "yes" or "no")
+    print("AutoSnapshot setting:", self.DB and self.DB.profile and self.DB.profile.autoSnapshot or "unknown")
+    
     if isAuto and not Hekili.DB.profile.autoSnapshot then
+        print("AutoSnapshot disabled, returning early")
         return
     end
 
+    print("Creating snapshot...")
+    print("Setting ManualSnapshot to:", not isAuto)
     self.ManualSnapshot = not isAuto
     self.ActiveDebug = true
-    Hekili.Update()
+    
+    print("Calling Hekili.Update()...")
+    if Hekili.Update then
+        Hekili.Update()
+        print("Hekili.Update() completed")
+    else
+        print("ERROR: Hekili.Update() not found!")
+    end
+    
+    -- Explicitly call SaveDebugSnapshot for manual snapshots
+    if not isAuto then
+        print("Calling SaveDebugSnapshot explicitly...")
+        if self:SaveDebugSnapshot("Primary") then
+            print("Snapshot saved successfully!")
+            if self.Config then 
+                LibStub("AceConfigDialog-3.0"):SelectGroup("Hekili", "snapshots")
+                print("Opened snapshots interface")
+            end
+        else
+            print("SaveDebugSnapshot returned false")
+        end
+    end
+    
     self.ActiveDebug = false
     self.ManualSnapshot = nil
 
-    HekiliDisplayPrimary.activeThread = nil
+    if HekiliDisplayPrimary then
+        HekiliDisplayPrimary.activeThread = nil
+        print("Reset HekiliDisplayPrimary.activeThread")
+    else
+        print("WARNING: HekiliDisplayPrimary not found")
+    end
+    
+    print("Snapshot creation completed")
 end
 
 function Hekili:Notify( str, duration )
@@ -9932,4 +10205,5 @@ do
 
         return t and t.value
     end
+end
 end

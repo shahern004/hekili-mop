@@ -8,12 +8,11 @@ if playerClass ~= 'ROGUE' then return end
 
 local addon, ns = ...
 local Hekili = _G[ addon ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -511,9 +510,8 @@ spec:RegisterGlyphs( {
     [114015] = "shuriken_toss",        -- Shuriken Toss generates combo points at max range
     [137619] = "marked_for_death",     -- Marked for Death has 50% shorter cooldown if target dies
     [76577]  = "shadowmeld",           -- Shadowmeld can be used in combat (Night Elf racial)
-    
-    -- PvP-Focused Glyphs
-    [56806] = "cheap_shot",            -- Cheap Shot has 10 yard range
+      -- PvP-Focused Glyphs
+    [91023] = "cheap_shot",            -- Cheap Shot has 10 yard range
     [89775] = "redirect",              -- Redirect no longer has cooldown
     [94023] = "smoke_bomb",            -- Smoke Bomb lasts 2 seconds longer
     [63420] = "expose_armor",          -- Expose Armor affects up to 3 nearby enemies

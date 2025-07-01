@@ -7,12 +7,11 @@ if playerClass ~= 'DEATHKNIGHT' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -1355,6 +1354,3 @@ end )
 spec:RegisterPack( "Frost", 20250515, [[Hekili:T3vBVTTnu4FlXnHr9LsojdlJE7Kf7K3KRLvAm7njb5L0Svtla8Xk20IDngN7ob6IPvo9CTCgbb9D74Xtx83u5dx4CvNBYZkeeZwyXJdNpV39NvoT82e)6J65pZE3EGNUNUp(4yTxY1VU)mEzZNF)wwc5yF)SGp2VyFk3fzLyKD(0W6Zw(aFW0P)MM]]  )
 
 -- Register pack selector for Frost
-spec:RegisterPackSelector( "frost", "Frost", "|T135773:0|t Frost",
-    "Handles all aspects of Frost Death Knight rotation with focus on dual-wielding and Frost damage.",
-    nil )

@@ -3055,8 +3055,8 @@ do
         end
     } )
 
-    local PvpDummies = ns.PvpDummies
-    local TargetDummies = ns.TargetDummies
+    local PvpDummies = ns.PvpDummies or {}
+    local TargetDummies = ns.TargetDummies or {}
 
     mt_target = {
         __index = function( t, k )
@@ -3119,7 +3119,8 @@ do
                 if not isPlayer then isPlayer = PvpDummies[ t.npcid ] end
                 t[k] = isPlayer or false -- Enables proper treatment of Absolute Corruption and similar modified-in-PvP effects.
 
-            elseif k == "is_dummy" then t[k] = ( TargetDummies[ t.npcid ] ~= nil )
+            elseif k == "is_dummy" then 
+                t[k] = ( TargetDummies and TargetDummies[ t.npcid ] ~= nil ) or false
             elseif k == "is_undead" then t[k] = UnitCreatureType( "target" ) == BATTLE_PET_NAME_4
 
             elseif k == "level" then t[k] = UnitLevel( "target" ) or UnitLevel( "player" ) or MAX_PLAYER_LEVEL

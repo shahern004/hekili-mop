@@ -8,12 +8,11 @@ if playerClass ~= 'ROGUE' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -287,24 +286,11 @@ spec:RegisterTalents( {
     nightstalker               = { 4908, 1, 14062  }, -- Damage increased by 50% while stealthed
     subterfuge                 = { 4909, 1, 108208 }, -- Abilities usable for 3 sec after breaking stealth
     shadow_focus               = { 4910, 1, 108209 }, -- Abilities cost 75% less energy while stealthed
-    
-    -- Tier 2 (Level 30) - Ranged/Utility
+      -- Tier 2 (Level 30) - Ranged/Utility
     deadly_throw               = { 4911, 1, 26679  }, -- Throws knife to interrupt and slow
     nerve_strike               = { 4912, 1, 108210 }, -- Reduces healing by 50% for 10 sec
     combat_readiness           = { 4913, 1, 74001  }, -- Stacks reduce damage taken
-    deadly_throw               = { 4911, 1, 26679 },
-    nerve_strike               = { 4912, 1, 108210 },
-    combat_readiness           = { 4913, 1, 74001 },
     
-    -- Tier 3 (Level 45)
-    cheat_death                = { 4914, 1, 31230 },
-    leeching_poison            = { 4915, 1, 108211 },
-    elusiveness                = { 4916, 1, 79008 },
-    
-    -- Tier 4 (Level 60)
-    preparation                = { 4917, 1, 14185 },
-    shadowstep                 = { 4918, 1, 36554 },
-    burst_of_speed             = { 4919, 1, 108212 },    
     -- Tier 3 (Level 45) - Survivability
     cheat_death                = { 4914, 1, 31230  }, -- Fatal damage instead leaves you at 7% health
     leeching_poison            = { 4915, 1, 108211 }, -- Poisons heal you for 10% of damage dealt
@@ -1666,9 +1652,6 @@ spec:RegisterRanges(
 spec:RegisterPack( "Combat", 20250517, [[Hekili:T1vBVTTnu4FlbiQSZfnsajQtA2cBlSTJvAm7njo5i5bYqjRtasiik)vfdC9d7tLsksKRceSacS73n7dNjgfORdxKuofvkQXWghRdh7iih7ii)m5rJg9H1SxJw(qAiih(7FAJRyDF9)9EU7VsCgF)upgdVgM)P8HposKXisCicp7(ob2ZXdpixyxvynaLeWZA67v)OBP5fV9IDgOJvzNJVky08ejfY6Fk5cpMPzlPift10fZQMrbrTe)GkbJb(KuIztYJ1YJkuS0LuPitvI1wPcMQZ9w68ttCwc3fj2OUia3wKYLf1wUksoeD5WyKpYpTtn(qbjlGGwaYJCJ6kPCbvrYhSKibHsXEhtYCbuuiP5Iwjr4f0Mn4r)ZhOrqfacFyjXM1TK4JbLD27PVzAcKpTrqLiWkjGdHv(oguYcq(IMwbQajGbbonWfynQh0KVsK)kTDMaHhdiJG6IT2Ot6Ng6G7Z61J6X(JN8GaLPpxluG3xi8)]])
 
 -- Register pack selector for Combat
-spec:RegisterPackSelector( "combat", "Combat", "|T132090:0|t Combat",
-    "Handles all aspects of Combat Rogue rotation with appropriate AoE, cleave and ST priorities.",
-    nil )
 
 -- Register options for Combat
 spec:RegisterOptions( {

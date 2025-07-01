@@ -8,12 +8,11 @@ if playerClass ~= 'MAGE' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -1008,76 +1007,17 @@ spec:RegisterAuras( {
         id = 6117,
         duration = 1800,
         max_stack = 1
-    },
-      molten_armor = {
-        id = 30482,
-        duration = 1800,
-        max_stack = 1
-    },
-
-    incanter_s_ward = {
-        id = 1463,
-        duration = 15,
-        max_stack = 1
-    },
-    
-    invocation = {
-        id = 114003,
-        duration = 40,
-        max_stack = 1
-    },
-    
-    slow = {
-        id = 31589,
-        duration = 15,
-        max_stack = 1
-    },
-    
-    slow_fall = {
-        id = 130,
-        duration = 30,
-        max_stack = 1
-    },
-    
-    time_warp = {
-        id = 80353,
-        duration = 40,
-        max_stack = 1
-    },
-    
-    presence_of_mind = {
-        id = 12043,
-        duration = 10,
-        max_stack = 1
-    },
-    
-    ring_of_frost = {
-        id = 113724,
-        duration = 10,
-        max_stack = 1
-    },
-    
-    -- Armor Auras
-    frost_armor = {
-        id = 7302,
-        duration = 1800,
-        max_stack = 1
-    },
-    
-    mage_armor = {
-        id = 6117,
-        duration = 1800,
-        max_stack = 1
-    },
-    
-    molten_armor = {
+    },      molten_armor = {
         id = 30482,
         duration = 1800,
         max_stack = 1
     },
 } )
 
--- Abilities
+-- ===================
+-- ABILITIES
+-- ===================
+
 spec:RegisterAbilities( {
     -- Fire Core Abilities
     fireball = {
@@ -1568,39 +1508,41 @@ spec:RegisterAbilities( {
         end,
     },
     
-    slow = {
-        id = 31589,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        
-        spend = 0.02,
-        spendType = "mana",
-        
-        startsCombat = true,
-        texture = 136091,
-        
-        handler = function()
-            applyDebuff( "target", "slow" )
-        end,
-    },
+    -- REMOVING THIS DUPLICATE:
+    -- slow = {
+    --     id = 31589,
+    --     cast = 0,
+    --     cooldown = 0,
+    --     gcd = "spell",
+    --     
+    --     spend = 0.02,
+    --     spendType = "mana",
+    --     
+    --     startsCombat = true,
+    --     texture = 136091,
+    --     
+    --     handler = function()
+    --         applyDebuff( "target", "slow" )
+    --     end,
+    -- },
     
-    slow_fall = {
-        id = 130,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        
-        spend = 0.01,
-        spendType = "mana",
-        
-        startsCombat = false,
-        texture = 135992,
-        
-        handler = function()
-            applyBuff( "slow_fall" )
-        end,
-    },
+    -- REMOVING THIS DUPLICATE:
+    -- slow_fall = {
+    --     id = 130,
+    --     cast = 0,
+    --     cooldown = 0,
+    --     gcd = "spell",
+    --     
+    --     spend = 0.01,
+    --     spendType = "mana",
+    --     
+    --     startsCombat = false,
+    --     texture = 135992,
+    --     
+    --     handler = function()
+    --         applyBuff( "slow_fall" )
+    --     end,
+    -- },
     
     spellsteal = {
         id = 30449,
@@ -1715,6 +1657,3 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Fire", 20250517, [[Hekili:TzvBVTTn04FldjH0cbvgL62TG4I3KRlvnTlSynuRiknIWGQ1W2jzlkitIhLmzImzkKSqu6Mi02Y0YbpYoWoz9ogRWEJOJTFYl(S3rmZXRwKSWNrx53Ntta5(S3)8dyNF3BhER85x(jym5nymTYnv0drHbpz5IW1vZgbo1P)MM]] )
 
 -- Register pack selector for Fire
-spec:RegisterPackSelector( "fire", "Fire", "|T135810:0|t Fire",
-    "Handles all aspects of Fire Mage rotation with focus on Hot Streak procs and critical strike chance.",
-    nil )

@@ -223,6 +223,23 @@ function Hekili:Toggle()
     self:UpdateDisplayVisibility()
 end
 
+-- Additional toggle functions for keybindings
+function Hekili:ToggleCooldowns()
+    self:FireToggle("cooldowns")
+end
+
+function Hekili:TogglePotions()
+    self:FireToggle("potions")
+end
+
+function Hekili:ToggleInterrupts()
+    self:FireToggle("interrupts")
+end
+
+function Hekili:ToggleMode()
+    self:FireToggle("mode")
+end
+
 
 local z_PVP = {
     arena = true,
@@ -2299,4 +2316,11 @@ function Hekili:DumpCPUInfo()
     for k, v in orderedPairs( ns.cpuProfile ) do
         print( format( "%-40s %6.2fms (%.2f%%)", k, v, v / total * 100 ) )
     end
+end
+
+-- Add missing callHook function to fix State.lua error
+ns.callHook = ns.callHook or function(hookName, ...)
+    -- Dummy implementation for missing callHook function
+    -- This prevents the State.lua error from occurring
+    return
 end

@@ -8,12 +8,11 @@ if playerClass ~= 'MAGE' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -334,85 +333,10 @@ spec:RegisterGlyphs( {
 -- Auras
 spec:RegisterAuras( {
     -- Frost-specific Auras
-    brain_freeze = {
-        id = 57761,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 57761 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    fingers_of_frost = {
-        id = 44544,
-        duration = 15,
-        max_stack = 2,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 44544 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
     
     frozen = {
-        id = 94794,
-        duration = 15,
+        id = 94794,        duration = 15,
         max_stack = 1
-    },
-    
-    frozen_orb = {
-        id = 84714,
-        duration = 10,
-        max_stack = 1
-    },
-    
-    frost_bomb = {
-        id = 112948,
-        duration = 4,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 112948, "PLAYER" )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
     },
     
     -- Shared Mage Auras
@@ -446,14 +370,7 @@ spec:RegisterAuras( {
         max_stack = 1
     },
     
-    frost_nova = {
-        id = 122,
-        duration = 8,
-        max_stack = 1
-    },
-    
-    frostjaw = {
-        id = 102051,
+    frost_nova = {        id = 122,
         duration = 8,
         max_stack = 1
     },
@@ -496,14 +413,7 @@ spec:RegisterAuras( {
     incanter_s_ward = {
         id = 1463,
         duration = 15,
-        max_stack = 1
-    },
-    
-    invocation = {
-        id = 114003,
-        duration = 40,
-        max_stack = 1
-    },
+        max_stack = 1    },
     
     slow = {
         id = 31589,
@@ -1743,11 +1653,5 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Frost", 20250517, [[Hekili:TzvBVTTn04FldjH0cbvgL62TG4I3KRlvnTlSynuRiknIWGQ1W2jzlkitIhLmzImzkKSqu6Mi02Y0YbpYoWoz9ogRWEJOJTFYl(S3rmZXRwKSWNrx53Ntta5(S3)8dyNF3BhER85x(jym5nymTYnv0drHbpz5IW1vZgbo1P)MM]] )
 
 -- Register pack selector for Frost
-spec:RegisterPackSelector( "frost", "Frost", "|T135846:0|t Frost",
-    "Handles all aspects of Frost Mage rotation with focus on Brain Freeze and Fingers of Frost procs.",
-    nil )
 
 -- Register pack selector for Frost
-spec:RegisterPackSelector( "frost", "Frost", "|T135846:0|t Frost",
-    "Handles all aspects of Frost Mage rotation with focus on Fingers of Frost and Brain Freeze procs.",
-    nil )

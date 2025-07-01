@@ -13,12 +13,11 @@ if playerClass ~= 'DRUID' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -1338,9 +1337,6 @@ actions+=/starfire,if=eclipse.energy>0
 ]] )
 
 -- Register pack selector for Balance
-spec:RegisterPackSelector( "balance", "Balance", "|T136060:0|t Balance",
-    "Handles all aspects of Balance Druid rotation with focus on Eclipse cycles and DoT management.",
-    nil )
 
 -- MoP Balance Druid Debuffs
 spec:RegisterDebuffs( {

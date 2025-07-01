@@ -7,12 +7,11 @@ if playerClass ~= 'SHAMAN' then return end
 
 local addon, ns = ...
 local Hekili = _G[ addon ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 

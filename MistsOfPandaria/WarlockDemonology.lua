@@ -8,12 +8,11 @@ if playerClass ~= 'WARLOCK' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -709,36 +708,11 @@ spec:RegisterAuras( {
     bane_of_agony = {
         id = 980,
         duration = 24,
-        max_stack = 10,
-    },
+        max_stack = 10,    },
       -- Metamorphosis and related
-    metamorphosis = {
-        id = 103958,
-        duration = 30, -- Maximum duration, but limited by Demonic Fury
-        max_stack = 1,
-        tick_time = 1, -- Drains Demonic Fury every second
-        
-        meta = {
-            -- In MoP, Metamorphosis drains 40 Demonic Fury per second
-            tick = function()
-                if demonic_fury.current >= 40 then
-                    spend(40, "demonic_fury")
-                else
-                    -- Not enough Demonic Fury, end Metamorphosis
-                    removeBuff("metamorphosis")
-                end
-            end,
-        },
-    },
     dark_apotheosis = {
-        id = 114168,
-        duration = 3600,
+        id = 114168,        duration = 3600,
         max_stack = 1,
-    },
-    molten_core = {
-        id = 122355,
-        duration = 15,
-        max_stack = 5,
     },
     
     -- Procs and Talents
@@ -777,17 +751,10 @@ spec:RegisterAuras( {
     },
     unbound_will = {
         id = 108482,
-        duration = 6,
-        max_stack = 1,
+        duration = 6,        max_stack = 1,
     },
     
     -- Pet-related
-    grimoire_of_sacrifice = {
-        id = 108503,
-        duration = 15,
-        max_stack = 1,
-    },
-    
     -- Utility
     dark_regeneration = {
         id = 108359,
@@ -1394,9 +1361,6 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Demonology", 20250515, [[Hekili:T3vBVTTn04FldjHr9LSgR2e75XVc1cbKzKRlvnTo01OEckA2IgxVSbP5cFcqifitljsBPIYPKQbbXQPaX0YCRwRNFAxBtwR37pZUWZB3SZ0Zbnu(ndREWP)8dyNF3BhER85x(jym5nymTYnv0drHbpz5IW1vZgbo1P)MM]] )
 
 -- Register pack selector for Demonology
-spec:RegisterPackSelector( "demonology", "Demonology", "|T136172:0|t Demonology",
-    "Handles all aspects of Demonology Warlock DPS with focus on Metamorphosis and demonic summons.",
-    nil )
 
 -- Tier Set Bonus Auras (Enhanced)
 spec:RegisterAuras( {

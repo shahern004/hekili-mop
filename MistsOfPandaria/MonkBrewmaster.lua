@@ -9,12 +9,11 @@ if playerClass ~= 'MONK' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
-local class, state
+local class = Hekili.Class
+local state = Hekili.State
 
 local function getReferences()
-    if not class then
-        class, state = Hekili.Class, Hekili.State
-    end
+    -- Legacy function for compatibility
     return class, state
 end
 
@@ -1182,168 +1181,6 @@ spec:RegisterAuras( {
             t.caster = "player"
         end
     },
-    -- Dizzying Haze: Slows and forces enemies to attack you
-    dizzying_haze = {
-        id = 115180,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 115180, "PLAYER" )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    -- Fortifying Brew: Increases stamina and reduces damage taken
-    fortifying_brew = {
-        id = 120954,
-        duration = 20,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 120954 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    -- Zen Meditation: Reduces damage taken
-    zen_meditation = {
-        id = 115176,
-        duration = 8,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 115176 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    -- Mastery: Elusive Brawler
-    -- Increases your chance to dodge by 15%.
-    elusive_brawler = {
-        id = 117967,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 117967 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    -- Tiger Power (Stance buff)
-    tiger_power = {
-        id = 125359,
-        duration = 30,
-        max_stack = 3,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 125359 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    -- Power Guard (reduces damage taken)
-    power_guard = {
-        id = 118636,
-        duration = 30,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 118636 )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    -- Weakened Blows (caused by Keg Smash)
-    weakened_blows = {
-        id = 115798,
-        duration = 30,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 115798, "PLAYER" )
-            
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
 } )
 
 -- Monk shared abilities and Brewmaster abilities
@@ -1980,6 +1817,3 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Brewmaster", 20250517, [[Hekili:T3vBVTTnu4FldiHr5osojoRZh7KvA3KRJvA2jDLA2jz1yvfbpquu6iqjvswkspfePtl6VGQIQUnbJeHAVQDcOWrbE86CaE4GUwDBB4CvC5m98jdNZzDX6w)v)V(i)h(jDV7GFWEh)9T6rhFQVnSVzsmypSlD2OXqskYJCKfpPWXt87zPkZGZVRSLAXYUYORTmYLwaXlyc8LkGusGO7469JwjTfTH0PwPbJaeivvLsvrfoeQtcGbWlG0A)Ff9)8jPyqXgkz5Qkz5kLRyR12Uco1veB5MUOfIMXnV2Nw8UqEkeUOLXMFtKUOMcEvjzmqssgiE37NuLYlP5NnNgEE5(vJDjgvCeXmQVShsbh(AfIigS2JOmiUeXm(KJ0JkOtQu0Ky)iYcJvqQrthQ(5Fcu5ILidEZjQ0CoYXj)USIip9kem)i81l2cOFLlk9cKGk5nuuDXZes)SEHXiZdLP1gpb968CvpxbSVDaPzgwP6ahsQWnRs)uOKnc0)]] )
 
 -- Register pack selector for Brewmaster
-spec:RegisterPackSelector( "brewmaster", "Brewmaster", "|T608951:0|t Brewmaster",
-    "Handles all aspects of Brewmaster Monk tanking rotation with focus on survival and mitigation.",
-    nil )

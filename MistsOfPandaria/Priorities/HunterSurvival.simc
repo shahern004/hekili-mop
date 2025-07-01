@@ -1,11 +1,10 @@
-# Hunter Survival - MoP 5.5.0 Beta - PQR/PQRotation XML Adaptation
+# Hunter Survival - MoP 
 
-# ===========================================
 # VARIABLES AND CONDITIONS
-# ===========================================
-variable,name=pqr_focus_high,value=focus>=60
-variable,name=pqr_focus_low,value=focus<40
-variable,name=pqr_focus_medium,value=focus>=40&focus<60
+
+variable,name=focus_high,value=focus>=60
+variable,name=focus_low,value=focus<40
+variable,name=focus_medium,value=focus>=40&focus<60
 variable,name=special_unit,value=target.elite|target.level>=player.level+3|target.time_to_die>15
 variable,name=serpent_sting_refresh,value=dot.serpent_sting.remains<6
 variable,name=black_arrow_refresh,value=!dot.black_arrow.ticking
@@ -20,18 +19,14 @@ variable,name=cleave_situation,value=spell_targets.multi_shot=2
 variable,name=rapid_fire_available,value=cooldown.rapid_fire.ready&!buff.rapid_fire.up&!bloodlust.up
 variable,name=use_cooldowns,value=variable.special_unit&target.time_to_die>20
 
-# ===========================================
+
 # PRECOMBAT PREPARATION
-# ===========================================
 actions.precombat+=/aspect_of_the_hawk,if=!buff.aspect_of_the_hawk.up&!buff.aspect_of_the_cheetah.up
 actions.precombat+=/summon_pet,if=!pet.exists
 actions.precombat+=/hunter_s_mark,if=!debuff.hunters_mark.up&target.time_to_die>15
 
-# ===========================================
 # MAIN ACTION PRIORITY LIST
-# ===========================================
 # Emergency and utility actions
-actions=auto_shot
 actions+=/auto_attack,if=!auto_attack
 
 # Aspect management
@@ -58,33 +53,28 @@ actions+=/call_action_list,name=cooldowns
 # Core rotation
 actions+=/call_action_list,name=rotation
 
-# ===========================================
-# ASPECT MANAGEMENT (PQR LOGIC)
-# ===========================================
-actions.aspects=aspect_of_the_cheetah,if=!in_combat&!mounted&moving&!buff.aspect_of_the_cheetah.up
+
+# ASPECT MANAGEMENT 
+actions.aspects+=/aspect_of_the_cheetah,if=!in_combat&!mounted&moving&!buff.aspect_of_the_cheetah.up
 actions.aspects+=/aspect_of_the_hawk,if=in_combat&buff.aspect_of_the_cheetah.up
 
-# ===========================================
+
 # DEFENSIVE AND UTILITY
-# ===========================================
-actions.defensive=exhilaration,if=(health.pct<50|pet.health.pct<20)&in_combat
+actions.defensive+=/exhilaration,if=(health.pct<50|pet.health.pct<20)&in_combat
 actions.defensive+=/healthstone,if=health.pct<40&in_combat
 actions.defensive+=/misdirection,if=threat.situation>=2&(pet.exists|focus.exists)
 
 # Tranquilizing Shot for magic buffs/enrages
 actions.defensive+=/tranquilizing_shot,if=target.dispellable
 
-# ===========================================
 # PET MANAGEMENT
-# ===========================================
-actions.pet_management=mend_pet,if=pet.health.pct<75&!pet.buff.mend_pet.up&!in_combat&pet.exists
+actions.pet_management+=/mend_pet,if=pet.health.pct<settings.pet_healing&!pet.buff.mend_pet.up&!in_combat&pet.exists
 actions.pet_management+=/call_pet,if=!pet.exists&!in_combat
 
-# ===========================================
-# COOLDOWN MANAGEMENT (PQR SPECIAL UNIT LOGIC)
-# ===========================================
+
+# COOLDOWN MANAGEMENT
 # Major DPS cooldowns for special units only
-actions.cooldowns=rapid_fire,if=variable.use_cooldowns&variable.rapid_fire_available
+actions.cooldowns+=/rapid_fire,if=variable.use_cooldowns&variable.rapid_fire_available
 actions.cooldowns+=/stampede,if=variable.use_cooldowns&(buff.rapid_fire.up|bloodlust.up)&cooldown.stampede.ready
 actions.cooldowns+=/readiness,if=variable.use_cooldowns&cooldown.rapid_fire.remains>2
 
@@ -100,9 +90,7 @@ actions.cooldowns+=/blood_fury,if=variable.use_cooldowns
 # Agility potion during heroism/bloodlust
 actions.cooldowns+=/potion,name=virmens_bite,if=bloodlust.up&variable.use_cooldowns
 
-# ===========================================
-# TALENT ABILITIES (MOP TIERS)
-# ===========================================
+# TALENT ABILITIES
 # Tier 4 talents
 actions.cooldowns+=/fervor,if=talent.fervor.enabled&focus<=40&!buff.fervor.up&in_combat
 actions.cooldowns+=/dire_beast,if=talent.dire_beast.enabled&in_combat
@@ -117,19 +105,17 @@ actions.cooldowns+=/glaive_toss,if=talent.glaive_toss.enabled&in_combat
 actions.cooldowns+=/powershot,if=talent.powershot.enabled&variable.special_unit&in_combat
 actions.cooldowns+=/barrage,if=talent.barrage.enabled&in_combat
 
-# ===========================================
-# AOE ROTATION (3+ TARGETS) - PQR FOCUS LOGIC
-# ===========================================
-actions.aoe=barrage,if=talent.barrage.enabled&variable.pqr_focus_high
-actions.aoe+=/glaive_toss,if=talent.glaive_toss.enabled&variable.pqr_focus_high
-actions.aoe+=/multi_shot,if=variable.pqr_focus_high
-actions.aoe+=/cobra_shot,if=variable.pqr_focus_low
+# AOE ROTATION (3+ TARGETS)
+actions.aoe+=/barrage,if=talent.barrage.enabled&variable.focus_high
+actions.aoe+=/glaive_toss,if=talent.glaive_toss.enabled&variable.focus_high
+actions.aoe+=/multi_shot,if=variable.focus_high
+actions.aoe+=/cobra_shot,if=variable.focus_low
 
-# ===========================================
-# CORE ROTATION (PQR SURVIVAL PRIORITY)
-# ===========================================
-# Serpent Sting application and refresh (PQR logic)
-actions.rotation=serpent_sting,if=!dot.serpent_sting.ticking&target.time_to_die>15
+
+# CORE ROTATION 
+
+# Serpent Sting application and refresh 
+actions.rotation+=/serpent_sting,if=!dot.serpent_sting.ticking&target.time_to_die>15
 actions.rotation+=/cobra_shot,if=dot.serpent_sting.ticking&variable.serpent_sting_refresh&target.time_to_die>15
 
 # Kill Shot in execute range (20% health)
@@ -144,13 +130,11 @@ actions.rotation+=/black_arrow,if=variable.black_arrow_refresh
 # Lock and Load Explosive Shot (highest priority when active)
 actions.rotation+=/explosive_shot,if=variable.lock_and_load_active
 
-# Arcane Shot for focus dump (PQR focus thresholds)
+# Arcane Shot for focus dump 
 actions.rotation+=/arcane_shot,if=(focus>=67|variable.thrill_of_the_hunt_active)&target.time_to_die>6
 
-# Cobra Shot for focus generation (PQR conditions)
+# Cobra Shot for focus generation 
 actions.rotation+=/cobra_shot,if=focus<=66&!variable.lock_and_load_active&!cooldown.explosive_shot.ready&!cooldown.black_arrow.ready
 
-# ===========================================
 # FINAL FILLER
-# ===========================================
 actions+=/cobra_shot,if=focus>=25
