@@ -35,11 +35,28 @@ local GetTalentInfoByID = function(talentID, groupIndex)
         end
     end
     
-    -- Fallback for MoP - check if it's a player spell
+    -- Enhanced MoP talent detection
     local enabled = false
-    if talentID and type(talentID) == "number" and talentID > 0 then
+    
+    -- First check if it's a table with tier/column/spellID format
+    if type(talentID) == "table" and talentID[1] and talentID[2] and talentID[3] then
+        local tier, column, spellID = talentID[1], talentID[2], talentID[3]
+        groupIndex = groupIndex or (GetActiveSpecGroup and GetActiveSpecGroup()) or 1
+        
+        if GetTalentInfo then
+            -- Use MoP's GetTalentInfo(tier, column, specGroupIndex, isInspect, unit)
+            local id, name, icon, selected, available, spellId = GetTalentInfo(tier, column, groupIndex)
+            enabled = selected or false
+            return id, name, tier, enabled, available, spellId, icon, tier, column, enabled
+        else
+            -- Fallback to spell check
+            enabled = IsPlayerSpell(spellID)
+        end
+    elseif talentID and type(talentID) == "number" and talentID > 0 then
+        -- Direct spell ID check
         enabled = IsPlayerSpell(talentID)
     end
+    
     return nil, nil, nil, enabled, nil, talentID, nil, nil, nil, nil, enabled
 end
 
@@ -1472,7 +1489,7 @@ do
         end
         ]]
         
-        -- MoP: Simple fallback without instance tracking
+        -- MoP: Simple fallback without instance tracking or cache updates
         if unit == "player" or unit == "target" then
             state[ unit ].updated = true
             Hekili:ForceUpdate( "UNIT_AURA_MOP", true )

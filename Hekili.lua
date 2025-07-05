@@ -61,7 +61,7 @@ end
 Hekili = LibStub("AceAddon-3.0"):NewAddon( "Hekili", "AceConsole-3.0", "AceSerializer-3.0", "AceTimer-3.0" )
 
 -- MoP compatibility - simple version detection
-Hekili.Version = "v5.4.0-1.0.0-MoP"
+Hekili.Version = "v5.5.0-1.0.0-MoP"
 Hekili.Flavor = "MoP"
 
 local format = string.format
@@ -132,6 +132,11 @@ end
 -- MoP AuraUtil compatibility
 if not AuraUtil then
     AuraUtil = {}
+    print("DEBUG: Created AuraUtil table for MoP Classic compatibility")
+end
+
+if not AuraUtil.ForEachAura then
+    print("DEBUG: Creating AuraUtil.ForEachAura for MoP Classic")
     AuraUtil.ForEachAura = function(unit, filter, maxCount, func)
         local i = 1
         while true do
@@ -175,6 +180,9 @@ if not AuraUtil then
             if maxCount and i > maxCount then break end
         end
     end
+    print("DEBUG: AuraUtil.ForEachAura created successfully")
+else
+    print("DEBUG: AuraUtil.ForEachAura already exists")
 end
 
 local buildStr, _, _, buildNum = GetBuildInfo()
@@ -422,23 +430,10 @@ local snapshots = ns.snapshots
 local hasScreenshotted = false
 
 function Hekili:SaveDebugSnapshot( dispName )
-    print("SaveDebugSnapshot called with dispName:", tostring(dispName))
-    
     local snapped = false
     local formatKey = ns.formatKey
     local state = Hekili.State
-    
-    local debugCount = 0
-    if debug then
-        for _ in pairs(debug) do debugCount = debugCount + 1 end
-    end
-    print("Debug table entries count:", debugCount)
-    
-    if debug then
-        for debugKey, debugData in pairs(debug) do
-            print("Debug entry:", debugKey, "log size:", debugData.log and #debugData.log or "no log")
-        end
-    end
+    local class = Hekili.Class
 
 	for k, v in pairs( debug ) do
 		if not dispName or dispName == k then
@@ -446,362 +441,94 @@ function Hekili:SaveDebugSnapshot( dispName )
 				v.log[ i ] = nil
 			end
 
-            -- Store previous spell data.
-            local prevString = "\nprevious_spells:"
-
-            -- Skip over the actions in the "prev" table that were added to computed the next recommended ability in the queue.
-            local i, j = ( #state.predictions + 1 ), 1
-            local spell = state.prev[i].spell or "no_action"
-
-            if spell == "no_action" then
-                prevString = prevString .. "  no history available"
-            else
-                local numHistory = #state.prev.history
-                while i <= numHistory and spell ~= "no_action" do
-                    prevString = format( "%s\n   %d - %s", prevString, j, spell )
-                    i, j = i + 1, j + 1
-                    spell = state.prev[i].spell or "no_action"
-                end
-            end
-            prevString = prevString .. "\n\n"
-
-            insert( v.log, 1, prevString )
-
-            -- Store aura data.
-            local auraString = "\n### Auras ###\n"
-
+            -- Store aura data using simple UnitBuff/UnitDebuff calls
+            local auraString = "\nplayer_buffs:"
             local now = GetTime()
-            local playerBuffs = {}
-            local pbOrder = {}
 
-            local longestKey, longestName = 0, 0
+            for i = 1, 40 do
+                local name, _, count, debuffType, duration, expirationTime, source, _, _, spellId, canApplyAura, isBossDebuff, castByPlayer = UnitBuff( "player", i )
 
-            AuraUtil.ForEachAura( "player", "HELPFUL", nil, function( aura )
-                if aura.isFromPlayerOrPlayerPet then
-                    local model = class.auras[ aura.spellId ]
-                    local key = model and model.key or formatKey( aura.name )
+                if not name then break end
 
-                    local offset = 0
-                    local newKey = key
+                local aura = class.auras[ spellId ]
+                local key = aura and aura.key
+                if key and state.auras and state.auras.player and state.auras.player.buff and not state.auras.player.buff[ key ] then 
+                    key = key .. " [MISSING]" 
+                end
 
-                    while( playerBuffs[ newKey ] ) do
-                        offset = offset + 1
-                        newKey = format( "%s_%d", key, offset )
+                auraString = format( "%s\n   %6d - %-40s - %3d - %-6.2f", auraString, spellId or 0, key or ( "*" .. formatKey( name ) ), count > 0 and count or 1, expirationTime > 0 and ( expirationTime - now ) or 3600 )
+            end
+
+            auraString = auraString .. "\n\nplayer_debuffs:"
+
+            for i = 1, 40 do
+                local name, _, count, debuffType, duration, expirationTime, source, _, _, spellId, canApplyAura, isBossDebuff, castByPlayer = UnitDebuff( "player", i )
+
+                if not name then break end
+
+                local aura = class.auras[ spellId ]
+                local key = aura and aura.key
+                if key and state.auras and state.auras.player and state.auras.player.debuff and not state.auras.player.debuff[ key ] then 
+                    key = key .. " [MISSING]" 
+                end
+
+                auraString = format( "%s\n   %6d - %-40s - %3d - %-6.2f", auraString, spellId or 0, key or ( "*" .. formatKey( name ) ), count > 0 and count or 1, expirationTime > 0 and ( expirationTime - now ) or 3600 )
+            end
+
+
+            if not UnitExists( "target" ) then
+                auraString = auraString .. "\n\ntarget_auras:  target does not exist"
+            else
+                auraString = auraString .. "\n\ntarget_buffs:"
+
+                for i = 1, 40 do
+                    local name, _, count, debuffType, duration, expirationTime, source, _, _, spellId, canApplyAura, isBossDebuff, castByPlayer = UnitBuff( "target", i )
+
+                    if not name then break end
+
+                    local aura = class.auras[ spellId ]
+                    local key = aura and aura.key
+                    if key and state.auras and state.auras.target and state.auras.target.buff and not state.auras.target.buff[ key ] then 
+                        key = key .. " [MISSING]" 
                     end
 
-                    if newKey ~= key then key = newKey end
+                    auraString = format( "%s\n   %6d - %-40s - %3d - %-6.2f", auraString, spellId or 0, key or ( "*" .. formatKey( name ) ), count > 0 and count or 1, expirationTime > 0 and ( expirationTime - now ) or 3600 )
+                end
 
-                    pbOrder[ #pbOrder + 1 ] = key
-                    longestKey = max( longestKey, key:len() )
-                    longestName = max( longestName, aura.name:len() )
+                auraString = auraString .. "\n\ntarget_debuffs:"
 
-                    playerBuffs[ key ] = {}
-                    local elem = playerBuffs[ key ]
+                for i = 1, 40 do
+                    local name, _, count, debuffType, duration, expirationTime, source, _, _, spellId, canApplyAura, isBossDebuff, castByPlayer = UnitDebuff( "target", i, "PLAYER" )
 
-                    elem.spellId = aura.spellId
-                    elem.key = key
-                    elem.name = aura.name
+                    if not name then break end
 
-                    elem.count = aura.applications > 0 and aura.applications or 1
-                    elem.remains = aura.expirationTime > 0 and ( aura.expirationTime - now ) or 3600
-
-                    local scraped = state.auras.player.buff[ model and model.key or key ]
-                    if scraped and scraped.applied > 0 then
-                        elem.sCount = scraped.count > 0 and scraped.count or 1
-                        elem.sRemains = scraped.expires > 0 and ( scraped.expires - now ) or 3600
+                    local aura = class.auras[ spellId ]
+                    local key = aura and aura.key
+                    if key and state.auras and state.auras.target and state.auras.target.debuff and not state.auras.target.debuff[ key ] then 
+                        key = key .. " [MISSING]" 
                     end
-                end
-            end, true )
 
-            for token, caught in pairs( state.auras.player.buff ) do
-                if not playerBuffs[ token ] and caught.expires > 0 then
-                    playerBuffs[ token ] = {
-                        spellId = caught.id,
-                        key = caught.key,
-                        name = "",
-
-                        count = 0,
-                        remains = 0,
-
-                        sCount = caught.count > 0 and caught.count or 1,
-                        sRemains = caught.expires > 0 and ( caught.expires - now ) or 3600
-                    }
-
-                    pbOrder[ #pbOrder + 1 ] = token
-                    longestKey = max( longestKey, token:len() )
+                    auraString = format( "%s\n   %6d - %-40s - %3d - %-6.2f", auraString, spellId or 0, key or ( "*" .. formatKey( name ) ), count > 0 and count or 1, expirationTime > 0 and ( expirationTime - now ) or 3600 )
                 end
             end
 
-            sort( pbOrder )
-
-
-            local playerDebuffs = {}
-            local pdOrder = {}
-
-            AuraUtil.ForEachAura( "player", "HARMFUL", nil, function( aura )
-                local model = class.auras[ aura.spellId ]
-                local key = model and model.key or formatKey( aura.name )
-
-                local offset = 0
-                local newKey = key
-
-                while( playerDebuffs[ newKey ] ) do
-                    offset = offset + 1
-                    newKey = format( "%s_%d", key, offset )
-                end
-                if newKey ~= key then key = newKey end
-
-                pdOrder[ #pdOrder + 1 ] = key
-                longestKey = max( longestKey, key:len() )
-                longestName = max( longestName, aura.name:len() )
-
-                playerDebuffs[ key ] = {}
-                local elem = playerDebuffs[ key ]
-
-                elem.spellId = aura.spellId
-                elem.key = key
-                elem.name = aura.name
-
-                elem.count = aura.applications > 0 and aura.applications or 1
-                elem.remains = aura.expirationTime > 0 and ( aura.expirationTime - now ) or 3600
-
-                local scraped = state.auras.player.debuff[ model and model.key or key ]
-                if scraped and scraped.applied > 0 then
-                    elem.sCount = scraped.count > 0 and scraped.count or 1
-                    elem.sRemains = scraped.expires > 0 and ( scraped.expires - now ) or 3600
-                end
-            end, true )
-
-            for token, caught in pairs( state.auras.player.debuff ) do
-                if not playerDebuffs[ token ] and caught.expires > 0 then
-                    playerDebuffs[ token ] = {
-                        spellId = caught.id,
-                        key = caught.key,
-                        name = "",
-
-                        count = 0,
-                        remains = 0,
-
-                        sCount = caught.count > 0 and caught.count or 1,
-                        sRemains = caught.expires > 0 and ( caught.expires - now ) or 3600
-                    }
-
-                    pdOrder[ #pdOrder + 1 ] = token
-                    longestKey = max( longestKey, token:len() )
-                end
-            end
-
-            sort( pdOrder )
-
-
-            local targetBuffs = {}
-            local tbOrder = {}
-
-            AuraUtil.ForEachAura( "target", "HELPFUL", nil, function( aura )
-                local model = class.auras[ aura.spellId ]
-                local key = model and model.key or formatKey( aura.name )
-
-                local offset = 0
-                local newKey = key
-
-                while( targetBuffs[ newKey ] ) do
-                    offset = offset + 1
-                    newKey = format( "%s_%d", key, offset )
-                end
-                if newKey ~= key then key = newKey end
-
-                tbOrder[ #tbOrder + 1 ] = key
-                longestKey = max( longestKey, key:len() )
-                longestName = max( longestName, aura.name:len() )
-
-                targetBuffs[ key ] = {}
-                local elem = targetBuffs[ key ]
-
-                elem.spellId = aura.spellId
-                elem.key = key
-                elem.name = aura.name
-
-                elem.count = aura.applications > 0 and aura.applications or 1
-                elem.remains = aura.expirationTime > 0 and ( aura.expirationTime - now ) or 3600
-
-                local scraped = state.auras.target.buff[ model and model.key or key ]
-                if scraped and scraped.applied > 0 then
-                    elem.sCount = scraped.count > 0 and scraped.count or 1
-                    elem.sRemains = scraped.expires > 0 and ( scraped.expires - now ) or 3600
-                end
-            end, true )
-
-            for token, caught in pairs( state.auras.target.buff ) do
-                if not targetBuffs[ token ] and caught.expires > 0 then
-                    targetBuffs[ token ] = {
-                        spellId = caught.id,
-                        key = caught.key,
-                        name = "",
-
-                        count = 0,
-                        remains = 0,
-
-                        sCount = caught.count > 0 and caught.count or 1,
-                        sRemains = caught.expires > 0 and ( caught.expires - now ) or 3600
-                    }
-
-                    tbOrder[ #tbOrder + 1 ] = token
-                    longestKey = max( longestKey, token:len() )
-                end
-            end
-
-            sort( tbOrder )
-
-
-            local targetDebuffs = {}
-            local tdOrder = {}
-
-            AuraUtil.ForEachAura( "target", "HARMFUL", nil, function( aura )
-                if aura.isFromPlayerOrPlayerPet then
-                    local model = class.auras[ aura.spellId ]
-                    local key = model and model.key or formatKey( aura.name )
-
-                    local offset = 0
-                    local newKey = key
-
-                    while( targetDebuffs[ newKey ] ) do
-                        offset = offset + 1
-                        newKey = format( "%s_%d", key, offset )
-                    end
-                    if newKey ~= key then key = newKey end
-
-                    tdOrder[ #tdOrder + 1 ] = key
-                    longestKey = max( longestKey, key:len() )
-                    longestName = max( longestName, aura.name:len() )
-
-                    targetDebuffs[ key ] = {}
-                    local elem = targetDebuffs[ key ]
-
-                    elem.spellId = aura.spellId
-                    elem.key = key
-                    elem.name = aura.name
-
-                    elem.count = aura.applications > 0 and aura.applications or 1
-                    elem.remains = aura.expirationTime > 0 and ( aura.expirationTime - now ) or 3600
-
-                    local scraped = state.auras.target.debuff[ model and model.key or key ]
-                    if scraped and scraped.applied > 0 then
-                        elem.sCount = scraped.count > 0 and scraped.count or 1
-                        elem.sRemains = scraped.expires > 0 and ( scraped.expires - now ) or 3600
-                    end
-                end
-            end, true )
-
-            for token, caught in pairs( state.auras.target.debuff ) do
-                if not targetDebuffs[ token ] and caught.expires > 0 then
-                    targetDebuffs[ token ] = {
-                        spellId = caught.id,
-                        key = caught.key,
-                        name = "",
-
-                        count = 0,
-                        remains = 0,
-
-                        sCount = caught.count > 0 and caught.count or 1,
-                        sRemains = caught.expires > 0 and ( caught.expires - now ) or 3600
-                    }
-
-                    tdOrder[ #tdOrder + 1 ] = token
-                    longestKey = max( longestKey, token:len() )
-                end
-            end
-
-            sort( tdOrder )
-
-            local header = "     n  | ID      | Token" .. string.rep( " ", longestKey - 4 ) .. " | Name" .. string.rep( " ", longestName - 4 ) .. " | A. Count | A. Remains | S. Count | S. Remains\n"
-                .. "    --- | ------- | " .. string.rep( "-", longestKey + 1 ) .. " | " .. string.rep( "-", longestName ) .. " | -------- | ---------- | -------- | ----------"
-
-
-            if #pbOrder > 0 then
-                auraString = auraString .. "\nplayer_buffs:\n" .. header
-
-                for i, token in ipairs( pbOrder ) do
-                    local aura = playerBuffs[ token ]
-
-                    auraString = format( "%s\n     %-2d | %7d | %s%-" .. longestKey .. "s | %-" .. longestName .. "s | %8d | %10.2f | %8d | %10.2f",
-                        auraString, i, class.auras[ token ] and class.auras[ token ].id or -1, ( class.auras[ token ] and " " or "*" ), token, aura.name, aura.count, aura.remains, aura.sCount or -1, aura.sRemains or - 1 )
-                end
-
-            else
-                auraString = auraString .. "\nplayer_buffs: none"
-            end
-
-            if #pdOrder > 0 then
-                auraString = auraString .. "\n\nplayer_debuffs:\n" .. header
-
-                for i, token in ipairs( pdOrder ) do
-                    local aura = playerDebuffs[ token ]
-
-                    auraString = format( "%s\n     %-2d | %7d | %s%-" .. longestKey .. "s | %-" .. longestName .. "s | %8d | %10.2f | %8d | %10.2f",
-                        auraString, i, class.auras[ token ] and class.auras[ token ].id or -1, ( class.auras[ token ] and " " or "*" ), token, aura.name, aura.count, aura.remains, aura.sCount or -1, aura.sRemains or - 1 )
-                end
-            else
-                auraString = auraString .. "\n\nplayer_debuffs: none"
-            end
-
-            if #tbOrder > 0 then
-                auraString = auraString .. "\n\ntarget_buffs:\n" .. header
-
-                for i, token in ipairs( tbOrder ) do
-                    local aura = targetBuffs[ token ]
-                    local model = class.auras[ token ]
-
-                    auraString = format( "%s\n     %-2d | %7d | %s%-" .. longestKey .. "s | %-" .. longestName .. "s | %8d | %10.2f | %8d | %10.2f",
-                        auraString, i, model and model.id or -1, model and " " or "*", token, aura.name, aura.count, aura.remains, aura.sCount or -1, aura.sRemains or - 1 )
-                end
-
-            else
-                auraString = auraString .. "\n\ntarget_buffs: none"
-            end
-
-            if #tdOrder > 0 then
-                auraString = auraString .. "\n\ntarget_debuffs:\n" .. header
-
-                for i, token in ipairs( tdOrder ) do
-                    local aura = targetDebuffs[ token ]
-
-                    auraString = format( "%s\n     %-2d | %7d | %s%-" .. longestKey .. "s | %-" .. longestName .. "s | %8d | %10.2f | %8d | %10.2f",
-                        auraString, i, class.auras[ token ] and class.auras[ token ].id or -1, ( class.auras[ token ] and " " or "*" ), token, aura.name, aura.count, aura.remains, aura.sCount or -1, aura.sRemains or - 1 )
-                end
-
-            else
-                auraString = auraString .. "\n\ntarget_debuffs: none"
-            end
-
+            auraString = auraString .. "\n\n"
 
             insert( v.log, 1, auraString )
-            insert( v.log, 1, "\n### Targets ###\n\ndetected_targets:  " .. ( Hekili.TargetDebug or "no data" ) )
-            insert( v.log, 1, self:GenerateProfile() )
-
-
-            local performance
-            local pInfo = HekiliEngine.threadUpdates
-
-            -- TODO: Include # of active displays, number of icons displayed.
-
-            if pInfo then
-                performance = string.format( "\n\nPerformance\n"
-                    .. "|| Updates || Updates / sec || Avg. Work || Avg. Time || Avg. Frames || Peak Work || Peak Time || Peak Frames || FPS || Work Cap ||\n"
-                    .. "|| %7d || %13.2f || %9.2f || %9.2f || %11.2f || %9.2f || %9.2f || %11.2f || %3d || %8.2f ||",
-                    pInfo.updates, pInfo.updatesPerSec, pInfo.meanWorkTime, pInfo.meanClockTime, pInfo.meanFrames, pInfo.peakWorkTime, pInfo.peakClockTime, pInfo.peakFrames, GetFramerate() or 0, Hekili.maxFrameTime or 0 )
+            if Hekili.TargetDebug and Hekili.TargetDebug:len() > 0 then
+                insert( v.log, 1, "targets:\n" .. Hekili.TargetDebug )
             end
-
-            if performance then insert( v.log, performance ) end
+            insert( v.log, 1, self:GenerateProfile() )
 
             local custom = ""
 
             local pack = self.DB.profile.packs[ state.system.packName ]
             if not pack.builtIn then
-                custom = format( " |cFFFFA700(*%s[%d])|r", state.spec.name, state.spec.id )
+                custom = format( " |cFFFFA700(Custom: %s[%d])|r", state.spec.name, state.spec.id )
             end
 
-            local overview = format( "%s%s; %s|r", state.system.packName, custom, dispName or state.display )
-            local recs = Hekili.DisplayPool[ dispName or state.display ].Recommendations
+            local overview = format( "%s%s; %s|r", state.system.packName, custom, dispName or "Unknown" )
+            local recs = Hekili.DisplayPool[ dispName ].Recommendations
 
             for i, rec in ipairs( recs ) do
                 if not rec.actionName then
@@ -810,7 +537,14 @@ function Hekili:SaveDebugSnapshot( dispName )
                     end
                     break
                 end
-                overview = format( "%s%s%s|cFFFFD100(%0.2f)|r", overview, ( i == 1 and " - " or ", " ), rec.actionName, rec.time )
+                if not class.abilities[ rec.actionName ] then
+                    if i == 1 then
+                        overview = format( "%s - |cFF666666N/A|r", overview )
+                    end
+                    break
+                end
+                local abilityName = class.abilities[ rec.actionName ].name or rec.actionName or "Unknown"
+                overview = format( "%s%s%s|cFFFFD100(%0.2f)|r", overview, ( i == 1 and " - " or ", " ), abilityName, rec.time )
             end
 
             insert( v.log, 1, overview )
@@ -827,12 +561,8 @@ function Hekili:SaveDebugSnapshot( dispName )
 		end
     end
 
-    -- Limit screenshot to once per login.
     if snapped then
-        if Hekili.DB.profile.screenshot and ( not hasScreenshotted or Hekili.ManualSnapshot ) then
-            Screenshot()
-            hasScreenshotted = true
-        end
+        if Hekili.DB.profile.screenshot then Screenshot() end
         return true
     end
 

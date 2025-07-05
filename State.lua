@@ -135,8 +135,9 @@ state.empowerment = {
     hold = 0,
     stages = {}
 }
-state.max_empower = 3
-state.empowering = {}
+-- Empowering system disabled for MoP
+-- state.max_empower = 3
+-- state.empowering = {}
 ]]
 -- MoP: Simple placeholder for empowerment
 state.empowerment = { active = false }
@@ -1500,9 +1501,13 @@ do
         -- Initialize forecast tables
         remains[ resource ] = timeout
 
+        -- Ensure tables exist before wiping
+        r.times = r.times or {}
+        r.values = r.values or {}
         wipe( r.times )
         wipe( r.values )
 
+        r.forecast = r.forecast or {}
         r.forecast[ 1 ] = r.forecast[ 1 ] or {}
         r.forecast[ 1 ].t = now
         r.forecast[ 1 ].v = r.actual
@@ -5620,13 +5625,15 @@ local mt_aura = {
     end
 }
 
-
+-- Empowering system disabled for MoP
+--[[
 local mt_empowering = {
     __index = function( t, k )
         if state.buff.empowering.down then return false end
         return state.buff.empowering.spell == k
     end
 }
+--]]
 
 
 setmetatable( state, mt_state )
@@ -5637,7 +5644,7 @@ setmetatable( state.buff, mt_buffs )
 setmetatable( state.cooldown, mt_cooldowns )
 setmetatable( state.debuff, mt_debuffs )
 setmetatable( state.dot, mt_dot )
-setmetatable( state.empowering, mt_empowering )
+-- setmetatable( state.empowering, mt_empowering ) -- Disabled for MoP
 setmetatable( state.equipped, mt_equipped )
 setmetatable( state.main_hand, mt_weapon_type )
 setmetatable( state.off_hand, mt_weapon_type )
@@ -6546,7 +6553,7 @@ function state:RunHandler( key, noStart )
         self.channelSpell( key, self.query_time, ability.cast, ability.id )
     elseif ability.handler then ability.handler() end
 
-    if self.buff.empowering.up then removeBuff( "empowering" ) end
+    -- if self.buff.empowering.up then removeBuff( "empowering" ) end -- Disabled for MoP
 
     self.prev.last = key
     self[ ability.gcd == "off" and "prev_off_gcd" or "prev_gcd" ].last = key
@@ -7453,7 +7460,7 @@ do
 
         if toggle == "potion" and profile.toggles[ toggle ].separate and not profile.toggles[ toggle ].value then toggle = "cooldowns" end
 
-        if state.buff.empowering.up and state.buff.empowering.spell ~= spell then return true, "empowerment" end
+        -- if state.buff.empowering.up and state.buff.empowering.spell ~= spell then return true, "empowerment" end -- Disabled for MoP
         if state.filter ~= "none" and state.filter ~= toggle and not ability[ state.filter ] then return true, "display" end
         if ability.item and not ability.bagItem and not state.equipped[ ability.item ] then return false, "not equipped" end
         if toggleSpell[ spell ] and toggle and toggle ~= "none" then
@@ -7710,10 +7717,13 @@ function state:TimeToReady( action, pool )
         end
     end
 
+    -- Empowering system disabled for MoP
+    --[[
     if self.buff.empowering.up then
         if self.buff.empowering.spell == ability.key then return ability.cast end
         wait = max( wait, ability.cast )
     end
+    --]]
 
     local spend, resource = ability.spend
     if spend then

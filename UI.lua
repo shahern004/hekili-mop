@@ -1703,13 +1703,7 @@ do
                         cd.lastDuration = duration
                     end
 
-                    if i == 1 and ability.empowered and conf.empowerment.glow then
-                        if state.empowerment.start > 0 and duration == 0 then
-                            button.Empowerment:Show()
-                        else
-                            button.Empowerment:Hide()
-                        end
-                    end
+                    -- MoP: Empowerment spells don't exist, so this block is disabled
                 end
             end
         end        function d:OnEvent( event, ... )
@@ -2593,9 +2587,8 @@ do
         if not b.Cooldown then
             b.Cooldown = CreateFrame( "Cooldown", bName .. "_Cooldown", b, "CooldownFrameTemplate" )
             if id == 1 then b.Cooldown:HookScript( "OnCooldownDone", function( self )
-                    if b.Ability and b.Ability.empowered and conf.empowerment.glow and state.empowerment.spell == b.Ability.key then
-                        b.Empowerment:Show()
-                    else
+                    -- MoP: Empowerment spells don't exist, so always hide empowerment glow
+                    if b.Empowerment then
                         b.Empowerment:Hide()
                     end
                 end )

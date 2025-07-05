@@ -68,24 +68,6 @@ local GetDebuffDataByIndex = function(unit, index)
     return nil
 end
 
-local FindAura = function(predicate, unit, filter)
-    local isDebuff = filter and (filter == "HARMFUL" or filter:match("HARMFUL"))
-    local func = isDebuff and UnitDebuff or UnitBuff
-    
-    for i = 1, 40 do
-        local name, icon, count, debuffType, duration, expirationTime, source, isStealable, 
-              nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer = func(unit, i, filter)
-        if not name then break end
-        
-        if predicate(name, icon, count, debuffType, duration, expirationTime, source, isStealable, 
-                    nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer) then
-            return name, icon, count, debuffType, duration, expirationTime, source, isStealable, 
-                   nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer
-        end
-    end
-    return nil
-end
-
 local UnpackAuraData = function(auraData)
     if not auraData then return nil end
     return auraData.name, auraData.icon, auraData.applications, auraData.dispelType,
@@ -94,6 +76,7 @@ local UnpackAuraData = function(auraData)
 end
 
 local GetSpellBookItemInfo = function(index, bookType)
+    -- MoP compatibility: GetSpellName function
     local name, _, icon, _, _, _, spellID = GetSpellName(index, bookType)
     return name, icon, spellID
 end
@@ -107,32 +90,63 @@ ns.UnitDebuff = function( unit, index, filter )
 end
 
 
-ns.UnitBuffByID = function( unitToken, spellID, filter )
-    local playerOrPet = UnitIsUnit( "player", unitToken ) or UnitIsUnit( "pet", unitToken )
-    filter = filter or "HELPFUL"
+-- Duplicate spell info lookup.
+function ns.FindUnitBuffByID( unit, id, filter )
+    local playerOrPet = false
 
-    return FindAura( function( _, _, _, ... )
-        local id, isFromPlayerOrPet = select( 10, ... ), select( 13, ... )
-        return id == spellID and ( not playerOrPet or isFromPlayerOrPet )
-    end, unitToken, filter )
+    if filter == "PLAYER|PET" then
+        playerOrPet = true
+        filter = nil
+    end
+
+    local i = 1
+    local name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3 = UnitBuff( unit, i, filter )
+
+    if type( id ) == "table" then
+        while( name ) do
+            if id[ spellID ] and ( not playerOrPet or UnitIsUnit( caster, "player" ) or UnitIsUnit( caster, "pet" ) ) then break end
+            i = i + 1
+            name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3 = UnitBuff( unit, i, filter )
+        end
+    else
+        while( name ) do
+            if spellID == id and ( not playerOrPet or UnitIsUnit( caster, "player" ) or UnitIsUnit( caster, "pet" ) ) then break end
+            i = i + 1
+            name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3 = UnitBuff( unit, i, filter )
+        end
+    end
+
+    return name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3
 end
 
-ns.FindUnitBuffByID = ns.UnitBuffByID
 
-ns.UnitDebuffByID = function( unitToken, spellID, filter )
-    local playerOrPet = UnitIsUnit( "player", unitToken ) or UnitIsUnit( "pet", unitToken )
-    filter = filter or "HARMFUL"
+function ns.FindUnitDebuffByID( unit, id, filter )
+    local playerOrPet = false
 
-    return FindAura( function( _, _, _, ... )
-        local id, isFromPlayerOrPet = select( 10, ... ), select( 13, ... )
-        return id == spellID and ( not playerOrPet or isFromPlayerOrPet )
-    end, unitToken, filter )
+    if filter == "PLAYER|PET" then
+        playerOrPet = true
+        filter = nil
+    end
+
+    local i = 1
+    local name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3 = UnitDebuff( unit, i, filter )
+
+    if type( id ) == "table" then
+        while( name ) do
+            if id[ spellID ] and ( not playerOrPet or UnitIsUnit( caster, "player" ) or UnitIsUnit( caster, "pet" ) ) then break end
+            i = i + 1
+            name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3 = UnitDebuff( unit, i, filter )
+        end
+    else
+        while( name ) do
+            if spellID == id and ( not playerOrPet or UnitIsUnit( caster, "player" ) or UnitIsUnit( caster, "pet" ) ) then break end
+            i = i + 1
+            name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3 = UnitDebuff( unit, i, filter )
+        end
+    end
+
+    return name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3
 end
-
-ns.FindUnitDebuffByID = ns.UnitDebuffByID
-
-local UnitBuff, UnitDebuff = ns.UnitBuff, ns.UnitDebuff
-local UnitBuffByID, UnitDebuffByID = ns.UnitBuffByID, ns.UnitDebuffByID
 
 -- MoP API compatibility - removed faulty GetItemInfo redefinition
 -- GetItemInfo is available in MoP and doesn't need local redefinition
@@ -661,17 +675,13 @@ local function FindPlayerAuraByID( id )
 end
 ns.FindPlayerAuraByID = FindPlayerAuraByID
 
--- Duplicate spell info lookup.
-function ns.FindUnitBuffByID( unit, id, filter )
-    if unit == "player" then return FindPlayerAuraByID( id ) end
-    return UnitBuffByID( unit, id, filter )
-end
+-- Export the improved debuff/buff functions
+ns.FindUnitBuffByID = ns.FindUnitBuffByID
+ns.FindUnitDebuffByID = ns.FindUnitDebuffByID
 
-
-function ns.FindUnitDebuffByID( unit, id, filter )
-    if unit == "player" then return FindPlayerAuraByID( id ) end
-    return UnitDebuffByID( unit, id, filter )
-end
+-- For backward compatibility, also set UnitBuffByID and UnitDebuffByID
+ns.UnitBuffByID = ns.FindUnitBuffByID
+ns.UnitDebuffByID = ns.FindUnitDebuffByID
 
 
 function ns.IsActiveSpell( id )
@@ -687,9 +697,10 @@ function ns.GetUnpackedSpellInfo( spellID )
         return nil;
     end
 
-    local spellInfo = GetSpellInfo(spellID);
-    if spellInfo then
-        return spellInfo.name, nil, spellInfo.iconID, spellInfo.castTime, spellInfo.minRange, spellInfo.maxRange, spellInfo.spellID, spellInfo.originalIconID;
+    -- MoP compatibility: GetSpellInfo returns direct values, not a table
+    local name, _, icon, castTime, minRange, maxRange, id = GetSpellInfo(spellID);
+    if name then
+        return name, nil, icon, castTime, minRange, maxRange, id, icon;
     end
 end
 
@@ -701,16 +712,17 @@ function Hekili:GetSpellLinkWithTexture( id, size, color )
         id = class.abilities[ id ].id
     end
 
-    local data = GetSpellInfo( id )
+    -- MoP compatibility: GetSpellInfo returns direct values
+    local name, _, icon = GetSpellInfo( id )
 
-    if data and data.name and data.iconID then
+    if name and icon then
         if type( color ) == "boolean" then
             color = color and "ff00ff00" or "ffff0000"
         end
 
         if color == nil then color = "ff71d5ff" end
 
-        return "|W|T" .. data.iconID .. ":" .. ( size or 0 ) .. ":" .. ( size or "" ) .. ":::64:64:4:60:4:60|t " .. ( color and ( "|c" .. color ) or "" ) .. data.name .. ( color and "|r" or "" ) .. "|w"
+        return "|W|T" .. icon .. ":" .. ( size or 0 ) .. ":" .. ( size or "" ) .. ":::64:64:4:60:4:60|t " .. ( color and ( "|c" .. color ) or "" ) .. name .. ( color and "|r" or "" ) .. "|w"
     end
 
     return tostring( id )

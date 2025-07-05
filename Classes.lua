@@ -361,7 +361,7 @@ local HekiliSpecMixin = {
                     end
 
                     self.auras[ a.name ] = a
-                    if GetSpecializationInfo( GetSpecialization() or 0 ) == self.id then
+                    if ns.getSpecializationID() == self.id then
                         -- Copy to class table as well.
                         class.auras[ a.name ] = a
                     end
@@ -2367,6 +2367,19 @@ all:RegisterAuras( {
         end,
         copy = "unravel_absorb"
     },
+    
+    -- Food and drink auras for MoP Classic
+    food = {
+        id = 433,
+        duration = 30,
+        max_stack = 1,
+    },
+    
+    drink = {
+        id = 430,
+        duration = 30,
+        max_stack = 1,
+    },
 } )
 
 do
@@ -2655,6 +2668,20 @@ all:RegisterAbilities( {
 
         handler = function ()
             applyBuff( "shadowmeld" )
+        end,
+    },
+
+    berserking = {
+        id = 26297,
+        cast = 0,
+        cooldown = 180,
+        gcd = "off",
+
+        toggle = "cooldowns",
+
+        -- usable = function () return race.troll end,
+        handler = function ()
+            applyBuff( "berserking", 10 )
         end,
     },
 
@@ -3298,9 +3325,11 @@ function Hekili:SpecializationChanged()
         currentID = GetSpecializationInfo( currentSpec )
         print("DEBUG: Using Retail spec detection - currentSpec:", currentSpec, "currentID:", currentID)
     else
-        -- MoP Classic: Use custom spec detection logic
-        currentID, currentName = self:GetMoPSpecialization()
-        currentSpec = 1 -- Default to first spec slot for MoP
+        -- MoP Classic: Use our custom spec detection logic
+        currentSpec = GetSpecialization and GetSpecialization() or 1
+        currentID = ns.getSpecializationID(currentSpec)
+        currentName = ns.getSpecializationKey(currentID)
+        print("DEBUG: Using MoP spec detection - currentSpec:", currentSpec, "currentID:", currentID, "currentName:", currentName)
     end
 
     if currentID == nil then
@@ -3671,3 +3700,72 @@ setmetatable( class.trinkets, {
     return t[0]
 end
 } )
+
+-- Register universal state expressions that all specializations can use
+-- These are fundamental state values that should be available across all specs
+setfenv( function() 
+    -- Universal combat state
+    class.stateExprs.in_combat = function()
+        return state.combat and state.combat > 0 or false
+    end
+    
+    -- Universal movement state  
+    class.stateExprs.moving = function()
+        return state.buff and state.buff.moving and state.buff.moving.up or false
+    end
+    
+    -- Universal mounted state
+    class.stateExprs.mounted = function()
+        return state.buff and state.buff.mounted and state.buff.mounted.up or false
+    end
+    
+    -- Universal bloodlust/heroism state (multiple buff IDs)
+    class.stateExprs.bloodlust = function()
+        return {
+            up = (state.buff and state.buff.bloodlust and state.buff.bloodlust.up) or
+                 (state.buff and state.buff.heroism and state.buff.heroism.up) or
+                 (state.buff and state.buff.time_warp and state.buff.time_warp.up) or
+                 (state.buff and state.buff.ancient_hysteria and state.buff.ancient_hysteria.up) or
+                 false,
+            down = not ((state.buff and state.buff.bloodlust and state.buff.bloodlust.up) or
+                       (state.buff and state.buff.heroism and state.buff.heroism.up) or
+                       (state.buff and state.buff.time_warp and state.buff.time_warp.up) or
+                       (state.buff and state.buff.ancient_hysteria and state.buff.ancient_hysteria.up)),
+            remains = math.max(
+                (state.buff and state.buff.bloodlust and state.buff.bloodlust.remains) or 0,
+                (state.buff and state.buff.heroism and state.buff.heroism.remains) or 0,
+                (state.buff and state.buff.time_warp and state.buff.time_warp.remains) or 0,
+                (state.buff and state.buff.ancient_hysteria and state.buff.ancient_hysteria.remains) or 0
+            )
+        }
+    end
+    
+    -- Universal threat state
+    class.stateExprs.threat = function()
+        return {
+            situation = state.tanking and 3 or (state.aggro and 2 or 1),
+            raw = state.tanking and 100 or (state.aggro and 75 or 0),
+            scaled = state.tanking and 100 or (state.aggro and 75 or 0),
+            current = state.tanking and 100 or (state.aggro and 75 or 0)
+        }
+    end
+    
+    -- Universal spell targeting state  
+    class.stateExprs.spell_is_targeting = function()
+        return state.channeling and state.channeling.spell_id and state.channeling.spell_id > 0 or false
+    end
+    
+    -- Universal focus state (for focus-using classes)
+    class.stateExprs.focus = function() 
+        return {
+            current = state.focus and state.focus.current or 0,
+            max = state.focus and state.focus.max or 100,
+            pct = state.focus and state.focus.current and state.focus.max and (state.focus.current / state.focus.max * 100) or 0,
+            deficit = state.focus and state.focus.current and state.focus.max and (state.focus.max - state.focus.current) or 100,
+            regen = state.focus and state.focus.regen or 0,
+            time_to_max = state.focus and state.focus.current and state.focus.max and state.focus.regen and 
+                         state.focus.regen > 0 and ((state.focus.max - state.focus.current) / state.focus.regen) or 0,
+            exists = state.focus ~= nil
+        }
+    end
+end, state )()
