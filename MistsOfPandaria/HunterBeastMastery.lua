@@ -1,707 +1,279 @@
-if not Hekili or not Hekili.NewSpecialization then return end
 -- HunterBeastMastery.lua
--- Updated May 28, 2025 - Modern Structure
--- Mists of Pandaria module for Hunter: Beast Mastery spec
+-- January 2025
 
-if not Hekili or not Hekili.NewSpecialization then return end
-if select(2, UnitClass('player')) ~= 'HUNTER' then return end
+if UnitClassBase( "player" ) ~= "HUNTER" then return end
+
 local addon, ns = ...
-local Hekili = _G[ "Hekili" ]
-local class = Hekili.Class
-local state = Hekili.State
+local Hekili = _G[ addon ]
+local class, state = Hekili.Class, Hekili.State
 
-local function getReferences()
-    -- Legacy function for compatibility
-    return class, state
-end
+local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
+local PTR = ns.PTR
 
 local strformat = string.format
-local FindUnitBuffByID = ns.FindUnitBuffByID
-local FindUnitDebuffByID = ns.FindUnitDebuffByID
-local function UA_GetPlayerAuraBySpellID(spellID)
-    for i = 1, 40 do
-        local name, _, count, _, duration, expires, caster, _, _, id = UnitBuff("player", i)
-        if not name then break end
-        if id == spellID then return name, _, count, _, duration, expires, caster end
-    end
-    for i = 1, 40 do
-        local name, _, count, _, duration, expires, caster, _, _, id = UnitDebuff("player", i)
-        if not name then break end
-        if id == spellID then return name, _, count, _, duration, expires, caster end
-    end
-    return nil
-end
 
-local spec
+local GetSpellCount = C_Spell.GetSpellCastCount
 
-local function RegisterBeastMasterySpec()
-    if not class or not state or not Hekili.NewSpecialization then return end
-    
-    local spec = Hekili:NewSpecialization( 253 ) -- Beast Mastery spec ID for MoP
-    if not spec then return end -- Not ready yet
+local spec = Hekili:NewSpecialization( 253, true )
 
--- Enhanced Resources with proper MoP mechanics
-spec:RegisterResource( 2, { -- Focus = 2 in MoP
-    -- MoP Hunter Focus regeneration mechanics
+spec:RegisterResource( Enum.PowerType.Focus, {
     steady_shot = {
         resource = "focus",
-        aura = "steady_shot",
-        last = function ()
-            local app = state.buff.steady_shot.applied
-            local t = state.query_time
-
-            return app + floor( ( t - app ) / 1.5 ) * 1.5
+        cast = function(x) return x > 0 and x or nil end,
+        aura = function(x) return x > 0 and "casting" or nil end,
+        
+        last = function()
+            return state.buff.casting.applied
         end,
-
-        interval = 1.5,
+        
+        interval = function() return state.buff.casting.duration end,
         value = 14,
     },
     
-    -- Cobra Shot focus generation
-    cobra_shot_focus = {
+    cobra_shot = {
         resource = "focus",
-        aura = "cobra_shot",
-        last = function ()
-            local app = state.buff.cobra_shot.applied
-            local t = state.query_time
-
-            return app + floor( ( t - app ) / 1.5 ) * 1.5
+        cast = function(x) return x > 0 and x or nil end,
+        aura = function(x) return x > 0 and "casting" or nil end,
+        
+        last = function()
+            return state.buff.casting.applied
         end,
-
-        interval = 1.5,
-        value = -20, -- Cobra Shot costs focus but extends Serpent Sting
-    },
-    
-    -- Dire Beast focus generation
-    dire_beast_focus = {
-        resource = "focus",
-        aura = "dire_beast",
-        last = function ()
-            local app = state.buff.dire_beast.applied
-            local t = state.query_time
-
-            return app + floor( ( t - app ) / 2 ) * 2
-        end,
-
-        interval = 2,
-        value = 2,
-    },
-}, {
-    -- Base focus regeneration - 6 focus per second in MoP
-    [ 1 ] = {
-        resource = "focus",
-        last = function ()
-            return state.query_time
-        end,
-
-        interval = function( time, val )
-            return 1 / ( 6 * haste )
-        end,
-
-        value = 1,
-    },
-} )
-
--- Enhanced MoP Talent System with proper IDs and mechanics
-spec:RegisterTalents( {
-    -- Tier 1 (Level 15) - Movement and Escape
-    posthaste              = { 109248, 109248, 1 }, -- Disengage also frees you from all movement impairing effects and increases your movement speed by 50% for 4 sec.
-    narrow_escape          = { 109259, 109259, 1 }, -- When you Disengage, you leave behind a web trap that snares all targets within 8 yards, reducing their movement speed by 70% for 8 sec.
-    crouching_tiger        = { 109298, 109298, 1 }, -- Reduces the cooldown of Disengage by 6 sec and reduces the cooldown of Deterrence by 10 sec.
-    
-    -- Tier 2 (Level 30) - Crowd Control
-    silencing_shot         = { 34490, 34490, 1 }, -- Silences the target, preventing any spellcasting for 3 sec.
-    wyvern_sting           = { 19386, 19386, 1 }, -- A stinging shot that puts the target to sleep for 30 sec. Any damage will cancel the effect. When the target wakes up, the Sting causes Nature damage over 6 sec.
-    binding_shot           = { 109248, 109248, 1 }, -- Fires a magical projectile, tethering the enemy and any other enemies within 5 yds for 10 sec, stunning them for 5 sec if they move more than 5 yds from the arrow.
-    
-    -- Tier 3 (Level 45) - Survivability
-    exhilaration           = { 109304, 109304, 1 }, -- Instantly heals you and your pet for 22% of total health.
-    aspect_of_the_iron_hawk = { 109260, 109260, 1 }, -- You take 15% less damage and your Aspect of the Hawk increases attack power by an additional 10%.
-    spirit_bond            = { 109212, 109212, 1 }, -- You and your pet heal for 2% of total health every 10 sec. This effect persists for 10 sec after your pet dies.
-    
-    -- Tier 4 (Level 60) - Pet Abilities
-    murder_of_crows        = { 131894, 131894, 1 }, -- Summons a murder of crows to attack your target over the next 30 sec. If your target dies while under attack, the cooldown on this ability will reset.
-    blink_strikes          = { 130392, 130392, 1 }, -- Your pet's Basic Attacks deal 50% more damage, have a 30 yard range, and instantly teleport your pet behind the target.
-    lynx_rush              = { 120697, 120697, 1 }, -- Commands your pet to attack your target 9 times over 4 sec for 115% normal damage.
-    
-    -- Tier 5 (Level 75) - Resource Management
-    fervor                 = { 82726, 82726, 1 }, -- Instantly restores 50 Focus to you and your pet, and then an additional 50 Focus over 10 sec.
-    dire_beast             = { 120679, 120679, 1 }, -- Summons a powerful wild beast that attacks the target for 15 sec. Each time the beast deals damage, you gain 2 Focus.
-    thrill_of_the_hunt     = { 34497, 34497, 1 }, -- Your Arcane Shot and Multi-Shot have a 30% chance to instantly restore 20 Focus.
-    
-    -- Tier 6 (Level 90) - AoE and Utility
-    glaive_toss            = { 117050, 117050, 1 }, -- Throw a glaive at your target and another nearby enemy within 10 yards, and reduce their movement speed by 70% for 3 sec.
-    powershot              = { 109259, 109259, 1 }, -- A powerful attack that deals weapon damage to all targets in front of you, knocking them back.    barrage                = { 120360, 120360, 1 }, -- Rapidly fires a spray of shots for 3 sec, dealing weapon damage to all enemies in front of you.
-} )
-
--- Enhanced Tier Sets and Gear with Combat Log Tracking
-spec:RegisterGear( 13, 8, { -- Tier 14 Heart of Fear/Terrace of Endless Spring (Beast Mastery Hunter)
-    -- LFR (Raid Finder)
-    { 88183, head = 86098, shoulder = 86101, chest = 86096, hands = 86097, legs = 86099 },
-    -- Normal
-    { 88184, head = 85251, shoulder = 85254, chest = 85249, hands = 85250, legs = 85252 },
-    -- Heroic  
-    { 88185, head = 87003, shoulder = 87006, chest = 87001, hands = 87002, legs = 87004 },
-} )
-
-spec:RegisterGear( 14, 8, { -- Tier 15 Throne of Thunder (Beast Mastery Hunter)
-    -- LFR (Raid Finder)
-    { 96548, head = 95101, shoulder = 95104, chest = 95099, hands = 95100, legs = 95102 },
-    -- Normal
-    { 96549, head = 95608, shoulder = 95611, chest = 95606, hands = 95607, legs = 95609 },
-    -- Heroic
-    { 96550, head = 96004, shoulder = 96007, chest = 96002, hands = 96003, legs = 96005 },
-} )
-
-spec:RegisterGear( 15, 8, { -- Tier 16 Siege of Orgrimmar (Beast Mastery Hunter)  
-    -- LFR (Raid Finder)
-    { 99714, head = 99715, shoulder = 99716, chest = 99717, hands = 99718, legs = 99719 },
-    -- Flex (Flexible)
-    { 99720, head = 99721, shoulder = 99722, chest = 99723, hands = 99724, legs = 99725 },
-    -- Normal
-    { 99726, head = 99727, shoulder = 99728, chest = 99729, hands = 99730, legs = 99731 },
-    -- Heroic
-    { 99732, head = 99733, shoulder = 99734, chest = 99735, hands = 99736, legs = 99737 },
-} )
-
--- Legendary Items
-spec:RegisterGear( "legendary", {
-    -- MoP Legendary Cloak
-    [102246] = { back = 102246 }, -- Qian-Ying, Fortitude of Niuzao (Agility DPS)
-    [102247] = { back = 102247 }, -- Gong-Lu, Strength of Xuen (Agility DPS) 
-    
-    -- MoP Legendary Meta Gems
-    [137590] = { meta = 137590 }, -- Capacitive Prism (Intellect classes)
-    [137593] = { meta = 137593 }, -- Indomitable Prism (Strength/Agility classes)
-} )
-
--- Notable Beast Mastery Hunter Trinkets
-spec:RegisterGear( "trinkets", {
-    -- Tier 14 Trinkets
-    [89082] = { trinket1 = 89082 }, -- Rune of Re-Origination (Agility)
-    [89083] = { trinket1 = 89083 }, -- Bad Juju (Agility)
-    [87054] = { trinket1 = 87054 }, -- Heart of the Unliving (Stamina/Agility)
-    [87057] = { trinket1 = 87057 }, -- Jade Bandit Figurine (Agility)
-    
-    -- Tier 15 Trinkets  
-    [94511] = { trinket1 = 94511 }, -- Renataki's Soul Charm (Agility)
-    [94512] = { trinket1 = 94512 }, -- Talisman of Bloodlust (Agility)
-    [95001] = { trinket1 = 95001 }, -- Assurance of Consequence (Agility)
-    [95689] = { trinket1 = 95689 }, -- Unerring Vision of Lei Shen (Agility)
-    
-    -- Tier 16 Trinkets
-    [102291] = { trinket1 = 102291 }, -- Haromm's Talisman (Agility)
-    [102292] = { trinket1 = 102292 }, -- Sigil of Rampage (Agility)
-    [102293] = { trinket1 = 102293 }, -- Thok's Tail Tip (Agility)
-} )
-
--- Beast Mastery Hunter Weapons
-spec:RegisterGear( "weapons", {
-    -- Ranged Weapons - Bows
-    [89417] = { ranged = 89417 }, -- Heartseeking Crossbow (T14)
-    [95071] = { ranged = 95071 }, -- Torall, Rod of the Shattered Throne (T15)
-    [103158] = { ranged = 103158 }, -- Xing-Ho, Breath of Yu'lon (T16)
-    
-    -- Ranged Weapons - Crossbows
-    [89418] = { ranged = 89418 }, -- Tornado-Summoning Crossbow (T14)
-    [95072] = { ranged = 95072 }, -- Arrowflight, Greatbow of the Shattered Throne (T15)
-    [103159] = { ranged = 103159 }, -- Fenyu, Fury of Xuen (T16)
-    
-    -- Ranged Weapons - Guns
-    [89419] = { ranged = 89419 }, -- Sonic Pulse Generator (T14)
-    [95073] = { ranged = 95073 }, -- Hisek's Reserve Longbow (T15)
-    [103160] = { ranged = 103160 }, -- Gor'ashan, Tower of Fortification (T16)
-} )
-
--- PvP Sets
-spec:RegisterGear( "pvp_season_12", {
-    { 84389, head = 84389, shoulder = 84390, chest = 84391, hands = 84392, legs = 84393 }, -- Malevolent Gladiator's
-} )
-
-spec:RegisterGear( "pvp_season_13", {
-    { 90639, head = 90639, shoulder = 90640, chest = 90641, hands = 90642, legs = 90643 }, -- Tyrannical Gladiator's
-} )
-
-spec:RegisterGear( "pvp_season_14", {
-    { 98439, head = 98439, shoulder = 98440, chest = 98441, hands = 98442, legs = 98443 }, -- Grievous Gladiator's
-} )
-
-spec:RegisterGear( "pvp_season_15", {
-    { 103439, head = 103439, shoulder = 103440, chest = 103441, hands = 103442, legs = 103443 }, -- Prideful Gladiator's
-} )
-
--- Challenge Mode Sets
-spec:RegisterGear( "challenge_mode", {
-    { 90001, head = 90001, shoulder = 90002, chest = 90003, hands = 90004, legs = 90005 }, -- Challenge Mode (Agility)
-} )
-
--- Combat Log Event Tracking for Beast Mastery Hunter
-local beastMasteryCombatFrame = CreateFrame("Frame")
-beastMasteryCombatFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-
-beastMasteryCombatFrame:SetScript("OnEvent", function(self, event)
-    local timestamp, subEvent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, 
-          destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool = CombatLogGetCurrentEventInfo()
-    
-    if sourceGUID ~= UnitGUID("player") then return end
-    
-    -- Beast Mastery specific ability tracking
-    if subEvent == "SPELL_CAST_SUCCESS" then
-        -- Core Beast Mastery abilities
-        if spellID == 19574 then -- Bestial Wrath
-            -- Track Bestial Wrath casts and duration
-        elseif spellID == 34026 then -- Kill Command
-            -- Track Kill Command usage and pet coordination
-        elseif spellID == 109248 then -- Binding Shot
-            -- Track crowd control usage
-        elseif spellID == 120679 then -- Dire Beast
-            -- Track dire beast summons
-        elseif spellID == 77767 then -- Cobra Shot
-            -- Track focus spending and Serpent Sting extension
-        elseif spellID == 3044 then -- Arcane Shot
-            -- Track basic focus spending
-        elseif spellID == 1978 then -- Serpent Sting
-            -- Track DoT application and refreshes
-        elseif spellID == 82928 then -- Aimed Shot (with Lock and Load)
-            -- Track instant Aimed Shot procs
-        elseif spellID == 53301 then -- Explosive Shot (from Lock and Load)
-            -- Track Lock and Load proc usage
-        elseif spellID == 131894 then -- A Murder of Crows
-            -- Track MoP talent usage
-        elseif spellID == 120360 then -- Barrage  
-            -- Track AoE ability usage
-        elseif spellID == 109259 then -- Powershot
-            -- Track focus shot ability
-        elseif spellID == 19503 then -- Scatter Shot
-            -- Track CC ability usage
-        elseif spellID == 5116 then -- Concussive Shot
-            -- Track slowing shot usage
-        elseif spellID == 19801 then -- Tranquilizing Shot
-            -- Track dispel usage
-        end
-    elseif subEvent == "SPELL_AURA_APPLIED" then
-        -- Beast Mastery buff/debuff tracking
-        if spellID == 19574 then -- Bestial Wrath
-            -- Track Bestial Wrath application
-        elseif spellID == 34471 then -- The Beast Within
-            -- Track The Beast Within (pet buff)
-        elseif spellID == 82692 then -- Focus Fire
-            -- Track Focus Fire stacks and benefits
-        elseif spellID == 53224 then -- Steady Aim
-            -- Track steady aim buff
-        elseif spellID == 1978 then -- Serpent Sting
-            -- Track DoT application
-        elseif spellID == 131894 then -- A Murder of Crows (debuff)
-            -- Track MoP talent debuff
-        elseif spellID == 5116 then -- Concussive Shot (debuff)
-            -- Track movement debuff
-        end
-    elseif subEvent == "SPELL_AURA_REMOVED" then
-        -- Track buff/debuff removal
-        if spellID == 19574 then -- Bestial Wrath
-            -- Track when Bestial Wrath ends
-        elseif spellID == 82692 then -- Focus Fire
-            -- Track when Focus Fire ends
-        elseif spellID == 1978 then -- Serpent Sting
-            -- Track when DoT expires/is dispelled
-        end
-    elseif subEvent == "SPELL_ENERGIZE" then
-        -- Focus generation tracking
-        if spellID == 56641 then -- Steady Shot
-            -- Track focus generation from Steady Shot
-        elseif spellID == 19574 then -- Bestial Wrath
-            -- Track focus generation from Bestial Wrath
-        elseif spellID == 34952 then -- Go for the Throat (pet ability)
-            -- Track focus generation from pet crits
-        end
-    elseif subEvent == "SPELL_DAMAGE" then
-        -- Damage tracking for optimization
-        if spellID == 77767 then -- Cobra Shot
-            -- Track Cobra Shot damage
-        elseif spellID == 3044 then -- Arcane Shot
-            -- Track Arcane Shot damage
-        elseif spellID == 19434 then -- Aimed Shot
-            -- Track Aimed Shot damage
-        elseif spellID == 1978 then -- Serpent Sting (DoT tick)
-            -- Track DoT damage
-        elseif spellID == 131894 then -- A Murder of Crows
-            -- Track MoP talent damage
-        end
-    end
-end)
-
--- Enhanced Glyph System for Beast Mastery Hunter
---[[ TODO: RegisterGlyphs function not implemented
-spec:RegisterGlyphs( {
-    -- Major DPS/Combat Glyphs
-    [56824] = "Glyph of Aimed Shot", -- Reduces the cast time of Aimed Shot by 0.2 sec
-    [56826] = "Glyph of Arcane Shot", -- Arcane Shot now reduces target's movement speed  
-    [56829] = "Glyph of Beast Mastery", -- Increases Bestial Wrath duration by 2 sec
-    [56830] = "Glyph of Bestial Wrath", -- Removes the immunity to fear and loss of control effects from Bestial Wrath but reduces its cooldown by 20 sec
-    [56832] = "Glyph of Chimera Shot", -- Reduces the cooldown of Chimera Shot by 1 sec
-    [56834] = "Glyph of Cobra Shot", -- Cobra Shot increases the duration of your Serpent Sting on the target by 6 sec
-    [56836] = "Glyph of Explosive Shot", -- Increases the critical strike chance of Explosive Shot by 4%
-    [56839] = "Glyph of Hunter's Mark", -- Increases the ranged attack power bonus from Hunter's Mark by 20%
-    [56840] = "Glyph of Kill Command", -- Reduces the focus cost of Kill Command by 10
-    [56841] = "Glyph of Kill Shot", -- If the damage from your Kill Shot fails to kill a target at or below 20% health, your Kill Shot's cooldown is reset
-    [56843] = "Glyph of Multi-Shot", -- Multi-Shot has a 50% chance not to consume ammo
-    [56845] = "Glyph of Rapid Fire", -- Rapid Fire also increases your movement speed by 30% for the duration
-    [56846] = "Glyph of Serpent Sting", -- Increases the periodic critical strike chance of your Serpent Sting by 6%
-    [56847] = "Glyph of Steady Shot", -- Increases the damage dealt by Steady Shot by 10% when used on targets at or above 80% health
-    [56849] = "Glyph of the Dazzled Prey", -- Your Steady Shot and Cobra Shot have a 5% chance to daze the target for 8 sec
-    [56851] = "Glyph of Wyvern Sting", -- Decreases the cooldown of Wyvern Sting by 60 sec, but also decreases its duration by 10 sec
-    [94003] = "Glyph of Dire Beast", -- Dire Beast now summons a random pet from your stable instead of a beast from the environment
-    [94004] = "Glyph of Animal Bond", -- While your pet is active, all healing done to you and your pet is increased by 10%
-    
-    -- Mobility/Utility Glyphs  
-    [56825] = "Glyph of Aspect of the Cheetah", -- Reduces the movement speed reduction when damaged while Aspect of the Cheetah is active
-    [56827] = "Glyph of Aspect of the Pack", -- Increases the movement speed of Aspect of the Pack by 20%, but also increases its cooldown by 100%
-    [56828] = "Glyph of Aspect of the Wild", -- Aspect of the Wild also reduces the focus cost of all your shots and abilities by 10%
-    [56831] = "Glyph of Camouflage", -- Camouflage also reduces the cooldown of your Hunter's Mark by 100%
-    [56833] = "Glyph of Concussive Shot", -- Concussive Shot now has a 50% chance to also slow the target's attack speed by 10% for 8 sec
-    [56835] = "Glyph of Deterrence", -- Deterrence also increases your movement speed by 60% for the duration
-    [56837] = "Glyph of Disengage", -- Decreases the cooldown of Disengage by 5 sec
-    [56838] = "Glyph of Feign Death", -- Reduces the cooldown of Feign Death by 5 sec
-    [56842] = "Glyph of Misdirection", -- When Misdirection targets your pet, it reduces the cooldown of your pet's Growl by 2 sec
-    [56844] = "Glyph of Pathfinding", -- Aspect of the Cheetah and Pack no longer reduce your movement speed when you take damage
-    [56848] = "Glyph of Scatter Shot", -- Increases the range of Scatter Shot by 3 yards
-    [56850] = "Glyph of the Pack", -- Aspect of the Pack affects one additional party or raid member, but the cooldown is increased by 20 sec
-    [94005] = "Glyph of Liberation", -- Disengage also removes all movement impairing effects
-    [94006] = "Glyph of Mirrored Blades", -- You have a 30% chance when casting Misdirection on your pet to cast it on yourself as well
-    
-    -- Defensive/Survivability Glyphs
-    [56823] = "Glyph of Binding Shot", -- Tether now attaches you to the target location as well
-    [56852] = "Glyph of Intimidation", -- Reduces the cooldown of Intimidation by 10 sec
-    [56853] = "Glyph of Master's Call", -- Master's Call now has a 50% chance to also grant immunity to movement impairing effects for 4 sec
-    [56854] = "Glyph of Mending", -- Increases the healing done by Mend Pet by 25%
-    [56855] = "Glyph of Silencing Shot", -- Increases the duration of Silencing Shot's silence effect by 1 sec
-    [56856] = "Glyph of Snake Trap", -- Snakes from your Snake Trap take 90% reduced damage from area of effect spells
-    [94007] = "Glyph of Endless Wrath", -- Bestial Wrath now has a 50% chance to not trigger a cooldown
-    [94008] = "Glyph of Spirit Bond", -- While your pet is active, you regenerate 3% of your total health every 10 sec and your pet regenerates 3% of its total health every 10 sec
-    
-    -- Control/CC Glyphs
-    [56857] = "Glyph of Explosive Trap", -- The periodic damage from your Explosive Trap can now be critical strikes
-    [56858] = "Glyph of Freezing Trap", -- When your Freezing Trap breaks, the victim's movement speed is reduced by 70% for 4 sec
-    [56859] = "Glyph of Ice Trap", -- Victims of Ice Trap and their nearby allies within 10 yards have their movement speed reduced by an additional 20% for the duration
-    [56860] = "Glyph of Immolation Trap", -- Decreases the damage done by Immolation Trap by 40%, but victims of the trap are now also slowed by 50% for the duration
-    [56861] = "Glyph of Snake Trap", -- Increases the number of snakes summoned by Snake Trap by 2
-    [56862] = "Glyph of Tar Trap", -- When you or your pet are within your Tar Trap, you both gain 30% movement speed for the duration
-    [94009] = "Glyph of Tranquilizing Shot", -- Tranquilizing Shot now also dispels one magic effect in addition to removing one enrage effect
-    [94010] = "Glyph of No Escape", -- Reduces the cooldown of your Binding Shot by 8 sec
-    
-    -- Minor Visual/Convenience Glyphs
-    [56863] = "Glyph of Aspect of the Beast", -- Your Aspect of the Beast now appears as Aspect of the Iron Hawk
-    [56864] = "Glyph of Fetch", -- Your pet can now fetch the appearance of your thrown weapons
-    [56865] = "Glyph of Fireworks", -- Your Flare ability now has a chance to create a fireworks display
-    [56866] = "Glyph of Lesser Proportion", -- Reduces the size of your pet by 25%
-    [56867] = "Glyph of Stampede", -- Animals called by Stampede will vary depending on your current location
-    [56868] = "Glyph of Tame Beast", -- Reduces the cast time of Tame Beast by 50%
-    [56869] = "Glyph of the Dire Stable", -- You can store 1 additional pet in your stable
-    [56870] = "Glyph of the Lean Pack", -- Aspect of the Pack now appears as Aspect of the Cheetah for you and Aspect of the Pack for party members
-    [56871] = "Glyph of the Loud Horn", -- Increases the sound and visual effects of Hunter's Mark
-    [56872] = "Glyph of the Solstice", -- Your Lunar Festival Fireworks and holiday spells create more colorful displays
-    [94011] = "Glyph of Revive Pet", -- Reduces the cast time of Revive Pet by 50% and reduces the health your pet returns with to 15%    [94012] = "Glyph of Direction", -- Hunter's Mark also shows the direction to the target on your mini-map
-} )
---]]
-
--- Enhanced Auras (MoP - Beast Mastery Comprehensive)
-spec:RegisterAuras( {
-    -- Core Beast Mastery Specific Auras
-    bestial_wrath = {
-        id = 19574,
-        duration = 10,
-        type = "Magic",
-        max_stack = 1,
-        copy = { 19574, "bw" }
-    },
-    
-    the_beast_within = {
-        id = 34471,
-        duration = 10,
-        max_stack = 1,
-        copy = { 34471, "tbw" },
-        generate = function( t )
-            local bw = buff.bestial_wrath
-            if bw.up and talent.the_beast_within.enabled then
-                t.name = t.name or class.auras.the_beast_within.name
-                t.count = 1
-                t.expires = bw.expires
-                t.applied = bw.applied
-                t.caster = "player"
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-    
-    focus_fire = {
-        id = 82692,
-        duration = 20,
-        max_stack = 1,
-        copy = { 82692, "ff" }
-    },
-    
-    frenzy = {
-        id = 19615,
-        duration = 10,
-        max_stack = 5,
-        copy = { 19615, "frenzy_effect" },
-        generate = function( t )
-            local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "pet", 19615 )
-
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-    
-    cobra_strikes = {
-        id = 53257,
-        duration = 12,
-        max_stack = 2,
-        copy = { 53257, "cobra_strikes_effect" },
-        generate = function( t )
-            local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "pet", 53257 )
-
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-    
-    invigoration = {
-        id = 53253, 
-        duration = 10,
-        max_stack = 1,
-        copy = { 53253, "invigoration_buff" }
-    },
-    
-    -- Talent-specific auras
-    thrill_of_the_hunt = {
-        id = 34720,
-        duration = 10,
-        max_stack = 3,
-        copy = { 34720, "thrill_of_hunt" }
+        
+        interval = function() return state.buff.casting.duration end,
+        value = 14,
     },
     
     dire_beast = {
-        id = 120694,
-        duration = 15, 
-        max_stack = 1,
-        copy = { 120694, "dire_beast_summon" }
+        resource = "focus",
+        aura = "dire_beast",
+        
+        last = function()
+            local app = state.buff.dire_beast.applied
+            local t = state.query_time
+            
+            return app + floor( ( t - app ) / 2 ) * 2
+        end,
+        
+        interval = 2,
+        value = 5,
     },
     
-    dire_beast_basilisk = {
-        id = 120697,
-        duration = 30,
-        max_stack = 1
-    },
-    
-    lynx_rush = {
-        id = 120697,
-        duration = 4,
-        max_stack = 1,
-        copy = { 120697, "lynx_rush_active" }
-    },
-    
+    fervor = {
+        resource = "focus",
+        aura = "fervor",
+        
+        last = function()
+            return state.buff.fervor.applied
+        end,
+        
+        interval = 0.1,
+        value = 50,
+    }
+} )
+
+-- Talents
+spec:RegisterTalents( {
+    -- Tier 1 (Level 15)
+    posthaste = { 19340, 109215, 1 }, -- Disengage also frees you from all movement impairing effects and increases your movement speed by 60% for 4 sec.
+    narrow_escape = { 19339, 109298, 1 }, -- When Disengage is activated, you also activate a web trap which encases all targets within 8 yards in sticky webs, preventing movement for 8 sec. Damage caused may interrupt the effect.
+    crouching_tiger_hidden_chimera = { 19341, 109215, 1 }, -- Reduces the cooldown of Disengage by 6 sec and Deterrence by 10 sec.
+
+    -- Tier 2 (Level 30)
+    silencing_shot = { 19386, 34490, 1 }, -- Interrupts spellcasting and prevents any spell in that school from being cast for 3 sec.
+    wyvern_sting = { 19384, 19386, 1 }, -- A stinging shot that puts the target to sleep for 30 sec. Any damage will cancel the effect. When the target wakes up, they will be poisoned, taking Nature damage over 6 sec. Only one Sting per Hunter can be active on the target at a time.
+    binding_shot = { 19387, 109248, 1 }, -- Fires a magical projectile, tethering the enemy and any other enemies within 5 yards, stunning them for 5 sec if they move more than 5 yards from the arrow.
+
+    -- Tier 3 (Level 45)
+    intimidation = { 19388, 19577, 1 }, -- Commands your pet to intimidate the target, causing a high amount of threat and stunning the target for 3 sec.
+    spirit_bond = { 19389, 19579, 1 }, -- While your pet is active, you and your pet regen 2% of total health every 10 sec.
+    iron_hawk = { 19390, 109260, 1 }, -- Reduces all damage taken by 10%.
+
+    -- Tier 4 (Level 60)
+    dire_beast = { 19347, 120679, 1 }, -- Summons a powerful wild beast that attacks the target for 15 sec.
+    fervor = { 19348, 82726, 1 }, -- Instantly restores 50 Focus to you and your pet, and increases Focus regeneration by 50% for you and your pet for 10 sec.
+    a_murder_of_crows = { 19349, 131894, 1 }, -- Summons a flock of crows to attack your target over 30 sec. If the target dies while the crows are attacking, their cooldown is reset.
+
+    -- Tier 5 (Level 75)
+    blink_strikes = { 19391, 130392, 1 }, -- Your pet's Basic Attacks deal 50% increased damage and can be used from 30 yards away. Their range is increased to 40 yards while Dash or Stampede is active.
+    lynx_rush = { 19392, 120697, 1 }, -- Commands your pet to rush the target, performing 9 attacks in 4 sec for 800% normal damage. Each hit deals bleed damage to the target over 8 sec. Bleeds stack and persist on the target.
+    thrill_of_the_hunt = { 19393, 109306, 1 }, -- You have a 30% chance when you hit with Multi-Shot or Arcane Shot to make your next Steady Shot or Cobra Shot cost no Focus and deal 150% additional damage.
+
+    -- Tier 6 (Level 90)
+    glaive_toss = { 19394, 117050, 1 }, -- Throws a pair of glaives at your target, dealing Physical damage and reducing movement speed by 30% for 3 sec. The glaives return to you, also dealing damage to any enemies in their path.
+    powershot = { 19395, 109259, 1 }, -- A powerful aimed shot that deals weapon damage to the target and up to 5 targets in the line of fire. Knocks all targets back, reduces your maximum Focus by 20 for 10 sec and refunds some Focus for each target hit.
+    barrage = { 19396, 120360, 1 }, -- Rapidly fires a spray of shots for 3 sec, dealing Physical damage to all enemies in front of you. Usable while moving.
+} )
+
+
+
+-- Auras
+spec:RegisterAuras( {
+    -- Talent: Under attack by a flock of crows.
+    -- https://wowhead.com/beta/spell=131894
     a_murder_of_crows = {
         id = 131894,
         duration = 30,
-        max_stack = 1,
-        copy = { 131894, "murder_crows" }
-    },
-    
-    posthaste = {
-        id = 118922,
-        duration = 4,
-        max_stack = 1,
-        copy = { 118922, "posthaste_speed" }
-    },
-    
-    narrow_escape = {
-        id = 109298,
-        duration = 8,
+        tick_time = 1,
         max_stack = 1
     },
-    
-    binding_shot = {
-        id = 117405,
-        duration = 8,
+    -- Movement speed increased by $w1%.
+    -- https://wowhead.com/beta/spell=186257
+    aspect_of_the_cheetah_sprint = {
+        id = 186257,
+        duration = 3,
         max_stack = 1
     },
-    
-    wyvern_sting = {
-        id = 19386,
-        duration = 30,
-        max_stack = 1
-    },
-    
-    intimidation = {
-        id = 19577,
-        duration = 5,
-        max_stack = 1,
-        copy = { 19577, "intimidation_stun" }
-    },
-    
-    -- Aspect Auras (Enhanced)
-    aspect_of_the_hawk = {
-        id = 13165,
-        duration = 3600,
-        max_stack = 1,
-        copy = { 13165, "hawk_aspect" }
-    },
-    
-    aspect_of_the_iron_hawk = {
-        id = 109260,
-        duration = 3600,
-        max_stack = 1,
-        copy = { 109260, "iron_hawk_aspect" }
-    },
-    
+    -- Movement speed increased by $w1%.
+    -- https://wowhead.com/beta/spell=186258
     aspect_of_the_cheetah = {
-        id = 5118,
-        duration = 3600,
-        max_stack = 1,
-        copy = { 5118, "cheetah_aspect" }
-    },
-    
-    aspect_of_the_pack = {
-        id = 13159,
-        duration = 3600,
-        max_stack = 1,
-        copy = { 13159, "pack_aspect" }
-    },
-    
-    -- Defensive/Utility Auras  
-    deterrence = {
-        id = 19263,
-        duration = 5,
-        max_stack = 1,
-        copy = { 19263, "deterrence_active" }
-    },
-    
-    camouflage = {
-        id = 51753,
-        duration = 6,
-        max_stack = 1,
-        copy = { 51753, "camo" }
-    },
-    
-    feign_death = {
-        id = 5384,
-        duration = 6,
-        max_stack = 1,
-        copy = { 5384, "fd" }
-    },
-    
-    misdirection = {
-        id = 34477,
-        duration = 30,
-        max_stack = 1,
-        copy = { 34477, "misdirect" }
-    },
-    
-    masters_call = {
-        id = 53271,
-        duration = 4,
+        id = 186258,
+        duration = 9,
         max_stack = 1
     },
-    
-    -- Target Debuffs
-    hunters_mark = {
-        id = 1130,
-        duration = 300,
-        max_stack = 1,
-        copy = { 1130, "hm" }
+    -- Deflecting all attacks.  Damage taken reduced by $w4%.
+    -- https://wowhead.com/beta/spell=186265
+    aspect_of_the_turtle = {
+        id = 186265,
+        duration = 8,
+        max_stack = 1
     },
-    
-    serpent_sting = {
-        id = 118253,
-        duration = 15,
-        tick_time = 3,
-        max_stack = 1,
-        copy = { 118253, "serpent_sting_dot" }
+    -- Talent: Damage dealt increased by $w1%.
+    -- https://wowhead.com/beta/spell=19574
+    bestial_wrath = {
+        id = 19574,
+        duration = 10,
+        type = "Ranged",
+        max_stack = 1
     },
-    
+    -- Stunned.
+    binding_shot_stun = {
+        id = 117526,
+        duration = 5,
+        max_stack = 1,
+    },
+    -- Movement slowed by $s1%.
     concussive_shot = {
         id = 5116,
         duration = 6,
-        max_stack = 1,
-        copy = { 5116, "concussive_slow" }
-    },
-    
-    -- AoE/Cleave Effects
-    beast_cleave = {
-        id = 115939,
-        duration = 4,
-        max_stack = 1,
-        copy = { 115939, "cleave_effect" }
-    },
-    
-    explosive_shot = {
-        id = 53301,
-        duration = 2,
-        tick_time = 0.5,
+        mechanic = "snare",
+        type = "Ranged",
         max_stack = 1
     },
-    
-    -- Traps
+    -- Talent: Haste increased by $s1%.
+    dire_beast = {
+        id = 120694,
+        duration = 15,
+        max_stack = 1
+    },
+    -- Feigning death.
+    feign_death = {
+        id = 5384,
+        duration = 360,
+        max_stack = 1
+    },
+    -- Restores Focus.
+    fervor = {
+        id = 82726,
+        duration = 10,
+        max_stack = 1
+    },
+    -- Incapacitated.
     freezing_trap = {
         id = 3355,
-        duration = 60,
-        max_stack = 1,
-        copy = { 3355, "freeze_trap" }
+        duration = 8,
+        type = "Magic",
+        max_stack = 1
     },
-    
-    explosive_trap = {
-        id = 13813,
+    -- Talent: Increased movement speed by $s1%.
+    posthaste = {
+        id = 118922,
+        duration = 4,
+        max_stack = 1
+    },
+    -- Silenced.
+    silencing_shot = {
+        id = 34490,
+        duration = 3,
+        mechanic = "silence",
+        max_stack = 1
+    },
+    -- Asleep.
+    wyvern_sting = {
+        id = 19386,
+        duration = 30,
+        mechanic = "sleep",
+        max_stack = 1
+    },
+    -- Poisoned.
+    wyvern_sting_dot = {
+        id = 19386,
+        duration = 6,
+        tick_time = 2,
+        max_stack = 1
+    },
+    -- Stunned.
+    intimidation = {
+        id = 19577,
+        duration = 3,
+        max_stack = 1
+    },
+    -- Health regeneration increased.
+    spirit_bond = {
+        id = 19579,
+        duration = 3600,
+        max_stack = 1
+    },
+    -- Damage taken reduced by $s1%.
+    iron_hawk = {
+        id = 109260,
+        duration = 3600,
+        max_stack = 1
+    },
+    -- Talent: Bleeding for $w1 damage every $t1 sec.
+    lynx_rush = {
+        id = 120697,
+        duration = 8,
+        tick_time = 1,
+        max_stack = 9
+    },
+    -- Talent: Next Steady Shot or Cobra Shot costs no Focus and deals additional damage.
+    thrill_of_the_hunt = {
+        id = 109306,
         duration = 20,
         max_stack = 1
     },
-    
-    ice_trap = {
-        id = 13809,
-        duration = 30,
+    -- Talent: Movement speed reduced by $s1%.
+    glaive_toss = {
+        id = 117050,
+        duration = 3,
+        mechanic = "snare",
         max_stack = 1
     },
-    
-    snake_trap = {
-        id = 34600,
-        duration = 30,
+    -- Talent: Focus reduced by $s1.
+    powershot = {
+        id = 109259,
+        duration = 10,
         max_stack = 1
     },
-    
-    -- Pet Auras and Effects
+    -- Talent: Rapidly firing.
+    barrage = {
+        id = 120360,
+        duration = 3,
+        tick_time = 0.2,
+        max_stack = 1
+    },
+    -- Movement speed reduced by $s1%.
+    wing_clip = {
+        id = 195645,
+        duration = 15,
+        max_stack = 1
+    },
+    -- Healing over time.
     mend_pet = {
         id = 136,
         duration = 10,
-        tick_time = 1,
+        type = "Magic",
         max_stack = 1,
-        copy = { 136, "mend_pet_channel" },
         generate = function( t )
             local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "pet", 136 )
 
@@ -720,1730 +292,925 @@ spec:RegisterAuras( {
             t.caster = "nobody"
         end
     },
-    
-    call_pet = {
-        duration = 3600,
-        max_stack = 1,
-        copy = { "pet_active", "pet_out" }
+    -- Threat redirected from Hunter.
+    misdirection = {
+        id = 35079,
+        duration = 8,
+        max_stack = 1
     },
-    
-    spirit_bond = {
-        id = 19579,
-        duration = 3600,
-        max_stack = 1,
-        copy = { 19579, "spirit_bond_active" }
-    },
-    
-    rabid = {
-        id = 53401,
+    -- Feared.
+    scare_beast = {
+        id = 1513,
         duration = 20,
+        mechanic = "flee",
+        type = "Magic",
+        max_stack = 1
+    },
+    -- Disoriented.
+    scatter_shot = {
+        id = 213691,
+        duration = 4,
+        type = "Ranged",
+        max_stack = 1
+    },
+    -- Casting.
+    casting = {
+        duration = function () return haste end,
         max_stack = 1,
-        generate = function( t )
-            local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "pet", 53401 )
-
-            if name then
-                t.name = name
-                t.count = count
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
+        generate = function ()
+            if action.steady_shot.channeling or action.cobra_shot.channeling then
+                return {
+                    name = "Casting",
+                    count = 1,
+                    applied = action.steady_shot.channelStart or action.cobra_shot.channelStart,
+                    expires = action.steady_shot.channelStart + action.steady_shot.castTime or action.cobra_shot.channelStart + action.cobra_shot.castTime,
+                    caster = "player"
+                }
             end
-
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
+        end,
     },
-    
-    -- Glyph Effects
-    glyph_of_endless_wrath = {
-        id = 109269,
-        duration = 3600,
-        max_stack = 1
-    },
-    
-    glyph_of_animal_bond = {
-        id = 109262,
-        duration = 3600,
-        max_stack = 1
-    },
-    
-    glyph_of_mending = {
-        id = 109276,
-        duration = 3600,
-        max_stack = 1
-    },
-    
-    -- Proc Effects and Combat Buffs
-    steady_shot = {
-        id = 56641,
-        duration = 1.5,
-        max_stack = 1
-    },
-    
-    cobra_shot = {
-        id = 77767,
-        duration = 1.5,
-        max_stack = 1
-    },
-    
-    rapid_fire = {
-        id = 3045,
-        duration = 15,
-        max_stack = 1,
-        copy = { 3045, "rapid_fire_active" }
-    },
-    
-    lock_and_load = {
-        id = 56453,
-        duration = 15,
-        max_stack = 2
-    },
-    
+    -- MoP specific auras
     improved_steady_shot = {
         id = 53220,
-        duration = 12,
-        max_stack = 1
-    },
-    
-    -- Tier Set Bonuses (placeholder for future tier sets)
-    t14_2p_bm = {
-        duration = 3600,
-        max_stack = 1
-    },
-    
-    t14_4p_bm = {
-        duration = 3600,
-        max_stack = 1
-    },    
-    t15_2p_bm = {
-        duration = 3600,        max_stack = 1
-    },
-    
-    t15_4p_bm = {
-        duration = 3600,
-        max_stack = 1
-    }
-} )
-
--- Enhanced Abilities (MoP - Beast Mastery Comprehensive)
-spec:RegisterAbilities( {
-    -- Core Beast Mastery Signature Abilities
-    bestial_wrath = {
-        id = 5118,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Aspect of the Cheetah" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    aspect_of_the_pack = {
-        id = 13159,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Aspect of the Pack" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    deterrence = {
-        id = 19263,
-        duration = 5,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Deterrence" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    -- MoP Talent Coordination and Procs
-    thrill_of_the_hunt = {
-        id = 109306,
-        duration = 20,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Thrill of the Hunt" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    dire_beast = {
-        id = 120679,
         duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Dire Beast" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
+        max_stack = 1
     },
-
-    lynx_rush = {
-        id = 120697,
-        duration = 4,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "pet", "Lynx Rush" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    -- Improved Tracking and Shot Management
-    improved_tracking = {
-        id = 19506,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Improved Tracking" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    steady_aim = {
-        id = 53220,
-        duration = 8,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Steady Aim" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    master_marksman = {
-        id = 34489,
-        duration = 8,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Master Marksman" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    -- Target Debuff Tracking
-    hunters_mark = {
-        id = 1130,
-        duration = 300,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitDebuff( "target", "Hunter's Mark" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
     serpent_sting = {
-        id = 118253,
+        id = 1978,
         duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitDebuff( "target", "Serpent Sting" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
+        tick_time = 3,
+        type = "Ranged",
+        max_stack = 1
     },
-
-    concussive_shot = {
-        id = 5116,
-        duration = 6,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitDebuff( "target", "Concussive Shot" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
+    frenzy = {
+        id = 19615,
+        duration = 8,
+        max_stack = 5
     },
-
-    -- AoE and Cleave Effect Tracking
     beast_cleave = {
         id = 115939,
         duration = 4,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "pet", "Beast Cleave" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
+        max_stack = 1
     },
-
-    multi_shot = {
-        id = 2643,
-        duration = 4,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Multi-Shot" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
+    hunters_mark = {
+        id = 1130,
+        duration = 300,
+        type = "Ranged",
+        max_stack = 1
     },
-
-    -- Trap Tracking and Management
-    freezing_trap = {
-        id = 3355,
-        duration = 60,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitDebuff( "target", "Freezing Trap" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
+    aspect_of_the_iron_hawk = {
+        id = 109260,
+        duration = 3600,
+        max_stack = 1
     },
-
+    rapid_fire = {
+        id = 3045,
+        duration = 3,
+        tick_time = 0.2,
+        max_stack = 1
+    },
     explosive_trap = {
         id = 13813,
         duration = 20,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitDebuff( "target", "Explosive Trap" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
+        max_stack = 1
     },
-
-    -- Tier Set and Legendary Tracking
-    t14_2pc_bm = {
-        id = 105725,
-        duration = 8,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Item - Hunter T14 Beast Mastery 2P Bonus" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    t15_2pc_bm = {
-        id = 138287,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Item - Hunter T15 Beast Mastery 2P Bonus" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    legendary_meta_agility = {
-        id = 137593,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Indomitable" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    -- Pet Specific Tracking and Management
-    mend_pet = {
-        id = 136,
-        duration = 10,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "pet", "Mend Pet" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-
-    call_pet = {
-        id = 883,
+    -- Tier set bonuses
+    tier14_4pc = {
+        id = 105919,
         duration = 3600,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Call Pet" )
-            if name then
-                t.name = name
-                t.count = max( 1, count )
-                t.expires = expires
-                t.applied = expires - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    }
+        max_stack = 1
+    },
+    tier15_2pc = {
+        id = 138267,
+        duration = 3600,
+        max_stack = 1
+    },
+    tier15_4pc = {
+        id = 138268,
+        duration = 3600,
+        max_stack = 1
+    },
+    -- Additional missing auras
+    deterrence = {
+        id = 19263,
+        duration = 5,
+        max_stack = 1
+    },
+    aspect_of_the_hawk = {
+        id = 13165,
+        duration = 3600,
+        max_stack = 1
+    },
 } )
 
--- Enhanced Abilities (MoP - Beast Mastery Comprehensive)
-spec:RegisterAbilities( {
-    -- Core Beast Mastery Signature Abilities
-    bestial_wrath = {
-        id = 19574,
-        cast = 0,
-        cooldown = function() return 60 - (talent.longevity.enabled and 30 or 0) end,
-        gcd = "spell",
-        school = "physical",
-
-        talent = "bestial_wrath",
-        startsCombat = false,
-
-        toggle = "cooldowns",
-
-        usable = function() return pet.alive, "requires a living pet" end,
-
-        handler = function ()
-            applyBuff( "bestial_wrath", 10 )
-            if talent.the_beast_within.enabled then
-                applyBuff( "the_beast_within", 10 )
-            end
-            if glyph.glyph_of_endless_wrath.enabled then
-                -- Reduces cooldown by 20% for each enemy that dies while Bestial Wrath is active
-                -- Not easily modeled in simulation
-            end
-        end,
-
-        copy = { 19574, "bw" }
-    },
-      kill_command = {
-        id = 34026,
-        cast = 0,
-        cooldown = function() return 6 end,  -- WoW Sims verified: 6 second cooldown
-        gcd = "spell",
-        school = "physical",
-
-        spend = 40,  -- WoW Sims verified: 40 focus cost
-        spendType = "focus",
-
-        startsCombat = true,
-
-        usable = function() return pet.alive, "requires a living pet" end,
-        
-        -- WoW Sims verified: Commands pet to use Kill Command ability
-        handler = function ()
-            -- Enhanced Kill Command with Cobra Strikes interaction
-            if talent.cobra_strikes.enabled then
-                if math.random() <= 0.2 then -- 20% chance per rank
-                    applyBuff( "cobra_strikes", 12, 2 )
-                end
-            end
-              -- Invigoration proc chance
-            if talent.invigoration.enabled then
-                if math.random() <= 0.5 then -- 50% chance when pet crits with special ability
-                    gain( 25, "focus" )
-                    applyBuff( "invigoration", 10 )
-                end
-            end
-        end,
-
-        copy = { 34026, "kc" }
-    },
-    
-    focus_fire = {
-        id = 82692,
-        cast = 0,
-        cooldown = 15,
-        gcd = "spell",
-        school = "nature",
-
-        startsCombat = false,
-        
-        usable = function() return pet.alive and buff.frenzy.stack > 0, "requires pet with frenzy stacks" end,
-        
-        handler = function ()
-            local stacks = buff.frenzy.stack
-            applyBuff( "focus_fire", 20 )
-            removeBuff( "frenzy" )
-            
-            -- Focus Fire grants 3% ranged haste per Frenzy stack consumed
-            -- This is represented by the focus_fire buff duration and effect
-        end,
-
-        copy = { 82692, "ff" }
-    },    
-    -- Level 90 Talent Abilities (Tier 6)
-    a_murder_of_crows = {
-        id = 131894,
-        cast = 0,
-        cooldown = 120,
-        gcd = "spell",
-        school = "shadow",
-        
-        spend = 60,
-        spendType = "focus",
-        
-        talent = "murder_of_crows",
-        startsCombat = true,
-        
-        toggle = "cooldowns",
-        
-        handler = function ()
-            applyDebuff( "target", "a_murder_of_crows", 30 )
-            -- Each time the crows deal damage, you gain 2 Focus
-        end,
-
-        copy = { 131894, "murder", "crows" }
-    },
-    
-    lynx_rush = {
-        id = 120697,
-        cast = 0,
-        cooldown = 90,
-        gcd = "spell",
-        school = "physical",
-        
-        talent = "lynx_rush",
-        startsCombat = true,
-        
-        toggle = "cooldowns",
-        
-        usable = function() return pet.alive, "requires a living pet" end,
-        
-        handler = function ()
-            applyBuff( "lynx_rush", 4 )
-            -- Pet performs 9 attacks over 4 seconds
-        end,
-
-        copy = { 120697, "lynx" }
-    },
-    
+-- Pets
+spec:RegisterPets({
     dire_beast = {
-        id = 120679,
-        cast = 0,
-        cooldown = 30,
-        gcd = "spell",
-        school = "nature",
-        
-        talent = "dire_beast",
-        startsCombat = true,
-        
-        handler = function ()
-            applyBuff( "dire_beast", 15 )
-            -- Summons a powerful wild beast for 15 seconds
-            -- Each time it deals damage, you gain 2 Focus
-        end,
-
-        copy = { 120679, "dire" }
+        id = 100,
+        spell = "dire_beast",
+        duration = 15
     },
-    
-    -- Core Hunter Shot Abilities (Enhanced)
-    auto_shot = {
-        id = 75,
-        cast = 0,
-        cooldown = function() return weapon.ranged_speed or 2.8 end,
-        gcd = "off",
-        school = "physical",
-        
-        startsCombat = true,
-        
-        handler = function ()
-            -- Auto Shot triggers various procs
-            if talent.lock_and_load.enabled then
-                if math.random() <= 0.15 then -- 15% chance with Auto Shot
-                    gain( 1, "charges", "explosive_shot" )
-                    applyBuff( "lock_and_load", 15, math.min( 2, buff.lock_and_load.stack + 1 ) )
-                end
-            end
-            
-            if talent.cobra_strikes.enabled then
-                if math.random() <= 0.2 then -- 20% chance on crit
-                    applyBuff( "cobra_strikes", 12, 2 )
-                end
-            end
-        end,
+} )
 
-        copy = { 75, "auto" }
-    },
-      steady_shot = {
-        id = 56641,
-        cast = function () return 2.0 / haste end,  -- WoW Sims verified: 2.0s base cast time
-        cooldown = 0,
-        gcd = "spell",
-        school = "physical",
-        
-        spend = 0,  -- WoW Sims verified: 0 focus cost, generates 14 focus
-        spendType = "focus",
-        
-        startsCombat = true,
-        
-        -- WoW Sims verified: 0.66 damage multiplier, generates 14 focus, 2.0s cast
-        handler = function ()
-            gain( 14, "focus" )  -- Focus generation from WoW sims
-            applyBuff( "steady_shot", 2.0 )
-            
-            -- Improved Steady Shot
-            if talent.improved_steady_shot.enabled then
-                if buff.improved_steady_shot.down then
-                    applyBuff( "improved_steady_shot", 12 )
-                else
-                    -- Second Steady Shot in a row triggers the effect
-                    removeBuff( "improved_steady_shot" )
-                    -- Next Aimed Shot, Arcane Shot, or Chimera Shot costs 20% less focus and has 20% increased crit
-                end
-            end
-            
-            -- Cobra Strikes proc chance
-            if talent.cobra_strikes.enabled then
-                if math.random() <= 0.2 then -- 20% chance on crit
-                    applyBuff( "cobra_strikes", 12, 2 )
-                end
-            end
-        end,
 
-        copy = { 56641, "steady" }
-    },
-      cobra_shot = {
-        id = 77767,
-        cast = function () return 2.0 / haste end, -- WoW Sims verified: 2.0s base cast time
-        cooldown = 0,
-        gcd = "spell",
-        school = "nature",
-        
-        spend = 0,  -- WoW Sims verified: 0 focus cost, generates 14 focus instead
-        spendType = "focus",
-        
-        startsCombat = true,
-        
-        -- WoW Sims verified: 0.77 damage multiplier, generates 14 focus, refreshes Serpent Sting
-        handler = function ()
-            gain( 14, "focus" )  -- Focus generation from WoW sims
-            applyBuff( "cobra_shot", 2.0 )
-            
-            -- Refreshes Serpent Sting duration (not extends, but refreshes to full duration)
-            if debuff.serpent_sting.up then
-                applyDebuff( "target", "serpent_sting" )  -- Refresh to full duration
-            end
-            
-            -- Cobra Strikes proc chance
-            if talent.cobra_strikes.enabled then
-                if math.random() <= 0.2 then -- 20% chance on crit
-                    applyBuff( "cobra_strikes", 12, 2 )
-                end
-            end
-        end,
 
-        copy = { 77767, "cobra" }
-    },
-      arcane_shot = {
-        id = 3044,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        school = "arcane",
-        
-        spend = function() return 30 - (buff.improved_steady_shot.up and 6 or 0) end,  -- WoW Sims verified: 30 focus
-        spendType = "focus",
-        
-        startsCombat = true,
-        
-        -- WoW Sims verified: 1.25 damage multiplier, instant cast
-        handler = function ()
-            -- Thrill of the Hunt proc
-            if talent.thrill_of_the_hunt.enabled and math.random() <= 0.3 then
-                gain( 20, "focus" )
-                addStack( "thrill_of_the_hunt" )
-            end
-            
-            -- Cobra Strikes proc chance
-            if talent.cobra_strikes.enabled then
-                if math.random() <= 0.2 then -- 20% chance on crit
-                    applyBuff( "cobra_strikes", 12, 2 )
-                end
-            end
-            
-            -- Consume Improved Steady Shot
-            if buff.improved_steady_shot.up then
-                removeBuff( "improved_steady_shot" )
-            end
-        end,
+--- Mists of Pandaria
+spec:RegisterGear( "tier16", 99169, 99170, 99171, 99172, 99173 )
+spec:RegisterGear( "tier15", 95307, 95308, 95309, 95310, 95311 )
+spec:RegisterGear( "tier14", 84242, 84243, 84244, 84245, 84246 )
 
-        copy = { 3044, "arcane" }
-    },
-    
-    multi_shot = {
-        id = 2643,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        school = "physical",
-        
-        spend = function() return 40 - (buff.improved_steady_shot.up and 8 or 0) end,
-        spendType = "focus",
-        
-        startsCombat = true,
-        
-        handler = function ()
-            applyBuff( "beast_cleave", 4 )
-            
-            -- Thrill of the Hunt proc
-            if talent.thrill_of_the_hunt.enabled and math.random() <= 0.3 then
-                gain( 20, "focus" )
-                addStack( "thrill_of_the_hunt" )
-            end
-            
-            -- Consume Improved Steady Shot
-            if buff.improved_steady_shot.up then
-                removeBuff( "improved_steady_shot" )
-            end
-        end,
 
-        copy = { 2643, "multi" }
-    },
-    
-    serpent_sting = {
-        id = 118253,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        school = "nature",
-        
-        spend = 25,
-        spendType = "focus",
-        
-        startsCombat = true,
-        
-        handler = function ()
-            applyDebuff( "target", "serpent_sting", 15 )
-        end,
+spec:RegisterHook( "spend", function( amt, resource )
+    if amt < 0 and resource == "focus" and talent.fervor.enabled and buff.fervor.up then
+        amt = amt * 1.5
+    end
 
-        copy = { 118253, "serpent", "sting" }
-    },    
-    -- Utility and Movement Abilities
+    return amt, resource
+end )
+
+
+-- Abilities
+spec:RegisterAbilities( {
+    -- Fire a shot that slows the target's movement speed by $s1% for $d.
     concussive_shot = {
         id = 5116,
         cast = 0,
         cooldown = 5,
         gcd = "spell",
-        school = "nature",
-        
+        school = "physical",
+
         startsCombat = true,
-        
-        handler = function ()
-            applyDebuff( "target", "concussive_shot", 6 )
-        end,
 
-        copy = { 5116, "concussive" }
-    },
-    
-    disengage = {
-        id = 781,
-        cast = 0,
-        cooldown = function() return 20 - (talent.crouching_tiger.enabled and 6 or 0) end,
-        gcd = "off",
-        school = "physical",
-        
-        startsCombat = false,
-        
         handler = function ()
-            if talent.posthaste.enabled then 
-                applyBuff( "posthaste", 4 ) 
-            end
-            if talent.narrow_escape.enabled then
-                applyDebuff( "target", "narrow_escape", 8 )
-            end
+            applyDebuff( "target", "concussive_shot" )
         end,
-
-        copy = { 781, "disengage" }
     },
-    
-    deterrence = {
-        id = 19263,
-        cast = 0,
-        cooldown = function() return 180 - (talent.crouching_tiger.enabled and 10 or 0) end,
-        charges = 2,
-        recharge = function() return 180 - (talent.crouching_tiger.enabled and 10 or 0) end,
-        gcd = "off",
-        school = "physical",
-        
-        toggle = "defensives",
-        
-        handler = function ()
-            applyBuff( "deterrence", 5 )
-        end,
 
-        copy = { 19263, "det" }
-    },
-    
-    feign_death = {
-        id = 5384,
+    -- Talent: Summons a powerful wild beast that attacks the target for $d.
+    dire_beast = {
+        id = 120679,
         cast = 0,
-        cooldown = 30,
-        gcd = "off",
-        school = "physical",
-        
-        startsCombat = false,
-        
-        handler = function ()
-            applyBuff( "feign_death", 6 )
-        end,
-
-        copy = { 5384, "fd" }
-    },
-    
-    camouflage = {
-        id = 51753,
-        cast = 0,
-        cooldown = 60,
-        gcd = "spell",
-        school = "physical",
-        
-        startsCombat = false,
-        
-        handler = function ()
-            applyBuff( "camouflage", 6 )
-        end,
-
-        copy = { 51753, "camo" }
-    },
-    
-    -- Aspect Management
-    aspect_of_the_hawk = {
-        id = 13165,
-        cast = 0,
-        cooldown = 0,
+        cooldown = 20,
         gcd = "spell",
         school = "nature",
-        
-        essential = true,
-        nobuff = function() return buff.aspect_of_the_iron_hawk.up and "aspect_of_the_iron_hawk" or nil end,
-        
-        handler = function ()
-            removeBuff( "aspect_of_the_cheetah" )
-            removeBuff( "aspect_of_the_pack" )
-            removeBuff( "aspect_of_the_iron_hawk" )
-            applyBuff( "aspect_of_the_hawk" )
-        end,
 
-        copy = { 13165, "hawk" }
-    },
-    
-    aspect_of_the_iron_hawk = {
-        id = 109260,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        school = "nature",
-        
-        talent = "aspect_of_the_iron_hawk",
-        nobuff = "aspect_of_the_iron_hawk",
-        
-        handler = function ()
-            removeBuff( "aspect_of_the_hawk" )
-            removeBuff( "aspect_of_the_cheetah" )
-            removeBuff( "aspect_of_the_pack" )
-            applyBuff( "aspect_of_the_iron_hawk" )
-        end,
-
-        copy = { 109260, "iron_hawk" }
-    },
-    
-    aspect_of_the_cheetah = {
-        id = 5118,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        school = "nature",
-        
-        nobuff = "aspect_of_the_cheetah",
-        
-        handler = function ()
-            removeBuff( "aspect_of_the_hawk" )
-            removeBuff( "aspect_of_the_pack" )
-            removeBuff( "aspect_of_the_iron_hawk" )
-            applyBuff( "aspect_of_the_cheetah" )
-        end,
-
-        copy = { 5118, "cheetah" }
-    },
-    
-    aspect_of_the_pack = {
-        id = 13159,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        school = "nature",
-        
-        nobuff = "aspect_of_the_pack",
-        
-        handler = function ()
-            removeBuff( "aspect_of_the_hawk" )
-            removeBuff( "aspect_of_the_cheetah" )
-            removeBuff( "aspect_of_the_iron_hawk" )
-            applyBuff( "aspect_of_the_pack" )
-        end,
-
-        copy = { 13159, "pack" }
-    },
-    
-    -- Hunter's Mark and Targeting
-    hunters_mark = {
-        id = 1130,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        school = "nature",
-        
-        startsCombat = false,
-        
-        handler = function ()
-            applyDebuff( "target", "hunters_mark", 300 )
-        end,
-
-        copy = { 1130, "mark", "hm" }
-    },
-    
-    misdirection = {
-        id = 34477,
-        cast = 0,
-        cooldown = 30,
-        gcd = "off",
-        school = "physical",
-        
-        startsCombat = false,
-        
-        handler = function ()
-            applyBuff( "misdirection", 30 )
-        end,
-
-        copy = { 34477, "misdirect", "md" }
-    },
-    
-    -- Pet Management and Abilities
-    call_pet_1 = {
-        id = 883,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        school = "physical",
-        
-        essential = true,
-        nomounted = true,
-        
-        usable = function() return not pet.alive, "pet is already active" end,
-        
-        handler = function ()
-            summonPet( "pet", 3600 )
-            applyBuff( "call_pet" )
-        end,
-
-        copy = { 883, "call_pet" }
-    },
-    
-    dismiss_pet = {
-        id = 2641,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        school = "physical",
-        
-        usable = function() return pet.alive, "no pet to dismiss" end,
-        
-        handler = function ()
-            dismissPet( "pet" )
-            removeBuff( "call_pet" )
-        end,
-
-        copy = { 2641, "dismiss" }
-    },
-    
-    mend_pet = {
-        id = 136,
-        cast = 10,
-        channeled = true,
-        cooldown = 0,
-        gcd = "spell",
-        school = "physical",
-        
-        usable = function() return pet.alive and pet.health_pct < 100, "pet doesn't need healing" end,
-        
-        start = function ()
-            applyBuff( "mend_pet", 10 )
-        end,
-        
-        finish = function ()
-            removeBuff( "mend_pet" )
-        end,
-
-        copy = { 136, "mend" }
-    },
-    
-    revive_pet = {
-        id = 982,
-        cast = function() return 10 - (talent.improved_revive_pet.enabled and 3 or 0) end,
-        cooldown = 0,
-        gcd = "spell",
-        school = "physical",
-        
-        usable = function() return not pet.alive, "pet is already alive" end,
-        
-        handler = function ()
-            summonPet( "pet", 3600 )
-            applyBuff( "call_pet" )
-        end,
-
-        copy = { 982, "revive" }
-    },
-    
-    intimidation = {
-        id = 19577,
-        cast = 0,
-        cooldown = 60,
-        gcd = "spell",
-        school = "physical",
-        
-        talent = "intimidation",
+        talent = "dire_beast",
         startsCombat = true,
-        
-        usable = function() return pet.alive, "requires a living pet" end,
-        
-        handler = function ()
-            applyDebuff( "target", "intimidation", 5 )
-        end,
 
-        copy = { 19577, "intim" }
-    },
-    
-    masters_call = {
-        id = 53271,
-        cast = 0,
-        cooldown = 60,
-        gcd = "off",
-        school = "physical",
-        
-        usable = function() return pet.alive, "requires a living pet" end,        handler = function ()
-            applyBuff( "masters_call", 4 )
-        end,
-        
-        copy = { 53271, "masters" }
-    },
-    
-    rapid_fire = {
-        id = 3045,
-        cast = 0,
-        cooldown = 180,
-        gcd = "spell",
-        school = "physical",
-        
-        toggle = "cooldowns",
-        
-        startsCombat = false,
-        
         handler = function ()
-            applyBuff( "rapid_fire", 15 )
-            stat.haste = stat.haste + 0.4
+            applyBuff( "dire_beast" )
+            summonPet( "dire_beast", 15 )
         end,
-        
-        copy = { 3045, "rf" }
     },
-    
-    freezing_trap = {
-        id = 1499,
-        cast = 0,
-        cooldown = 30,
-        gcd = "spell",
-        school = "frost",
-        
-        startsCombat = false,
-        
-        handler = function ()
-            applyDebuff( "target", "freezing_trap", 60 )
-        end,
 
-        copy = { 1499, "freeze" }
-    },
-    
-    explosive_trap = {
-        id = 13813,
-        cast = 0,
-        cooldown = 30,
-        gcd = "spell",
-        school = "fire",
-        
-        startsCombat = true,
-        
-        handler = function ()
-            applyDebuff( "target", "explosive_trap", 20 )
-        end,
-
-        copy = { 13813, "explosive" }
-    },
-    
-    ice_trap = {
-        id = 13809,
-        cast = 0,
-        cooldown = 30,
-        gcd = "spell",
-        school = "frost",
-        
-        startsCombat = false,
-        
-        handler = function ()
-            applyDebuff( "target", "ice_trap", 30 )
-        end,
-
-        copy = { 13809, "ice" }
-    },
-    
-    snake_trap = {
-        id = 34600,
-        cast = 0,
-        cooldown = 30,
-        gcd = "spell",
-        school = "nature",
-        
-        startsCombat = false,
-        
-        handler = function ()
-            applyDebuff( "target", "snake_trap", 30 )
-        end,
-
-        copy = { 34600, "snake" }
-    },
-    
-    -- Additional Tier Talent Abilities
+    -- Talent: Instantly restores $s1 Focus to you and your pet.
     fervor = {
         id = 82726,
         cast = 0,
         cooldown = 30,
         gcd = "spell",
         school = "nature",
-        
-        talent = "fervor",
-        
-        handler = function ()
-            gain( 50, "focus" )
-            -- Also restores 50 focus to pet over 10 seconds
-        end,
 
-        copy = { 82726, "fervor" }
-    },
-    
-    -- Level 45 Talent Abilities (Tier 3)
-    binding_shot = {
-        id = 109248,
-        cast = 0,
-        cooldown = 45,
-        gcd = "spell",
-        school = "nature",
-        
-        talent = "binding_shot",
-        startsCombat = true,
-        
-        handler = function ()
-            applyDebuff( "target", "binding_shot", 8 )
-        end,
-
-        copy = { 109248, "binding" }
-    },
-    
-    wyvern_sting = {
-        id = 19386,
-        cast = 1.5,
-        cooldown = 45,
-        gcd = "spell",
-        school = "nature",
-        
-        spend = 30,
+        spend = -50,
         spendType = "focus",
-        
-        talent = "wyvern_sting",
+
+        talent = "fervor",
+        startsCombat = false,
+
+        handler = function ()
+            applyBuff( "fervor" )
+        end,
+    },
+
+    -- Talent: Summons a flock of crows to attack your target over $d. If the target dies while the crows are attacking, their cooldown is reset.
+    a_murder_of_crows = {
+        id = 131894,
+        cast = 0,
+        cooldown = 60,
+        gcd = "spell",
+        school = "nature",
+
+        talent = "a_murder_of_crows",
         startsCombat = true,
-        
-        handler = function ()
-            applyDebuff( "target", "wyvern_sting", 30 )
-        end,
 
-        copy = { 19386, "wyvern" }
-    },
-    
-    -- Level 75 Talent Abilities (Tier 5) - already have dire_beast above
-    thrill_of_the_hunt_active = {
-        id = 34497,
-        cast = 0,
-        cooldown = 0,
-        gcd = "off",
-        
-        talent = "thrill_of_the_hunt",
-        buff = "thrill_of_the_hunt",
-        
         handler = function ()
-            removeStack( "thrill_of_the_hunt" )
+            applyDebuff( "target", "a_murder_of_crows" )
         end,
-
-        copy = { 34497, "thrill" }
     },
-    
-    -- Level 90 Talent Abilities (Tier 6)
-    glaive_toss = {
-        id = 117050,
+
+    -- Talent: Commands your pet to rush the target, performing $s1 attacks in $d for $s2% normal damage.
+    lynx_rush = {
+        id = 120697,
         cast = 0,
-        cooldown = 15,
+        cooldown = 90,
         gcd = "spell",
         school = "physical",
-        
+
+        talent = "lynx_rush",
+        startsCombat = true,
+
+        usable = function() return pet.alive, "requires a living pet" end,
+
+        handler = function ()
+            applyDebuff( "target", "lynx_rush" )
+        end,
+    },
+
+    -- Talent: Throws a pair of glaives at your target, dealing Physical damage and reducing movement speed by $s2% for $d.
+    glaive_toss = {
+        id = 117050,
+        cast = 3,
+        cooldown = 6,
+        gcd = "spell",
+        school = "physical",
+
         spend = 15,
         spendType = "focus",
-        
+
         talent = "glaive_toss",
         startsCombat = true,
-        
-        handler = function ()
-            -- Throws glaive that bounces between targets
-            -- Reduces movement speed by 70% for 3 seconds
-        end,
 
-        copy = { 117050, "glaive" }
+        handler = function ()
+            applyDebuff( "target", "glaive_toss" )
+        end,
     },
-    
+
+    -- Talent: A powerful aimed shot that deals weapon damage. Knocks all targets back and reduces your maximum Focus by $s3 for $d.
     powershot = {
         id = 109259,
         cast = 2.5,
         cooldown = 45,
         gcd = "spell",
         school = "physical",
-        
-        spend = 30,
+
+        spend = 45,
         spendType = "focus",
-        
+
         talent = "powershot",
         startsCombat = true,
-        
-        handler = function ()
-            -- Powerful frontal cone attack with knockback
-        end,
 
-        copy = { 109259, "power" }
+        handler = function ()
+            applyDebuff( "player", "powershot" )
+        end,
     },
-    
+
+    -- Talent: Rapidly fires a spray of shots for $d, dealing Physical damage to all enemies in front of you. Usable while moving.
     barrage = {
         id = 120360,
-        cast = 3,
+        cast = function () return 3 * haste end,
         channeled = true,
-        cooldown = 30,
+        cooldown = 20,
         gcd = "spell",
         school = "physical",
-        
-        spend = 60,
+
+        spend = 40,
         spendType = "focus",
-        
+
         talent = "barrage",
         startsCombat = true,
-        
-        start = function ()
-            -- Channeled barrage of shots
-        end,
 
-        copy = { 120360, "barrage" }
+        start = function ()
+            applyBuff( "barrage" )
+        end,
     },
-    
-    -- Additional Pet Abilities for Beast Mastery
-    rabid = {
-        id = 53401,
+
+    -- Talent: Commands your pet to intimidate the target, causing a high amount of threat and stunning the target for $d.
+    intimidation = {
+        id = 19577,
+        cast = 0,
+        cooldown = 60,
+        gcd = "spell",
+        school = "nature",
+
+        talent = "intimidation",
+        startsCombat = true,
+
+        usable = function() return pet.alive, "requires a living pet" end,
+
+        handler = function ()
+            applyDebuff( "target", "intimidation" )
+        end,
+    },
+
+    -- Talent: Interrupts spellcasting and prevents any spell in that school from being cast for $d.
+    silencing_shot = {
+        id = 34490,
+        cast = 0,
+        cooldown = 20,
+        gcd = "spell",
+        school = "physical",
+
+        talent = "silencing_shot",
+        startsCombat = true,
+
+        toggle = "interrupts",
+
+        debuff = "casting",
+        readyTime = state.timeToInterrupt,
+
+        handler = function ()
+            applyDebuff( "target", "silencing_shot" )
+            interrupt()
+        end,
+    },
+
+    -- Talent: A stinging shot that puts the target to sleep for $d. Any damage will cancel the effect.
+    wyvern_sting = {
+        id = 19386,
+        cast = 0,
+        cooldown = 60,
+        gcd = "spell",
+        school = "nature",
+
+        talent = "wyvern_sting",
+        startsCombat = true,
+
+        handler = function ()
+            applyDebuff( "target", "wyvern_sting" )
+        end,
+    },
+
+    -- Talent: Fires a magical projectile, tethering the enemy and any other enemies within $s2 yards for $d.
+    binding_shot = {
+        id = 109248,
         cast = 0,
         cooldown = 45,
         gcd = "spell",
-        school = "physical",
-        
-        usable = function() return pet.alive, "requires a living pet" end,
-        
+        school = "nature",
+
+        talent = "binding_shot",
+        startsCombat = false,
+
         handler = function ()
-            -- Apply rabid buff to pet
-            -- This is handled by the pet's AI, but we track it for simulation
-        end,        copy = { 53401, "rabid" }
+            applyDebuff( "target", "binding_shot_stun" )
+        end,
     },
-    
-    readiness = {
-        id = 23989,
+
+    -- Sends you and your pet into a rage, increasing all damage you both deal by $s1% for $d.
+    bestial_wrath = {
+        id = 19574,
         cast = 0,
-        cooldown = 180,
+        cooldown = 60,
         gcd = "spell",
         school = "physical",
-        
+
+        startsCombat = false,
+
         toggle = "cooldowns",
-        
+
         handler = function ()
-            -- Resets all Hunter ability cooldowns
-            setCooldown( "bestial_wrath", 0 )
-            setCooldown( "deterrence", 0 )
-            setCooldown( "disengage", 0 )
-            setCooldown( "feign_death", 0 )
-            setCooldown( "camouflage", 0 )
-            setCooldown( "intimidation", 0 )
-            setCooldown( "masters_call", 0 )
-            setCooldown( "rapid_fire", 0 )
+            applyBuff( "bestial_wrath" )
+        end,
+    },
+
+    -- A quick shot causing Physical damage. Generates $s2 Focus.
+    arcane_shot = {
+        id = 3044,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        school = "arcane",
+
+        spend = function () return buff.thrill_of_the_hunt.up and 0 or 20 end,
+        spendType = "focus",
+
+        startsCombat = true,
+
+        handler = function ()
+            if buff.thrill_of_the_hunt.up then
+                removeBuff( "thrill_of_the_hunt" )
+            end
+        end,
+    },
+
+    -- A steady shot that causes Physical damage. Generates $s2 Focus.
+    steady_shot = {
+        id = 56641,
+        cast = 2,
+        cooldown = 0,
+        gcd = "spell",
+        school = "physical",
+
+        spend = function () return buff.thrill_of_the_hunt.up and 0 or -14 end,
+        spendType = "focus",
+
+        startsCombat = true,
+
+        handler = function ()
+            if buff.thrill_of_the_hunt.up then
+                removeBuff( "thrill_of_the_hunt" )
+            end
+        end,
+    },
+
+    -- A quick shot that causes Physical damage. Generates $s2 Focus.
+    cobra_shot = {
+        id = 77767,
+        cast = 2,
+        cooldown = 0,
+        gcd = "spell",
+        school = "nature",
+
+        spend = function () return buff.thrill_of_the_hunt.up and 0 or -14 end,
+        spendType = "focus",
+
+        startsCombat = true,
+
+        handler = function ()
+            if buff.thrill_of_the_hunt.up then
+                removeBuff( "thrill_of_the_hunt" )
+            end
+        end,
+    },
+
+    -- Give the command to kill, causing your pet to perform a special attack.
+    kill_command = {
+        id = 34026,
+        cast = 0,
+        cooldown = 6,
+        gcd = "spell",
+        school = "physical",
+
+        spend = 25,
+        spendType = "focus",
+
+        startsCombat = true,
+
+        usable = function() return pet.alive, "requires a living pet" end,
+
+        handler = function ()
+            -- Kill Command effects
+        end,
+    },
+
+    -- Fires several missiles, hitting all nearby enemies within $A2 yards.
+    multi_shot = {
+        id = 2643,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        school = "physical",
+
+        spend = 30,
+        spendType = "focus",
+
+        startsCombat = true,
+
+        handler = function ()
+            -- Multi-Shot effects
+        end,
+    },
+
+    -- Apply Hunter's Mark to the target, increasing damage dealt to the target.
+    hunters_mark = {
+        id = 1130,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        school = "nature",
+
+        startsCombat = false,
+
+        handler = function ()
+            applyDebuff( "target", "hunters_mark" )
+        end,
+    },
+
+    -- Leap backwards.
+    disengage = {
+        id = 781,
+        cast = 0,
+        cooldown = function () return talent.crouching_tiger_hidden_chimera.enabled and 14 or 20 end,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = false,
+
+        handler = function ()
+            if talent.posthaste.enabled then applyBuff( "posthaste" ) end
+            if talent.narrow_escape.enabled then
+                -- Apply web trap effect
+            end
+        end,
+    },
+
+    -- Feign death, tricking enemies into ignoring you.
+    feign_death = {
+        id = 5384,
+        cast = 0,
+        cooldown = 30,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = false,
+
+        handler = function ()
+            applyBuff( "feign_death" )
+        end,
+    },
+
+    -- Hurls a frost trap that freezes the first enemy that approaches.
+    freezing_trap = {
+        id = 1499,
+        cast = 0,
+        cooldown = 30,
+        gcd = "spell",
+        school = "frost",
+
+        startsCombat = false,
+
+        handler = function ()
+            -- Freezing trap effects
+        end,
+    },
+
+    -- Maims the target, reducing movement speed by $s1% for $d.
+    wing_clip = {
+        id = 2974,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        school = "physical",
+
+        spend = 20,
+        spendType = "focus",
+
+        startsCombat = true,
+
+        handler = function ()
+            applyDebuff( "target", "wing_clip" )
+        end,
+    },
+
+    -- Channel to heal your pet.
+    mend_pet = {
+        id = 136,
+        cast = 10,
+        channeled = true,
+        cooldown = 0,
+        gcd = "spell",
+        school = "nature",
+
+        startsCombat = false,
+
+        usable = function ()
+            if not pet.alive then return false, "requires a living pet" end
+            if settings.pet_healing > 0 and pet.health_pct > settings.pet_healing then return false, "pet health is above threshold" end
+            return true
         end,
 
-        copy = { 23989, "readiness" }
-    }
+        start = function ()
+            applyBuff( "mend_pet" )
+        end,
+    },
+
+    -- Redirects all threat you cause to the targeted party member.
+    misdirection = {
+        id = 34477,
+        cast = 0,
+        cooldown = 30,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = false,
+
+        handler = function ()
+            applyBuff( "misdirection" )
+        end,
+    },
+
+    -- Causes the target to run in fear.
+    scare_beast = {
+        id = 1513,
+        cast = 1.5,
+        cooldown = 0,
+        gcd = "spell",
+        school = "nature",
+
+        spend = 25,
+        spendType = "focus",
+
+        startsCombat = false,
+
+        usable = function() return target.is_beast, "requires a beast target" end,
+
+        handler = function ()
+            applyDebuff( "target", "scare_beast" )
+        end,
+    },
+
+    -- A short-range shot that deals damage and incapacitates the target.
+    scatter_shot = {
+        id = 19503,
+        cast = 0,
+        cooldown = 30,
+        gcd = "spell",
+        school = "physical",
+
+        startsCombat = false,
+
+        handler = function ()
+            applyDebuff( "target", "scatter_shot" )
+        end,
+    },
+
+    -- Call your pet to your side.
+    call_pet = {
+        id = 883,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+
+        usable = function () return not pet.exists, "requires no active pet" end,
+
+        handler = function ()
+            summonPet( "hunter_pet", 3600 )
+        end,
+    },
+
+    -- Dismiss your pet.
+    dismiss_pet = {
+        id = 2641,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+
+        usable = function () return pet.exists, "requires an active pet" end,
+
+        handler = function ()
+            dismissPet()
+        end,
+    },
+
+    -- MoP specific abilities
+    serpent_sting = {
+        id = 1978,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        school = "nature",
+
+        spend = 25,
+        spendType = "focus",
+
+        startsCombat = true,
+
+        handler = function ()
+            applyDebuff( "target", "serpent_sting" )
+        end,
+    },
+
+    focus_fire = {
+        id = 82692,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        school = "nature",
+
+        startsCombat = false,
+
+        usable = function () return pet.alive and buff.frenzy.stack >= 1, "requires pet with frenzy stacks" end,
+
+        handler = function ()
+            local stacks = buff.frenzy.stack
+            removeBuff( "frenzy" )
+            -- Focus Fire converts frenzy stacks to haste
+        end,
+    },
+
+    deterrence = {
+        id = 19263,
+        cast = 0,
+        cooldown = function () return talent.crouching_tiger_hidden_chimera.enabled and 170 or 180 end,
+        gcd = "spell",
+        school = "physical",
+
+        startsCombat = false,
+
+        handler = function ()
+            applyBuff( "deterrence" )
+        end,
+    },
+
+    aspect_of_the_hawk = {
+        id = 13165,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        school = "nature",
+
+        startsCombat = false,
+
+        handler = function ()
+            applyBuff( "aspect_of_the_hawk" )
+        end,
+    },
+
+    aspect_of_the_iron_hawk = {
+        id = 109260,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        school = "nature",
+
+        startsCombat = false,
+
+        handler = function ()
+            applyBuff( "aspect_of_the_iron_hawk" )
+        end,
+    },
+
+    call_pet_1 = {
+        id = 883,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+
+        usable = function () return not pet.exists, "requires no active pet" end,
+
+        handler = function ()
+            summonPet( "hunter_pet", 3600 )
+        end,
+    },
+
+    masters_call = {
+        id = 53271,
+        cast = 0,
+        cooldown = 60,
+        gcd = "spell",
+        school = "nature",
+
+        startsCombat = false,
+
+        usable = function () return pet.alive, "requires a living pet" end,
+
+        handler = function ()
+            -- Masters Call removes movement impairing effects
+        end,
+    },
+
+    rapid_fire = {
+        id = 3045,
+        cast = 3,
+        channeled = true,
+        cooldown = 300,
+        gcd = "spell",
+        school = "physical",
+
+        startsCombat = true,
+
+        start = function ()
+            applyBuff( "rapid_fire" )
+        end,
+    },
+
+    kill_shot = {
+        id = 53351,
+        cast = 0,
+        cooldown = 10,
+        gcd = "spell",
+        school = "physical",
+
+        spend = 25,
+        spendType = "focus",
+
+        startsCombat = true,
+
+        usable = function () return target.health_pct <= 20, "requires target below 20% health" end,
+
+        handler = function ()
+            -- Kill Shot effects
+        end,
+    },
+
+    explosive_trap = {
+        id = 13813,
+        cast = 0,
+        cooldown = 30,
+        gcd = "spell",
+        school = "fire",
+
+        startsCombat = false,
+
+        handler = function ()
+            applyDebuff( "target", "explosive_trap" )
+        end,
+    },
+
+    thrill_of_the_hunt_active = {
+        id = 109306,
+        cast = 0,
+        cooldown = 0,
+        gcd = "off",
+
+        startsCombat = false,
+
+        usable = function () return buff.thrill_of_the_hunt.up, "requires thrill of the hunt buff" end,
+
+        handler = function ()
+            -- Active version of thrill of the hunt
+        end,
+    },
+
+    -- Movement speed increased for a short duration.
+    aspect_of_the_cheetah = {
+        id = 186257, -- MoP: 5118 (old), Legion+: 186257/186258
+        cast = 0,
+        cooldown = 60,
+        gcd = "off",
+        school = "nature",
+
+        startsCombat = false,
+
+        handler = function ()
+            applyBuff( "aspect_of_the_cheetah" )
+        end,
+    },
 } )
 
--- Enhanced State Expressions for Beast Mastery optimization
-spec:RegisterStateExpr( "focus_time_to_max", function()
-    local deficit = focus.max - focus.current
-    local regen_rate = focus.regen
-    
-    -- Account for Dire Beast
-    if buff.dire_beast.up then
-        regen_rate = regen_rate + 2 / 2 -- 2 focus every 2 seconds
-    end
-    
-    -- Account for Kindred Spirits talent
-    if talent.kindred_spirits.enabled then
-        regen_rate = regen_rate * 1.2
-    end
-    
-    return deficit / regen_rate
-end )
+spec:RegisterRanges( "arcane_shot", "kill_command", "wing_clip" )
 
-spec:RegisterStateExpr( "focus_deficit", function()
-    return focus.max - focus.current
-end )
-
-spec:RegisterStateExpr( "pet_frenzy_ready", function()
-    return pet.alive and buff.frenzy.stack >= 5
-end )
-
-spec:RegisterStateExpr( "bestial_wrath_ready", function()
-    return pet.alive and cooldown.bestial_wrath.ready
-end )
-
-spec:RegisterStateExpr( "cobra_strikes_active", function()
-    return pet.alive and buff.cobra_strikes.up
-end )
-
-spec:RegisterStateExpr( "focus_fire_ready", function()
-    return pet.alive and buff.frenzy.stack >= 3 and cooldown.focus_fire.ready
-end )
-
-spec:RegisterStateExpr( "serpent_sting_refreshable", function()
-    return debuff.serpent_sting.remains <= 4.5 -- Refresh with 4.5 seconds left
-end )
-
-spec:RegisterStateExpr( "pet_basic_attack_ready", function()
-    return pet.alive and not buff.cobra_strikes.up
-end )
-
-spec:RegisterStateExpr( "tier_90_talent_ready", function()
-    if talent.a_murder_of_crows.enabled then
-        return cooldown.a_murder_of_crows.ready
-    elseif talent.lynx_rush.enabled then
-        return cooldown.lynx_rush.ready and pet.alive
-    elseif talent.dire_beast.enabled then
-        return cooldown.dire_beast.ready
-    end
-    return false
-end )
-
-spec:RegisterStateExpr( "in_combat_with_pet", function()
-    return combat and pet.alive
-end )
-
-spec:RegisterStateExpr( "optimal_focus_range", function()
-    return focus.current >= 40 and focus.current <= 80
-end )
-
--- Enhanced Combat Log Event Tracking
-spec:RegisterCombatLogEvent( function( _, subtype, _,  sourceGUID, sourceName, _, _, destGUID, destName, destFlags, _, spellID, spellName, _, amount, interrupt, a, b, c, d, offhand, multistrike, ... )
-    local me = sourceGUID == state.GUID
-    local pet = sourceGUID == UnitGUID( "pet" )
-
-    if not ( me or pet ) then return end
-
-    -- Pet Frenzy stack tracking
-    if subtype == "SPELL_DAMAGE" and pet and spellID and state.class.abilities[ spellID ] then
-        local ability = state.class.abilities[ spellID ]
-        if ability and ability.school == "physical" then
-            -- Pet critical strikes have a chance to gain Frenzy
-            if state.talent.frenzy.enabled then
-                -- This would be handled by the combat log, but we approximate it
-                if math.random() <= 0.2 then -- 20% chance per rank
-                    state.addStack( "frenzy", 10, 1 )
-                end
-            end
-        end
-    end
-
-    -- Cobra Strikes proc tracking
-    if subtype == "SPELL_DAMAGE" and me then
-        if spellID == 56641 or spellID == 3044 or spellID == 34026 then -- Steady Shot, Arcane Shot, Kill Command
-            if state.talent.cobra_strikes.enabled then
-                if math.random() <= 0.2 then -- 20% chance on crit
-                    state.applyBuff( "cobra_strikes", 12, 2 )
-                end
-            end
-        end
-    end
-
-    -- Focus generation from Dire Beast
-    if subtype == "SPELL_DAMAGE" and sourceGUID and sourceName and sourceName:find( "Dire" ) then
-        if state.buff.dire_beast.up then
-            state.gain( 2, "focus" )
-        end
-    end
-
-    -- Murder of Crows focus generation
-    if subtype == "SPELL_DAMAGE" and sourceGUID and sourceName and sourceName:find( "Crow" ) then
-        if state.debuff.a_murder_of_crows.up then
-            state.gain( 2, "focus" )
-        end
-    end
-
-    -- Invigoration proc tracking
-    if subtype == "SPELL_DAMAGE" and pet then
-        if state.talent.invigoration.enabled then
-            if math.random() <= 0.5 then -- 50% chance when pet crits
-                state.gain( 25, "focus" )
-                state.applyBuff( "invigoration", 10 )
-            end
-        end
-    end
-
-    -- Thrill of the Hunt proc tracking
-    if subtype == "SPELL_DAMAGE" and me then
-        if ( spellID == 3044 or spellID == 2643 ) and state.talent.thrill_of_the_hunt.enabled then -- Arcane Shot, Multi-Shot
-            if math.random() <= 0.3 then -- 30% chance
-                state.gain( 20, "focus" )
-                state.addStack( "thrill_of_the_hunt", 10, 1 )
-            end
-        end
-    end
-
-    -- Lock and Load proc tracking
-    if subtype == "SPELL_DAMAGE" and me then
-        if spellID == 75 and state.talent.lock_and_load.enabled then -- Auto Shot
-            if math.random() <= 0.15 then -- 15% chance
-                state.gain( 1, "charges", "explosive_shot" )
-                state.applyBuff( "lock_and_load", 15, math.min( 2, state.buff.lock_and_load.stack + 1 ) )
-            end
-        end
-    end
-end )
-
--- Pet Management and Hooks
-spec:RegisterHook( "reset_precast", function()
-    -- Ensure pet is properly tracked
-    if UnitExists( "pet" ) and not UnitIsDead( "pet" ) then
-        pet.alive = true
-        pet.health_pct = UnitHealth( "pet" ) / UnitHealthMax( "pet" ) * 100
-    else
-        pet.alive = false
-        pet.health_pct = 0
-    end
-    
-    -- Check for aspect buffs
-    if buff.aspect_of_the_hawk.up or buff.aspect_of_the_iron_hawk.up then
-        -- Combat aspect active
-    elseif buff.aspect_of_the_cheetah.up or buff.aspect_of_the_pack.up then
-        -- Travel aspect active, may need to switch for combat
-    end
-    
-    -- Focus Fire optimization tracking
-    if pet.alive and buff.frenzy.stack >= 5 and cooldown.focus_fire.ready then
-        -- Optimal time to use Focus Fire
-    end
-end )
-
-spec:RegisterHook( "runHandler", function( ability )
-    local a = class.abilities[ ability ]
-    
-    if not a then return end
-    
-    -- Track pet abilities that consume Cobra Strikes
-    if pet.alive and buff.cobra_strikes.up and a.petAbility then
-        removeStack( "cobra_strikes" )
-    end
-    
-    -- Track abilities that can trigger Cobra Strikes
-    if a.triggersCobra and talent.cobra_strikes.enabled then
-        if math.random() <= 0.2 then -- 20% chance on crit
-            applyBuff( "cobra_strikes", 12, 2 )
-        end
-    end
-end )
-
--- Priority System Integration
 spec:RegisterOptions( {
     enabled = true,
-    
+
     aoe = 3,
     cycle = false,
-    
-    nameplates = true,
-    nameplateRange = 8,
-    
+
+    nameplates = false,
+    nameplateRange = 40,
+    rangeFilter = false,
+
     damage = true,
-    damageExpiration = 8,
-    
-    potion = "draenic_agility",
-    
-    package = "Beast Mastery (IV)",
+    damageExpiration = 3,
+
+    potion = "tempered_potion",
+    package = "Beast Mastery",
 } )
 
-
--- Gear Integration and Tier Set Hooks
-spec:RegisterGear( "tier14", 85246, 85247, 85248, 85249, 85250 )
-spec:RegisterAura( "tier14_2pc", {
-    id = 138267, duration = 8, max_stack = 1 
-} )
-spec:RegisterAura( "tier14_4pc", {
-    id = 138268, duration = 12, max_stack = 1 
-} )
-
-spec:RegisterGear( "tier15", 95089, 95090, 95091, 95092, 95093 )
-spec:RegisterAura( "tier15_2pc", {
-    id = 138269, duration = 10, max_stack = 1 
-} )
-spec:RegisterAura( "tier15_4pc", {
-    id = 138270, duration = 15, max_stack = 1 
+spec:RegisterSetting( "pet_healing", 0, {
+    name = strformat( "%s Below Health %%", Hekili:GetSpellLinkWithTexture( spec.abilities.mend_pet.id ) ),
+    desc = strformat( "If set above zero, %s may be recommended when your pet falls below this health percentage. Setting to |cFFFFd1000|r disables this feature.",
+        Hekili:GetSpellLinkWithTexture( spec.abilities.mend_pet.id ) ),
+    icon = 132179,
+    iconCoords = { 0.1, 0.9, 0.1, 0.9 },
+    type = "range",
+    min = 0,
+    max = 100,
+    step = 1,
+    width = 1.5
 } )
 
--- Initialize default priority
-spec:RegisterPack( "Beast Mastery (IV)", 20250527.1, [[Hekili:S3ZAZTnos4)c4sHH(YJjPPK7VYOSkj6VK9IIYY2YYbbbcccc1VV]] )
+spec:RegisterSetting( "avoid_bw_overlap", false, {
+    name = strformat( "Avoid %s Overlap", Hekili:GetSpellLinkWithTexture( spec.abilities.bestial_wrath.id ) ),
+    desc = strformat( "If checked, %s will not be recommended if the buff is already active.", Hekili:GetSpellLinkWithTexture( spec.abilities.bestial_wrath.id ) ),
+    type = "toggle",
+    width = "full"
+} )
 
-end
+spec:RegisterSetting( "mark_any", false, {
+    name = strformat( "%s Any Target", Hekili:GetSpellLinkWithTexture( spec.abilities.hunters_mark.id ) ),
+    desc = strformat( "If checked, %s may be recommended for any target rather than only bosses.", Hekili:GetSpellLinkWithTexture( spec.abilities.hunters_mark.id ) ),
+    type = "toggle",
+    width = "full"
+} )
 
--- Deferred loading mechanism - try to register immediately or wait for ADDON_LOADED
-local function TryRegister()
-    if Hekili and Hekili.Class and Hekili.Class.specs and Hekili.Class.specs[0] then
-        RegisterBeastMasterySpec()
-        return true
-    end
-    return false
-end
+spec:RegisterSetting( "check_pet_range", false, {
+    name = strformat( "Check Pet Range for %s", Hekili:GetSpellLinkWithTexture( spec.abilities.kill_command.id ) ),
+    desc = function ()
+        return strformat( "If checked, %s will only be recommended if your pet is in range of your target.\n\n" ..
+                          "Requires |c" .. ( state.settings.petbased and "FF00FF00" or "FFFF0000" ) .. "Pet-Based Target Detection|r",
+                          Hekili:GetSpellLinkWithTexture( spec.abilities.kill_command.id ) )
+    end,
+    type = "toggle",
+    width = "full"
+} )
 
--- Try to register immediately, or wait for addon loaded
-if not TryRegister() then
-    local frame = CreateFrame("Frame")
-    frame:RegisterEvent("ADDON_LOADED")
-    frame:SetScript("OnEvent", function(self, event, addonName)
-        if addonName == "Hekili" or TryRegister() then
-            self:UnregisterEvent("ADDON_LOADED")
-        end
-    end)
-end
+spec:RegisterSetting( "thrill_of_the_hunt_priority", true, {
+    name = strformat( "Prioritize %s Usage", Hekili:GetSpellLinkWithTexture( spec.talents.thrill_of_the_hunt.id ) ),
+    desc = strformat( "If checked, %s or %s will be prioritized when %s is active to use the Focus-free proc.",
+        Hekili:GetSpellLinkWithTexture( spec.abilities.steady_shot.id ),
+        Hekili:GetSpellLinkWithTexture( spec.abilities.cobra_shot.id ),
+        Hekili:GetSpellLinkWithTexture( spec.talents.thrill_of_the_hunt.id ) ),
+    type = "toggle",
+    width = "full"
+} )
+
+spec:RegisterSetting( "focus_dump_threshold", 80, {
+    name = "Focus Dump Threshold",
+    desc = strformat( "Focus level at which to prioritize spending abilities like %s and %s to avoid Focus capping.",
+        Hekili:GetSpellLinkWithTexture( spec.abilities.arcane_shot.id ),
+        Hekili:GetSpellLinkWithTexture( spec.abilities.multi_shot.id ) ),
+    type = "range",
+    min = 50,
+    max = 120,
+    step = 5,
+    width = 1.5
+} )
+
+spec:RegisterPack( "Beast Mastery", 20250707, [[Hekili:vZXAVXTXXFlcb9SuS9vEpLJRobK0KGAHeHaCoFQih5kY90XkEKxj5jzfiWF7D2hK7dU7ssz1A3VyyrUCMzN3ZSZEBMS5JBwhHkXBUEQ30fEN7D(yppVfEl3SU8Xd4nRpGcVdDl8Fsr7H)9hWOIYQGFf(xC(JKx)ysgkIaMISJ5HWs2S(MJXjLFiDZnAWE54PZM)DtMTzn6y5US8nRxV)428472SExCueM9f4IWnRjFXB9o)TElFpGTSdBwNexuwqWZ24KeCo8)UMs94u0nj4On)WM1H5XavfJG1KfESOk4Ivvbl8QcgvfCsvWnh3UDC8(d5z3JJ8Hnak6r)IDzLJpcWhfwgNLcBdXZzetE8b2B(LShElhWmAOk4qECgG0yCXMsyB2f9CjqpZy0teMsof48d40sGAItVDCoEpkoLSqyDcskm7MCeJIaSmRpyzodlNY31L7Ybk2pBRF5oS)UJPK9CvWtpvfuIYVfxoUmEp2VmZpkgZ4BtaiCMGgq5HOuCnruseY5fLULcha4IsIVhtPfjQBHNaW3GH9okX)HCu5ono(pqWbWL3HkayKbpDF8FIOVZj7UeLam1Xi)9hZJW5K9DyE2dfJ5RMspugJc2v0dA9XU59CuM8y6N8ZpwStbvQmIoqCdiiiCEpzUDaZ7is)WS97rPreWUWkyPaABoo9pFCCrjy8Z1A7dwOsy)TX5ycow6gh6GrxhzUNnLVRp)zazJ2BYeVIrg10Fl6yIrnCMRWOCeono0hDBCsC5JAQU)kyixfaS8BqLn(jESkO4rWbZ(EqZUSnxkXBoK1T9WjsQGs7yeOuap3FIgT)t7XaEtdFK(zvbGwdecypW3CBdOQss(RDyus5o)dHauUOLVy7AsaUIiKMjtafYN9h(KGdABIFlpEpkh2c)4VTUkipReXnVGL6ZKGHzzjrzpKwyYKWoAKGGqJ3xLjPR83lOfMbWPHsPAH4pHdpcHqhGFwUsJcRh0zM6zXDGMSNHWgNUNYahiXWjzpqaZFPkGb7Z6YjSf6yaw6U836c6wS21X8mp72)qq9C)BYspwGlCZ(lati6cht(MjZ9NFiu4Uu8mdeWclBDvzYhJj5AuqKcGaJ4njlCiHd1iWf(tBrG0NvtGg8vOhaXUGPfYAZnwiZnEooMXPfeQZPujofixaw(rO9GHP)cwAvmfMX7rFQk4BRc8gpxGPim8TqOpswSkcGFSgL9pJpD0pZc6xkf(ehFBQFeMKh0a9Zc53HrmFSEJFh3nq6Da(L8PgxeboQcfoxyEVKCC1Do1(1XIO7GlRtmqkFB5yt2ZL(NzFGa3drF2aLqZyD8I(LA98HNATRSOv3)YEZA)buF)3J5UyO(W8lEiUmCNjMFnCiFjoNiQYHALcFmmb250pUG8rAEl4oSzGf27CVgWhHUxpnAPTiNTjJRXKOJYbvuYe5sQd0Us8WLRylqDcZjoJv5JtX7bZno3vs5sgIg4koLN6WUvoUqbU(mogLjizgbjfgl5oIKavFnHQ5fqKuCutwE8NMNLvsFQeUOLzx4tYAqp9gIi(yjn1tUawndKoRokoLOher1duQwHlvcruoRlb1cbPkdn3S(t0RhILKSX8sPC49q96DZBprKTTukMOIdGhVAlWWDyCjsRoptRqpzEofWz0C2ExCzkllcsVdbruyQytwutDCHEywk45GeAPDNi0ExVYhsGoI1Y7KITfxGtVL0jhNvvwZRnt3dow9biEdt6Aq2XAWuberfctEtswrr2(cno))G6n69vbQnEQk43pqATeimU6yc8NElFdj5VPaDwf8B543wRlaPJqSZy5nPvmJqh4iOuxZJ1fPCYeJ83tsvppoe7NMLfLG7OLaM1bJZHu)3HE4ohAHKx7wov3HdlGU(BSa)MfUXzVa6SSX6cDmhNsatN1SBpgHnF9a4ENg4SusE933uKCPTA2gqbwwArYcUZmwnLAf3kN(HKvPuhtmMF0pdVrU7bNUhbX0jbSaXytAhBPRkj72yit7T5z7RcIjjD2rbA9AxXckEQLk27OfItvAHOA7H6B6TNQvWedLuQHKoRpnunLuotvaiqhW9H0qDk7euPA)iDAe(5rOgifAfS2jfIhRSok7XyIngZErvH77Z(jzfnu0)6yrjXYOJ6CCLENjAzAFsTRVzLZ9cEdkphu3vsIXeUxOx(TCTkCG0l3U3MGiaVecz1jsNQJ0jskBsaYTRytqEUwUe4pDacIsHxo6GI)t1xXuLu72ux5wzvotuYpTRIUOYxE5zwYLCPIVcTK7vuv)7ze3D1uE)ljVL5QdxAkkjoSKfuC)7qsFBqxT(VD1X6mmazACeZvx7EmnvsFtSWHRUPhjqRcjjMKY7u0bMOWYukLQRZlWEX32ETCumPmH67zj0HTE)SO1ZtPf4FPpWOVRleEaQ9mNwRHLDd)akjL)r7XctYDByePRvYPuXHdbRt86cTsgoTWRFeEBCyCzvR2bl(kkwS7HIJLT487ZYnTZyhfSuYi0vsH6Zl4w3o8w6YD3eBTE(6j96aEx61dVyNqqVv2pzfnzljTa5Cvx44qGVEItpt2Ikzns5mhXRUEIDNvp)omz5qi0Kh2Dmz8a3dps6HCPV0lp37Z4S2VEIDFuk9DSoDak3yqZ5abj29u5cEAz(EH0M1vsdNzJoO5LuFQCoZj5zupIs6Ejqj8(BpMRFWTF)XYS3gsB2qgekjxyJ0r6fFMeuXJPOdfGuN2pKE2AH2b(FMvQPANRMMqNPd7EolEEu0sntcttJHDxcdi46ZJ80yykHGT7VWDSWtTeoujZkDI8mBbl7mXMNrSsQ959qyFYJzt11SjF3M1pGYtPkTR)iPTeGVIS8sc4aRNxXMvQxbzSJ)3hbseqvrgjTcsx32ZAIx4ou6T4IXvx9rwFnssYEGD0fhZrajb5Aap)ybzXKbRG2(dg9vfqocDcdQSEDPzuSFmvz1rrKfhHkr3GkWVV6QQG3sj2wo24VsXVf8SRmS7OJbvF3C)sCk8QfVVk43tloEGahYcQ3hVs0YIx9LGvWAgXa28YNrEF5b)pFxPVript6G6LEa7GXvEaBfM278jZ4)B22gLFYhazF3jmL4PwvIvq8xe9y56p5psUZ0dGb1mRbdJ5mXkZrmIbeoJrCQFQ8dd1ZSIARhg9xezuF4(1hg1W4a2z(gpQVVA39QhS8lfpq(iLFvp0AeN2Jvfw(Ksomk0U)JEGXMJvCy40(US9XVj4nZ75x1COAVQhr6v3KSvF(xXUuTSvhG6CtvudtM5ioJAbt9rzwuxZxeMOa9oD9RD0KdJFz3Yxn5YU4UFTKkQzvjPtU4LI90YgRlLPME03hxfQAECAX(Yv7)1xejGHKOuPQQoRFsrFVV(jqzdmzl7oz)kGlAKLzGnexqhRxOwzcdb(J9XffusKVX4SNBXPqr8HasbNE3Hlb2qqvWhkzFenSiz25jBKYDK5FbFpDCzeNSBCAyYXispxXXK(BvtP)ZFNmU3FOeVV4pEdSv3fhUtE1O0hfyLZei7osNkseWvMNuJ0)wvaq7C08rgia1))OInwoIhnvcZpaMxs7ioilRxkLBqFu6X93GzQkjzLGq(d7R1eiDPrwmsuAidLeLpVz93ufyB(IU6BCoIrxrxqpNZOQRy0qX4M8wE9Q)62euXDVHmCrR0gbklRpllIVCtJIK5pQDEnVjE7QtO9sY(yj1hy1SEca730izgSImHOKMO5CgxTADCMwHIXffK26cTXpNnPqVHmprR0gNiUu39n7PbQUHfHWm2rVNEQDlhVy1spoYTF1CKrCN8uyn1xXgYkAwWi1lTZfl8gDI5gpwBby6s20Iuy)j9cVW4gnjd29snMtu3FMsocCQ1rR9fkdnpcaT4qcEgYltaulN1xiOkIZkSUvozGrNoaSmzXzMrtREWlB6B7iageQx6zb1n9xxcLTAU)iHA8qqQ19ROF6syTDV7hDQsx7VC1CVNEYi(TGhw71LWHAN5hrb)fRwu7d4Lz2af0IrlmAeN6NR6JGU3KhCTlxTyK75E8Y39IIUzdtapThBwfqPsam5lSjRLRkdb0zJSoXHg5u)xLuAHWlwnLR1yFQPK1kLCAoKyPp90PUMhIlwnF8IrTLnxU8m7ixEGQ04cwe(CMZsZmNoWePUfMnO20zbSqp7FB3(E5u10f2bIyqOiaHSkXSriRTRnYvnUzApUvGwVJnS0ag0ecY48vnY2RQneTJdPbHsY1MHPPQMbnXbdAO()TKZInW3mltsGV1CsvtNZ8g1mBuxS62Wi7WTVrqAfaXoihqWcBGqmEleWyXIEKB75LMSMN4aPAQCnMQwnMpXk76PNCm1sxUWHEVA14Yo0AnLsJAzf(5YqnYWQvQCjYnZ6MdSoLrn6YvN7zjaONdEIuBBAG(feOZ8LzBUF6l8CbeE4SlOeUTqlNrACal9DRJOUGAqz4U9NQV8(j)0bZuTNamnDaZNPCjRvTrvVfqxmQXYqhy93HABk1GlwgqBBrO)XZhz1gPUGyJ3oobMQpgVxR3db(jWrTdz1tpYuRje3ApJWu7AYjfdV(oSr24n7I234oJqT5(YzaExS6DwOez9OwxLokzyTzeuwPXlAUaxnhhnHaBojzcYAFB3VuCvZ)wVXZndePRCUjOmtdklndf5BwUAMAK)h7UPFH343nIFN0RBEGRRWQatQNd6k5dWu2CT(o1(0t63NwBGcOC5BTQKrLPRg7i1RfRj35lCGjBTKzeVrskL2z7AXlGV(qcSYKBC5Ri)LZQtnq2ZIoyAPe3coq0KXw0IRJap3j8TogcDKjAtGjoRAixZDbbPmXlRK7M4BuUa5RMiPB16kXBs4pZZcwETEDugqKTGFwsAWrGhDu3vPfMRSOMh35p8isiwAwWwPLYIPFHu4Lwi)RJYOMQBnd2x3UOqt)0Mib56FwtgzOTYAqwvV30VIjkWLtXUDNB)3VmbzqhGWvoQ53atH(nV(52rUokoQg4VW1Cvdw7L13taO2Ni6hP3DOEcjtLbR)vMsqV(7vvzm)5UvqC(tkOKBu67m6JNuQxFtvNbgZ(4P1160T(mdaYEPj29K7Ogf2rCmGFbQeKeFCmDQG1rRDeGqBBz87mPyiGGkh2maS5ZVrEq(XrahU56PlMrh96n)N]] )

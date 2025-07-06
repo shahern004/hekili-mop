@@ -2,24 +2,15 @@
 -- Updated May 30, 2025 - Enhanced Structure from Hunter Survival
 -- Mists of Pandaria module for Warrior: Arms spec
 
-print("WarriorArms: File starting to load...")
-print("WarriorArms: Hekili exists:", tostring(Hekili ~= nil))
-print("WarriorArms: Hekili.NewSpecialization exists:", tostring(Hekili and Hekili.NewSpecialization ~= nil))
-
 if not Hekili or not Hekili.NewSpecialization then 
-    print("WarriorArms: EARLY RETURN - Hekili or NewSpecialization missing!")
     return 
 end
 
 -- MoP: Use UnitClass instead of UnitClassBase
 local _, playerClass = UnitClass('player')
-print("WarriorArms: Player class:", tostring(playerClass))
 if playerClass ~= 'WARRIOR' then 
-    print("WarriorArms: EARLY RETURN - Not a warrior!")
     return 
 end
-
-print("WarriorArms: Continuing with initialization...")
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
@@ -46,9 +37,7 @@ local function UA_GetPlayerAuraBySpellID(spellID)
     return nil
 end
 
-print("WarriorArms: About to call NewSpecialization(71)...")
 local spec = Hekili:NewSpecialization( 71 ) -- Arms spec ID for MoP
-print("WarriorArms: NewSpecialization returned:", tostring(spec ~= nil))
 
 -- Enhanced Helper Functions (following Hunter Survival pattern)
 local function UA_GetPlayerAuraBySpellID(spellID, filter)
@@ -1763,9 +1752,6 @@ spec:RegisterOptions( {
     package = "Arms",
 } )
 
--- Default pack for MoP Arms Warrior
-print("WarriorArms: About to RegisterPack 'Arms'...")
 spec:RegisterPack( "Arms", 20250515, [[Hekili:TznBVTTnu4FlXjHjMjENnWUYJaUcMLf8KvAm7nYjPPQonGwX2jzlkiuQumzkaLRQiQOeH9an1Y0YnpYoWgwlYFltwGtRJ(aiCN9tobHNVH)8TCgF)(5ElyJlFNlcDnPXD5A8j0)(MNZajDa3aNjp2QphnPtoKvyF)GcKKOzjI08QjnOVOCXMj3nE)waT58Pw(aFm0P)MM]] )
-print("WarriorArms: RegisterPack 'Arms' completed")
 
 -- Register pack selector for Arms

@@ -1,25 +1,17 @@
 -- RogueAssassination.lua
--- Updated May 30, 2025 - Enhanced Structure following Hunter Survival pattern
--- Mists of Pandaria module for Rogue: Assassination spec
+-- Mists of Pandaria
 
--- MoP: Use UnitClass instead of UnitClassBase
-local _, playerClass = UnitClass('player')
-if playerClass ~= 'ROGUE' then return end
+if UnitClassBase( "player" ) ~= "ROGUE" then return end
 
 local addon, ns = ...
-local Hekili = _G[ "Hekili" ]
-local class = Hekili.Class
-local state = Hekili.State
+local Hekili = _G[ addon ]
+local class, state = Hekili.Class, Hekili.State
+local PTR = ns.PTR
+local strformat, insert, sort, wipe, max, min = string.format, table.insert, table.sort, table.wipe, math.max, math.min
 
-local function getReferences()
-    -- Legacy function for compatibility
-    return class, state
-end
+local orderedPairs = ns.orderedPairs
 
-local spec = Hekili:NewSpecialization( 259 ) -- Assassination spec ID for MoP
-
-local strformat = string.format
-local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
+-- MoP Classic: Define UA_GetPlayerAuraBySpellID function for compatibility
 local function UA_GetPlayerAuraBySpellID(spellID)
     for i = 1, 40 do
         local name, _, count, _, duration, expires, caster, _, _, id = UnitBuff("player", i)
@@ -34,1768 +26,1686 @@ local function UA_GetPlayerAuraBySpellID(spellID)
     return nil
 end
 
--- Enhanced Combat Log Event Tracking (following Hunter Survival pattern)
-local assassination_events = {}
-local energy_events = {}
-local combo_point_events = {}
+local spec = Hekili:NewSpecialization( 259 )
 
--- Initialize frame for enhanced combat log tracking
-local combatLogFrame = CreateFrame("Frame")
-combatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+-- MoP Fix: Manually set the class since GetSpecializationInfoByID doesn't work in Classic
+if spec then
+    spec.class = "ROGUE"
+    spec.name = "Assassination"
+    spec.role = "DAMAGER"
+    print("DEBUG: Assassination spec registered successfully with class=" .. (spec.class or "nil"))
+else
+    print("DEBUG: ERROR - Failed to create Assassination specialization!")
+end
 
-combatLogFrame:SetScript("OnEvent", function(self, event)
-    local _, subEvent, _, sourceGUID, sourceName, _, _, destGUID, destName, destFlags, _, spellID, spellName, _, amount, overhealing, absorbed, critical = CombatLogGetCurrentEventInfo()
-    
-    if sourceGUID ~= UnitGUID("player") then return end
-    
-    local now = GetTime()
-    
-    -- POISON APPLICATION TRACKING
-    if subEvent == "SPELL_AURA_APPLIED" or subEvent == "SPELL_AURA_REFRESH" then
-        if spellID == 2818 then -- Deadly Poison
-            ns.last_deadly_poison_applied = now
-            ns.deadly_poison_target = destGUID
-        elseif spellID == 8679 then -- Wound Poison
-            ns.last_wound_poison_applied = now
-            ns.wound_poison_target = destGUID
-        elseif spellID == 3409 then -- Crippling Poison
-            ns.last_crippling_poison_applied = now
-        end
-    end
-    
-    -- VENOMOUS WOUNDS PROC TRACKING
-    if subEvent == "SPELL_ENERGIZE" and spellID == 51637 then -- Venomous Wounds
-        ns.last_venomous_wounds = now
-        ns.venomous_wounds_energy = (ns.venomous_wounds_energy or 0) + amount
-    end
-    
-    -- COMBO POINT GENERATION TRACKING
-    if subEvent == "SPELL_CAST_SUCCESS" then
-        if spellID == 1752 then -- Sinister Strike
-            ns.last_sinister_strike = now        elseif spellID == 2098 then -- Eviscerate
-            ns.last_eviscerate = now
-            ns.last_finisher_combo_points = UnitPower("player", 4) -- ComboPoints = 4 in MoP
-        elseif spellID == 32645 then -- Envenom
-            ns.last_envenom = now
-            ns.last_finisher_combo_points = UnitPower("player", 4) -- ComboPoints = 4 in MoP
-        elseif spellID == 79140 then -- Vendetta
-            ns.last_vendetta_cast = now
-        end
-    end
-    
-    -- DOT TICK TRACKING for damage optimization
-    if subEvent == "SPELL_PERIODIC_DAMAGE" then
-        if spellID == 2818 then -- Deadly Poison
-            ns.last_deadly_poison_tick = now
-            ns.deadly_poison_damage = (ns.deadly_poison_damage or 0) + amount
-        elseif spellID == 8680 then -- Wound Poison
-            ns.last_wound_poison_tick = now
-        end
-    end
-    
-    -- ASSASSINATION PROC TRACKING
-    if subEvent == "SPELL_AURA_APPLIED" then
-        if spellID == 32645 then -- Envenom buff
-            ns.last_envenom_buff = now
-        elseif spellID == 79140 then -- Vendetta
-            ns.last_vendetta_applied = now
-        end
-    end
-end)
+spec:RegisterResource( Enum.PowerType.ComboPoints )
 
-local tracked_bleeds = {}
+spec:RegisterResource( Enum.PowerType.Energy, {
+    garrote_vim = {
+        talent = "venomous_wounds",
+        aura = "garrote",
+        debuff = true,
 
--- Enhanced Resource Management System (following Hunter Survival pattern)
-spec:RegisterResource( 4, { -- ComboPoints = 4 in MoP
-    vendetta_combo = {
-        talent = "vendetta",
-        
         last = function ()
-            return ns.last_vendetta_cast or 0
-        end,
+            local app = state.debuff.garrote.last_tick
+            local exp = state.debuff.garrote.expires
+            local tick = state.debuff.garrote.tick_time
+            local t = state.query_time
 
-        interval = function ()
-            return state.abilities.vendetta.cooldown
+            return min( exp, app + ( floor( ( t - app ) / tick ) * tick ) )
         end,
 
         stop = function ()
-            return (GetTime() - (ns.last_vendetta_cast or 0)) > 120
-        end,
-
-        value = function ()
-            -- Vendetta can allow more aggressive combo point spending
-            return 0
-        end,
-    },
-    
-    mutilate_combo = {
-        aura = "slice_and_dice",
-        
-        last = function ()
-            return ns.last_mutilate_cast or 0
+            return state.debuff.poisoned.down or state.active_dot.garrote == 0
         end,
 
         interval = function ()
-            return state.abilities.mutilate.cooldown
+            return state.debuff.garrote.tick_time
+        end,
+
+        value = function () return state.poisoned_garrotes * 8 end
+    },
+    rupture_vim = {
+        talent = "venomous_wounds",
+        aura = "rupture",
+        debuff = true,
+
+        last = function ()
+            local app = state.debuff.rupture.last_tick
+            local exp = state.debuff.rupture.expires
+            local tick = state.debuff.rupture.tick_time
+            local t = state.query_time
+
+            return min( exp, app + ( floor( ( t - app ) / tick ) * tick ) )
         end,
 
         stop = function ()
-            return (GetTime() - (ns.last_mutilate_cast or 0)) > 10
-        end,
-
-        value = function ()
-            -- Mutilate generates 2 combo points, 3 with Seal Fate crit
-            local base_combo = 2
-            if talent.seal_fate.enabled and state.crit_chance > 0.3 then
-                return base_combo + 1
-            end
-            return base_combo
-        end,
-    },
-} )
-
-spec:RegisterResource( 3, { -- Energy = 3 in MoP
-    venomous_wounds = {
-        aura = "venomous_wounds",
-        
-        last = function ()
-            return ns.last_venomous_wounds or 0
+            return state.debuff.poisoned.down or state.active_dot.rupture == 0
         end,
 
         interval = function ()
-            return 3  -- Venomous Wounds procs every 3 seconds when poisons tick
+            return state.debuff.rupture.tick_time
         end,
 
-        stop = function ()
-            return (GetTime() - (ns.last_venomous_wounds or 0)) > 10
-        end,
-
-        value = function ()
-            -- Venomous Wounds restores 10 energy per proc
-            return 10
-        end,
-    },
-    
-    relentless_strikes = {
-        talent = "relentless_strikes",
-        
-        last = function ()
-            return ns.last_finisher_cast or 0
-        end,
-
-        interval = function ()
-            return 5  -- Relentless Strikes has a chance to proc every 5 seconds
-        end,
-
-        stop = function ()
-            return (GetTime() - (ns.last_finisher_cast or 0)) > 15
-        end,
-
-        value = function ()
-            -- Relentless Strikes restores 25 energy, 20% chance per combo point
-            local combo_points = ns.last_finisher_combo_points or 1
-            local proc_chance = combo_points * 0.20
-            return proc_chance > math.random() and 25 or 0
-        end,
-    },
-    
-    adrenaline_rush = {
-        aura = "adrenaline_rush",
-        
-        last = function ()
-            return ns.last_adrenaline_rush or 0
-        end,
-
-        interval = function ()
-            return state.abilities.adrenaline_rush.cooldown
-        end,
-
-        stop = function ()
-            return (GetTime() - (ns.last_adrenaline_rush or 0)) > 180
-        end,
-
-        value = function ()
-            -- Adrenaline Rush provides 100% energy regeneration for 15 seconds
-            return buff.adrenaline_rush.up and 20 or 0  -- 20 extra energy per second
-        end,
-    },
-    
-    preparation = {
-        talent = "preparation",
-        
-        last = function ()
-            return ns.last_preparation or 0
-        end,
-
-        interval = function ()
-            return state.abilities.preparation.cooldown
-        end,
-
-        stop = function ()
-            return (GetTime() - (ns.last_preparation or 0)) > 180
-        end,
-
-        value = function ()
-            -- Preparation restores all energy
-            return UnitPowerMax("player", 3) - UnitPower("player", 3) -- Energy = 3 in MoP
-        end,
-    },
+        value = function () return state.poisoned_ruptures * 8 end
+    }
 } )
 
--- Comprehensive Tier sets with MoP Assassination Rogue progression
-spec:RegisterGear( "tier13", 77011, 77012, 77013, 77014, 77015 ) -- T13 Blackfang Battleweave
-spec:RegisterGear( "tier14", 85299, 85300, 85301, 85302, 85303 ) -- T14 Battlegear of the Thousandfold Blades
-spec:RegisterGear( "tier14_lfr", 89293, 89294, 89295, 89296, 89297 ) -- LFR versions
-spec:RegisterGear( "tier14_heroic", 90668, 90669, 90670, 90671, 90672 ) -- Heroic versions
-
-spec:RegisterGear( "tier15", 95298, 95299, 95300, 95301, 95302 ) -- T15 Battlegear of the Thousandfold Blades
-spec:RegisterGear( "tier15_lfr", 95953, 95954, 95955, 95956, 95957 ) -- LFR versions
-spec:RegisterGear( "tier15_heroic", 96573, 96574, 96575, 96576, 96577 ) -- Heroic versions
-
-spec:RegisterGear( "tier16", 99272, 99273, 99274, 99275, 99276 ) -- T16 Garb of the Shattered Vale
-spec:RegisterGear( "tier16_lfr", 100089, 100090, 100091, 100092, 100093 ) -- LFR versions
-spec:RegisterGear( "tier16_heroic", 100814, 100815, 100816, 100817, 100818 ) -- Heroic versions
-
--- Notable MoP Assassination Rogue items and legendary
-spec:RegisterGear( "legendary_cloak", 102246 ) -- Jina-Kang, Kindness of Chi-Ji (DPS version)
-spec:RegisterGear( "legendary_daggers", 77946, 77947 ) -- Golad, Twilight of Aspects / Tiriosh, Nightmare of Ages
-spec:RegisterGear( "thunderforged_weapons", 96631, 96632, 96633 ) -- Thunderforged raid weapons
-spec:RegisterGear( "kor_kron_rogue_gear", 105482, 105483, 105484 ) -- SoO specific items
-spec:RegisterGear( "prideful_gladiator", 103649, 103650, 103651, 103652, 103653 ) -- PvP gear
-spec:RegisterGear( "assassination_daggers", 94966, 94967, 94968 ) -- Assassination-specific weapons
-
--- Tier set bonuses as auras
-spec:RegisterAura( "assassination_tier13_2pc", {
-    id = 105849,
-    duration = 3600,
-    max_stack = 1,
-} )
-
-spec:RegisterAura( "assassination_tier13_4pc", {
-    id = 105850,
-    duration = 6,
-    max_stack = 1,
-} )
-
-spec:RegisterAura( "assassination_tier14_2pc", {
-    id = 123286,
-    duration = 3600,
-    max_stack = 1,
-} )
-
-spec:RegisterAura( "assassination_tier14_4pc", {
-    id = 123287,
-    duration = 15,
-    max_stack = 1,
-} )
-
-spec:RegisterAura( "assassination_tier15_2pc", {
-    id = 138142,
-    duration = 3600,
-    max_stack = 1,
-} )
-
-spec:RegisterAura( "assassination_tier15_4pc", {
-    id = 138143,
-    duration = 12,
-    max_stack = 1,
-} )
-
-spec:RegisterAura( "assassination_tier16_2pc", {
-    id = 144906,
-    duration = 3600,
-    max_stack = 1,
-} )
-
-spec:RegisterAura( "assassination_tier16_4pc", {
-    id = 144907,
-    duration = 10,
-    max_stack = 3,
-} )
-
--- Talents (MoP 6-tier talent system)
+-- Talents
 spec:RegisterTalents( {
-    -- Tier 1 (Level 15) - Stealth/Opener
-    nightstalker               = { 4908, 1, 14062  }, -- Damage increased by 50% while stealthed
-    subterfuge                 = { 4909, 1, 108208 }, -- Abilities usable for 3 sec after breaking stealth
-    shadow_focus               = { 4910, 1, 108209 }, -- Abilities cost 75% less energy while stealthed
+    -- Tier 1
+    nightstalker = { 92, 16511, 1 },    -- While Stealth or Shadow Dance is active, your abilities deal 25% more damage.
+    subterfuge = { 90, 108208, 1 },     -- Your abilities requiring Stealth can still be used for 3 sec after Stealth breaks.
+    shadow_focus = { 89, 108209, 1 },   -- Abilities used while in Stealth cost 75% less Energy.
     
-    -- Tier 2 (Level 30) - Ranged/Utility
-    deadly_throw               = { 4911, 1, 26679  }, -- Throws knife to interrupt and slow
-    nerve_strike               = { 4912, 1, 108210 }, -- Reduces healing by 50% for 10 sec
-    combat_readiness           = { 4913, 1, 74001  }, -- Stacks reduce damage taken
+    -- Tier 2
+    deadly_throw = { 101, 26679, 1 },   -- Finishing move that throws a deadly projectile, dealing 50% weapon damage plus 355 and reducing the target's movement speed by 70% for 6 sec. Damage and duration increases per combo point.
+    nerve_strike = { 103, 108210, 1 },  -- After performing a successful Kidney Shot or Cheap Shot, the target's damage is reduced by 50% for 6 sec.
+    combat_readiness = { 102, 74001, 1 }, -- Requires Melee Weapon. A passive dodge that causes you to take 50% reduced damage from the next attack after dodging. This effect cannot occur more than once every 2 sec.
     
-    -- Tier 3 (Level 45) - Survivability
-    cheat_death                = { 4914, 1, 31230  }, -- Fatal damage instead leaves you at 7% health
-    leeching_poison            = { 4915, 1, 108211 }, -- Poisons heal you for 10% of damage dealt
-    elusiveness                = { 4916, 1, 79008  }, -- Feint and Cloak reduce damage by additional 30%
+    -- Tier 3
+    cheat_death = { 97, 31230, 1 },     -- Fatal attacks instead reduce you to 10% of your maximum health. For 3 sec afterward, you take 90% reduced damage. Cannot trigger more than once per 90 sec.
+    leeching_poison = { 98, 108211, 1 }, -- When your Non-Lethal Poison is applied, you heal for 10% of your damage.
+    elusiveness = { 99, 79008, 1 },     -- Feint also reduces all damage you take by 30% for 5 sec.
     
-    -- Tier 4 (Level 60) - Mobility
-    preparation                = { 4917, 1, 14185  }, -- Resets cooldowns of finishing moves
-    shadowstep                 = { 4918, 1, 36554  }, -- Teleport behind target
-    burst_of_speed             = { 4919, 1, 108212 }, -- Sprint that breaks movement impairing effects
+    -- Tier 4
+    preparation = { 95, 14185, 1 },     -- When activated, this ability immediately finishes the cooldown on your Vanish, Sprint, and Shadowstep abilities.
+    shadowstep = { 94, 36554, 1 },      -- Step through the shadows to appear behind your target and gain 70% increased movement speed for 2 sec.
+    burst_of_speed = { 93, 108212, 1 }, -- Increases your movement speed by 70% for 4 sec. Usable while stealthed.
     
-    -- Tier 5 (Level 75) - Crowd Control
-    prey_on_the_weak           = { 4920, 1, 51685  }, -- +20% damage to movement impaired targets
-    paralytic_poison           = { 4921, 1, 108215 }, -- Poisons apply stacking slow and eventual stun
-    dirty_tricks               = { 4922, 1, 108216 }, -- Blind and Gouge no longer break on damage
+    -- Tier 5
+    prey_on_the_weak = { 106, 131511, 1 }, -- Cheap Shot, Kidney Shot, Sap, and Gouge cause the target to take 10% additional damage for 10 sec.
+    paralytic_poison = { 107, 108215, 1 }, -- Replaces your Non-Lethal Poison with Paralytic Poison, which stacks up to 5 times. Use Crippling Poison Gives your attacks a 20% chance to apply Paralytic Poison, which builds up and slows enemy attacks by up to 50%.
+    dirty_tricks = { 105, 108216, 1 },  -- Cheap Shot, Gouge, and Sap no longer cost Energy.
     
-    -- Tier 6 (Level 90) - Ultimate
-    shuriken_toss              = { 4923, 1, 114014 }, -- Ranged attack that generates combo points
-    marked_for_death           = { 4924, 1, 137619 }, -- Target gains 5 combo points
-    anticipation               = { 4925, 1, 115189 }  -- Store up to 10 combo points
+    -- Tier 6
+    shuriken_toss = { 111, 114014, 1 }, -- Throws a shuriken at an enemy target, dealing 240% of normal weapon damage. Awards 1 combo point.
+    versatility = { 110, 76807, 1 },    -- You gain 50% increased healing while using a leather item in every slot. You also gain an additional 50% of the baseline health bonus of leather items.
+    anticipation = { 112, 114015, 1 }   -- You can build anticipation charges through offensive abilities, up to 5. When you perform a finishing move, any unused combo points become anticipation charges.
 } )
 
--- Comprehensive MoP Assassination Rogue Glyphs System
-spec:RegisterGlyphs( {
-    -- MAJOR GLYPHS (Critical tactical modifications)
-    glyph_of_vendetta = {
-        id = 63268,
-        name = "Glyph of Vendetta",
-        item = 45761,
-        description = "Reduces Vendetta cooldown by 30 seconds.",
-        effect = function() return "vendetta_cooldown_reduction" end,
-    },
-    glyph_of_mutilate = {
-        id = 56808,
-        name = "Glyph of Mutilate",
-        item = 42954,
-        description = "Reduces energy cost of Mutilate by 5.",
-        effect = function() return "mutilate_energy_reduction" end,
-    },
-    glyph_of_envenom = {
-        id = 56821,
-        name = "Glyph of Envenom",
-        item = 42967,
-        description = "Increases duration of Envenom by 2 seconds.",
-        effect = function() return "envenom_duration_increase" end,
-    },
-    glyph_of_rupture = {
-        id = 56801,
-        name = "Glyph of Rupture",
-        item = 45762,
-        description = "Increases Rupture duration by 4 seconds.",
-        effect = function() return "rupture_duration_increase" end,
-    },
-    glyph_of_garrote = {
-        id = 56812,
-        name = "Glyph of Garrote",
-        item = 42958,
-        description = "Garrote silences the target for 3 seconds.",
-        effect = function() return "garrote_silence" end,
-    },
-    glyph_of_cheap_shot = {
-        id = 56806,
-        name = "Glyph of Cheap Shot",
-        item = 42952,
-        description = "Increases duration of Cheap Shot by 0.5 seconds.",
-        effect = function() return "cheap_shot_duration" end,
-    },
-    glyph_of_slice_and_dice = {
-        id = 56810,
-        name = "Glyph of Slice and Dice",
-        item = 42956,
-        description = "Slice and Dice also increases movement speed by 15%.",
-        effect = function() return "slice_and_dice_movement" end,
-    },
-    glyph_of_vanish = {
-        id = 56814,
-        name = "Glyph of Vanish",
-        item = 42960,
-        description = "Vanish removes movement impairing effects.",
-        effect = function() return "vanish_movement_freedom" end,
-    },
-    glyph_of_sprint = {
-        id = 56802,
-        name = "Glyph of Sprint",
-        item = 42955,
-        description = "Sprint increases movement speed by additional 30%.",
-        effect = function() return "sprint_speed_increase" end,
-    },
-    glyph_of_feint = {
-        id = 56813,
-        name = "Glyph of Feint",
-        item = 42959,
-        description = "Feint lasts 2 additional seconds.",
-        effect = function() return "feint_duration_increase" end,
-    },
-    glyph_of_evasion = {
-        id = 56799,
-        name = "Glyph of Evasion",
-        item = 42946,
-        description = "Evasion also increases movement speed by 50%.",
-        effect = function() return "evasion_movement_speed" end,
-    },
-    glyph_of_backstab = {
-        id = 56800,
-        name = "Glyph of Backstab",
-        item = 42947,
-        description = "Backstab critical strikes grant 5% spell haste for 10 seconds.",
-        effect = function() return "backstab_spell_haste" end,
-    },
-    glyph_of_smoke_bomb = {
-        id = 63420,
-        name = "Glyph of Smoke Bomb",
-        item = 63268,
-        description = "Smoke Bomb also heals you for 20% over its duration.",
-        effect = function() return "smoke_bomb_healing" end,
-    },
-    glyph_of_deadly_throw = {
-        id = 56807,
-        name = "Glyph of Deadly Throw",
-        item = 42953,
-        description = "Increases slow duration of Deadly Throw by 2 seconds.",
-        effect = function() return "deadly_throw_slow_duration" end,
-    },
-    glyph_of_expose_armor = {
-        id = 56803,
-        name = "Glyph of Expose Armor",
-        item = 42948,
-        description = "Expose Armor affects 2 additional nearby enemies.",
-        effect = function() return "expose_armor_cleave" end,
-    },
-    glyph_of_kidney_shot = {
-        id = 56809,
-        name = "Glyph of Kidney Shot",
-        item = 42957,
-        description = "Reduces energy cost of Kidney Shot by 10.",
-        effect = function() return "kidney_shot_energy_reduction" end,
-    },
-    glyph_of_blind = {
-        id = 56811,
-        name = "Glyph of Blind",
-        item = 45760,
-        description = "Blind no longer breaks on damage but lasts 4 seconds.",
-        effect = function() return "blind_damage_immunity" end,
-    },
-    glyph_of_cloaking = {
-        id = 63269,
-        name = "Glyph of Cloaking",
-        item = 45769,
-        description = "Cloak of Shadows also increases movement speed by 40%.",
-        effect = function() return "cloak_of_shadows_movement" end,
-    },
-    glyph_of_stealth = {
-        id = 56815,
-        name = "Glyph of Stealth",
-        item = 42961,
-        description = "Increases movement speed while stealthed by 15%.",
-        effect = function() return "stealth_movement_speed" end,
-    },
-    glyph_of_recuperate = {
-        id = 56805,
-        name = "Glyph of Recuperate",
-        item = 42951,
-        description = "Recuperate heals for 50% more but costs 10 more energy.",
-        effect = function() return "recuperate_enhanced_healing" end,
-    },
-
-    -- MINOR GLYPHS (Quality of life improvements)
-    glyph_of_distraction = {
-        id = 56818,
-        name = "Glyph of Distraction",
-        item = 42964,
-        description = "Distraction no longer causes monsters to attack you.",
-        effect = function() return "distraction_safe" end,
-    },
-    glyph_of_pick_lock = {
-        id = 56819,
-        name = "Glyph of Pick Lock",
-        item = 42965,
-        description = "Reduces cast time of Pick Lock by 50%.",
-        effect = function() return "pick_lock_speed" end,
-    },
-    glyph_of_pick_pocket = {
-        id = 56820,
-        name = "Glyph of Pick Pocket",
-        item = 42966,
-        description = "Pick Pocket range increased by 5 yards.",
-        effect = function() return "pick_pocket_range" end,
-    },
-    glyph_of_safe_fall = {
-        id = 56816,
-        name = "Glyph of Safe Fall",
-        item = 42962,
-        description = "Increases distance of safe fall by 100%.",
-        effect = function() return "safe_fall_distance" end,
-    },
-    glyph_of_blurred_speed = {
-        id = 56817,
-        name = "Glyph of Blurred Speed",
-        item = 42963,
-        description = "Provides 40% movement speed while stealthed.",
-        effect = function() return "blurred_speed" end,
-    },
-    glyph_of_poisons = {
-        id = 56822,
-        name = "Glyph of Poisons",
-        item = 42968,
-        description = "Applying poisons to weapons is 50% faster.",
-        effect = function() return "poison_application_speed" end,
-    },
-    glyph_of_detection = {
-        id = 64493,
-        name = "Glyph of Detection",
-        item = 45768,
-        description = "Increases stealth detection while not stealthed.",
-        effect = function() return "stealth_detection" end,
-    },
-    glyph_of_shiv = {
-        id = 56804,
-        name = "Glyph of Shiv",
-        item = 42949,
-        description = "Reduces cooldown of Shiv by 3 seconds.",
-        effect = function() return "shiv_cooldown_reduction" end,
-    },
-    glyph_of_vigor = {
-        id = 63324,
-        name = "Glyph of Vigor",
-        item = 45764,
-        description = "Increases maximum energy by 10.",
-        effect = function() return "energy_maximum_increase" end,
-    },
-    glyph_of_decoy = {
-        id = 63326,
-        name = "Glyph of Decoy",
-        item = 45766,
-        description = "Mirror Image creates an additional decoy.",
-        effect = function() return "decoy_additional" end,
-    },
-
-    -- MOP-SPECIFIC GLYPHS
-    glyph_of_redirect = {
-        id = 94711,
-        name = "Glyph of Redirect",
-        item = 68709,
-        description = "Redirect no longer has a cooldown.",
-        effect = function() return "redirect_no_cooldown" end,
-    },
-    glyph_of_shadow_walk = {
-        id = 114842,
-        name = "Glyph of Shadow Walk",
-        item = 87559,
-        description = "Removes movement speed penalty from stealth.",
-        effect = function() return "stealth_no_speed_penalty" end,
-    },
-    glyph_of_improved_distraction = {
-        id = 146925,
-        name = "Glyph of Improved Distraction",
-        item = 104136,
-        description = "Distraction summons a decoy for 5 seconds.",
-        effect = function() return "distraction_decoy" end,
-    },
-    glyph_of_deadly_momentum = {
-        id = 146694,
-        name = "Glyph of Deadly Momentum",
-        item = 104104,
-        description = "Slice and Dice and Recuperate refresh when killing enemies.",
-        effect = function() return "deadly_momentum_refresh" end,
-    },
-    glyph_of_sharp_knives = {
-        id = 146627,
-        name = "Glyph of Sharp Knives",
-        item = 104095,
-        description = "Fan of Knives damage reduced but cost reduced to 15 energy.",
-        effect = function() return "fan_of_knives_efficient" end,
-    },
-    glyph_of_shadow_strike = {
-        id = 146958,
-        name = "Glyph of Shadow Strike",
-        item = 104139,
-        description = "Shadowstep can be used on friendly targets.",
-        effect = function() return "shadowstep_friendly" end,
-    },
-    glyph_of_hemorrhaging_veins = {
-        id = 146631,
-        name = "Glyph of Hemorrhaging Veins",
-        item = 104096,
-        description = "Vendetta spreads Rupture to nearby enemies.",
-        effect = function() return "vendetta_rupture_spread" end,
-    },
-    glyph_of_nightmares = {
-        id = 146645,
-        name = "Glyph of Nightmares",
-        item = 104099,
-        description = "Blind causes the target to run in fear instead.",
-        effect = function() return "blind_fear_effect" end,
-    },
-    glyph_of_energy_flows = {
-        id = 146654,
-        name = "Glyph of Energy Flows",
-        item = 104100,
-        description = "Abilities used from stealth cost 20% less energy for 6 seconds.",
-        effect = function() return "stealth_energy_efficiency" end,
-    },
-    glyph_of_recovery = {
-        id = 146659,
-        name = "Glyph of Recovery",
-        item = 104101,
-        description = "Finishing moves heal for 5% per combo point.",
-        effect = function() return "finishing_move_healing" end,
-    },
+-- PvP Talents
+spec:RegisterPvpTalents( { 
+    -- Empty for MoP since PvP talents didn't exist
 } )
 
--- Assassination specific auras
+local stealth = {
+    normal = { "stealth" },
+    vanish = { "vanish" },
+    subterfuge = { "subterfuge" },
+    shadow_dance = { "shadow_dance" },
+    shadowmeld = { "shadowmeld" },
+
+    basic = { "stealth", "vanish" },
+    rogue = { "stealth", "vanish", "subterfuge", "shadow_dance" },
+    ambush = { "stealth", "vanish", "subterfuge", "shadow_dance" },
+
+    all = { "stealth", "vanish", "shadowmeld", "subterfuge", "shadow_dance" },
+}
+local stealth_dropped = 0
+local envenom1, envenom2 = 0, 0
+local first_envenom, second_envenom = 0, 0
+local last = 0
+local energySpent = 0
+local ENERGY = Enum.PowerType.Energy
+local lastEnergy = -1
+local tracked_bleeds = {}
+local valid_bleeds = { "garrote", "rupture" }
+local application_events = {
+    SPELL_AURA_APPLIED      = true,
+    SPELL_AURA_APPLIED_DOSE = true,
+    SPELL_AURA_REFRESH      = true,
+}
+
+local removal_events = {
+    SPELL_AURA_REMOVED      = true,
+    SPELL_AURA_BROKEN       = true,
+    SPELL_AURA_BROKEN_SPELL = true,
+}
+
+local stealth_spells = {
+    [1784  ] = true,
+    [115191] = true,
+}
+
+local tick_events = {
+    SPELL_PERIODIC_DAMAGE   = true,
+}
+
+local death_events = {
+    UNIT_DIED               = true,
+    UNIT_DESTROYED          = true,
+    UNIT_DISSIPATES         = true,
+    PARTY_KILL              = true,
+    SPELL_INSTAKILL         = true,
+}
+
+spec:RegisterStateExpr( "cp_max_spend", function ()
+    return combo_points.max
+end )
+
+spec:RegisterStateExpr( "effective_combo_points", function ()
+    return combo_points.current or 0
+end )
+
+spec:RegisterStateTable( "stealthed", setmetatable( {}, {
+    __index = function( t, k )
+        local kRemains = k == "remains" and "all" or k:match( "^(.+)_remains$" )
+
+        if kRemains then
+            local category = stealth[ kRemains ]
+            if not category then return 0 end
+
+            local remains = 0
+            for _, aura in ipairs( category ) do
+                remains = max( remains, buff[ aura ].remains )
+            end
+
+            return remains
+        end
+
+        local category = stealth[ k ]
+        if not category then return false end
+
+        for _, aura in ipairs( category ) do
+            if buff[ aura ].up then return true end
+        end
+
+        return false
+    end,
+} ) )
+
+spec:RegisterStateExpr( "master_assassin_remains", function ()
+    if buff.master_assassin_any.up then return buff.master_assassin_any.remains end
+    return 0
+end )
+
+local function isStealthed()
+    return ( UA_GetPlayerAuraBySpellID( 1784 ) or UA_GetPlayerAuraBySpellID( 115191 ) or UA_GetPlayerAuraBySpellID( 115192 ) or UA_GetPlayerAuraBySpellID( 11327 ) or GetTime() - stealth_dropped < 0.2 )
+end
+
+local calculate_multiplier = setfenv( function( spellID )
+    local mult = 1
+
+    if spellID == 703 and talent.subterfuge.enabled and buff.subterfuge.up then
+        mult = mult * 1.25
+    end
+    
+    if buff.shadow_focus.up then
+        mult = mult * 1.25
+    end
+
+    return mult
+end, state )
+
+-- Bleed Modifiers
+local function NewBleed( key, spellID )
+    tracked_bleeds[ key ] = {
+        id = spellID,
+        rate = {},
+        last_tick = {},
+        haste = {}
+    }
+
+    tracked_bleeds[ spellID ] = tracked_bleeds[ key ]
+end
+
+local function ApplyBleed( key, target )
+    local bleed = tracked_bleeds[ key ]
+
+    bleed.rate[ target ]         = 1
+    bleed.last_tick[ target ]    = GetTime()
+    bleed.haste[ target ]        = 100 + GetHaste()
+end
+
+local function UpdateBleedTick( key, target, time )
+    local bleed = tracked_bleeds[ key ]
+
+    if not bleed.rate[ target ] then return end
+
+    bleed.last_tick[ target ] = time or GetTime()
+end
+
+local function RemoveBleed( key, target )
+    local bleed = tracked_bleeds[ key ]
+
+    bleed.rate[ target ]         = nil
+    bleed.last_tick[ target ]    = nil
+    bleed.haste[ target ]        = nil
+end
+
+NewBleed( "garrote", 703 )
+NewBleed( "rupture", 1943 )
+
+spec:RegisterCombatLogEvent( function( _, subtype, _,  sourceGUID, sourceName, _, _, destGUID, destName, destFlags, _, spellID, spellName )
+    if sourceGUID == state.GUID then
+        if removal_events[ subtype ] then
+            if stealth_spells[ spellID ] then
+                stealth_dropped = GetTime()
+                return
+            end
+        end
+
+        if spellID == 32645 and destGUID == state.GUID and application_events[ subtype ] then
+            local now = GetTime()
+
+            if now - last < 0.5 then
+                last = now
+                return
+            end
+
+            last = now
+            local buff = UA_GetPlayerAuraBySpellID( 32645 )
+
+            if not buff then
+                envenom1 = 0
+                envenom2 = 0
+                return
+            end
+
+            local exp = buff.expirationTime or 0
+            envenom2 = envenom1 > now and min( envenom1, exp ) or 0
+            envenom1 = exp
+
+            return
+        end
+
+        if tracked_bleeds[ spellID ] then
+            if application_events[ subtype ] then
+                ns.saveDebuffModifier( spellID, calculate_multiplier( spellID ) )
+                ns.trackDebuff( spellID, destGUID, GetTime(), true )
+
+                ApplyBleed( spellID, destGUID )
+                return
+            end
+
+            if tick_events[ subtype ] then
+                UpdateBleedTick( spellID, destGUID, GetTime() )
+                return
+            end
+
+            if removal_events[ subtype ] then
+                RemoveBleed( spellID, destGUID )
+                return
+            end
+        end
+    end
+
+    if death_events[ subtype ] then
+        RemoveBleed( "garrote", destGUID )
+        RemoveBleed( "rupture", destGUID )
+    end
+end, false )
+
+spec:RegisterUnitEvent( "UNIT_POWER_FREQUENT", "player", nil, function( event, unit, powerType )
+    if powerType == "ENERGY" then
+        local current = UnitPower( "player", ENERGY )
+
+        if current < lastEnergy then
+            energySpent = ( energySpent + lastEnergy - current ) % 30
+        end
+
+        lastEnergy = current
+        return
+    elseif powerType == "COMBO_POINTS" then
+        Hekili:ForceUpdate( powerType, true )
+    end
+end )
+
+spec:RegisterStateExpr( "energy_spent", function ()
+    return energySpent
+end )
+
+spec:RegisterHook( "spend", function( amt, resource )
+    if resource == "energy" and amt > 0 then
+        if amt > 0 then
+            energy_spent = energy_spent + amt
+            local reduction = floor( energy_spent / 30 )
+            energy_spent = energy_spent % 30
+
+            if reduction > 0 then
+                reduceCooldown( "vendetta", reduction )
+            end
+        end
+    end
+end )
+
+spec:RegisterStateExpr( "poison_chance", function ()
+    return 0.3
+end )
+
+spec:RegisterStateExpr( "persistent_multiplier", function ()
+    if not this_action then return 1 end
+    return 1
+end )
+
+-- Enemies with either Deadly Poison or Wound Poison applied.
+spec:RegisterStateExpr( "poisoned_enemies", function ()
+    return ns.countUnitsWithDebuffs( "deadly_poison_dot", "wound_poison_dot" )
+end )
+
+spec:RegisterStateExpr( "poison_remains", function ()
+    return debuff.lethal_poison.remains
+end )
+
+-- Count of bleeds on targets.
+spec:RegisterStateExpr( "bleeds", function ()
+    local n = 0
+
+    for _, aura in pairs( valid_bleeds ) do
+        if debuff[ aura ].up then
+            n = n + 1
+        end
+    end
+
+    return n
+end )
+
+-- Count of bleeds on all poisoned (Deadly/Wound) targets.
+spec:RegisterStateExpr( "poisoned_bleeds", function ()
+    return ns.conditionalDebuffCount( "deadly_poison_dot", "wound_poison_dot", "garrote", "rupture" )
+end )
+
+-- Count of Garrotes on all poisoned (Deadly/Wound) targets.
+spec:RegisterStateExpr( "poisoned_garrotes", function ()
+    return ns.conditionalDebuffCount( "deadly_poison_dot", "wound_poison_dot", "garrote" )
+end )
+
+-- Count of Ruptures on all poisoned (Deadly/Wound) targets.
+spec:RegisterStateExpr( "poisoned_ruptures", function ()
+    return ns.conditionalDebuffCount( "deadly_poison_dot", "wound_poison_dot", "rupture" )
+end )
+
+spec:RegisterStateExpr( "ss_buffed", function ()
+    return false
+end )
+
+spec:RegisterStateExpr( "non_ss_buffed_targets", function ()
+    return active_enemies
+end )
+
+spec:RegisterStateExpr( "ss_buffed_targets_above_pandemic", function ()
+    return 0
+end )
+
+spec:RegisterStateExpr( "pmultiplier", function ()
+    if not this_action or this_action == "variable" then return 0 end
+
+    local a = class.abilities[ this_action ]
+    if not a then return 0 end
+
+    local aura = a.aura or this_action
+    if not aura then return 0 end
+
+    if debuff[ aura ] and debuff[ aura ].up then
+        return debuff[ aura ].pmultiplier or 1
+    end
+
+    return 0
+end )
+
+spec:RegisterStateExpr( "envenom_stacks", function ()
+    return ( first_envenom > query_time and 1 or 0 ) + ( second_envenom > query_time and 1 or 0 )
+end )
+
+spec:RegisterHook( "reset_precast", function ()
+    if buff.vanish.up then applyBuff( "stealth" ) end
+
+    if buff.stealth.up and talent.subterfuge.enabled then
+        applyBuff( "subterfuge" )
+    end
+
+    -- Tracking Envenom buff stacks.
+    first_envenom = min( buff.envenom.expires, envenom1 )
+    second_envenom = envenom2
+
+    if Hekili.ActiveDebug then
+        Hekili:Debug( "Energy Cap in %.2f -- Enemies: %d, Bleeds: %d, P. Bleeds: %d, P. Garrotes: %d, P. Ruptures: %d", energy.time_to_max, active_enemies, bleeds, poisoned_bleeds, poisoned_garrotes, poisoned_ruptures )
+    end
+end )
+
+-- We need to break stealth when we start combat from an ability.
+spec:RegisterHook( "runHandler", function( ability )
+    local a = class.abilities[ ability ]
+
+    if stealthed.all and ( not a or a.startsCombat ) then
+        if buff.stealth.up then
+            setCooldown( "stealth", 2 )
+            removeBuff( "stealth" )
+            if talent.subterfuge.enabled then applyBuff( "subterfuge" ) end
+        end
+
+        if buff.shadowmeld.up then removeBuff( "shadowmeld" ) end
+        if buff.vanish.up then removeBuff( "vanish" ) end
+    end
+
+    class.abilities.apply_poison = class.abilities[ action.apply_poison_actual.next_poison ]
+end )
+
+-- Auras
 spec:RegisterAuras( {
-    -- MoP: Envenom increases poison application chance by 30%
-    envenom = {
-        id = 32645,
-        duration = function() return 1 + state.combo_points end,  -- 1 + CP seconds
-        max_stack = 1,
-    },
-    -- Energy regeneration increased by 10%.
-    venomous_wounds = {
-        id = 79134, 
+    -- Talent: Abilities used while in Stealth cost 75% less Energy.
+    shadow_focus = {
+        id = 108209,
         duration = 3600,
-        max_stack = 1,
+        max_stack = 1
     },
-    -- Vendetta: Target takes 30% more damage from your attacks
-    vendetta = {
-        id = 79140,
-        duration = 20,
-        max_stack = 1,
-    },
-    -- Master Poisoner: Increases poison application chance and damage
-    master_poisoner = {
-        id = 93068,
-        duration = 3600,
-        max_stack = 1,
-    },
-    -- Cut to the Chase: Keeps up Slice and Dice when using Envenom
-    cut_to_the_chase = {
-        id = 51667,
-        duration = 3600,
-        max_stack = 1,
-    },
-    -- Assassination specific poison tracking
-    deadly_poison = {
-        id = 2818,
-        duration = 12,
-        max_stack = 5,
-        tick_time = 3,
-    },
-    wound_poison = {
-        id = 8679,
-        duration = 15,
-        max_stack = 5,
-    },
-    crippling_poison = {
-        id = 3409,
-        duration = 12,
-        max_stack = 1,
-    },
-    mind_numbing_poison = {
-        id = 5760,
-        duration = 10,
-        max_stack = 1,
-    },
-    leeching_poison = {
-        id = 108211,
-        duration = 3600,
-        max_stack = 1,
-    },
-    paralytic_poison = {
-        id = 113952,
-        duration = 3600,
-        max_stack = 1,
-    },
-} )
-
--- Base Rogue auras added directly to Assassination spec
-spec:RegisterAuras( {
-    -- Basic abilities
-    stealth = {
-        id = 1784,
-        duration = 3600,
-        max_stack = 1,
-    },
-    slice_and_dice = {
-        id = 5171,
-        duration = function() return 12 + 3 * state.combo_points end,
-        max_stack = 1,
-    },
-    rupture = {
-        id = 1943,
-        duration = function() return 6 + 4 * state.combo_points end,
-        max_stack = 1,
-        tick_time = 2,
-    },
-    feint = {
-        id = 1966,
-        duration = function() return glyph.feint.enabled and 7 or 5 end,
-        max_stack = 1,
-    },
-    vanish = {
-        id = 1856,
+    
+    -- Talent: Your abilities requiring Stealth can still be used for 3 sec after Stealth breaks.
+    subterfuge = {
+        id = 115192,
         duration = 3,
-        max_stack = 1,
+        max_stack = 1
     },
-    sprint = {
-        id = 2983,
-        duration = function() return glyph.sprint.enabled and 9 or 8 end,
-        max_stack = 1,
+    
+    -- Stunned.
+    cheap_shot = {
+        id = 1833,
+        duration = 4,
+        mechanic = "stun",
+        max_stack = 1
     },
-    evasion = {
-        id = 5277,
-        duration = function() return glyph.evasion.enabled and 15 or 10 end,
-        max_stack = 1,
-    },
+    
+    -- Talent: Provides a moment of magic immunity, instantly removing all harmful spell effects. The cloak lingers, causing you to resist harmful spells for $d.
     cloak_of_shadows = {
         id = 31224,
         duration = 5,
-        max_stack = 1,
+        max_stack = 1
     },
-    
-    -- MoP-specific shared abilities
-    subterfuge = {
-        id = 115191,
-        duration = 3,
-        max_stack = 1,
-    },
-    anticipation = {
-        id = 115189,
-        duration = 15,
-        max_stack = 5,
-    },
-    burst_of_speed = {
-        id = 108212,
-        duration = 4,
-        max_stack = 1,
-    },
-} )
 
--- Advanced Assassination Rogue Auras System with Generate Functions
-spec:RegisterAuras( {
-    -- ASSASSINATION CORE ABILITIES
+    -- You have recently escaped certain death.
+    cheated_death = {
+        id = 45181,
+        duration = 90,
+        max_stack = 1
+    },
+
+    -- All damage taken reduced by $s1%.
+    cheating_death = {
+        id = 45182,
+        duration = 3,
+        max_stack = 1
+    },
+
+    -- Healing for ${$W1}.2% of maximum health every $t1 sec.
+    crimson_vial = {
+        id = 185311,
+        duration = 4,
+        type = "Magic",
+        max_stack = 1
+    },
+
+    -- Each strike has a chance of poisoning the enemy, slowing movement speed by $3409s1% for $3409d.
+    crippling_poison = {
+        id = 3408,
+        duration = 3600,
+        max_stack = 1
+    },
+
+    -- Movement slowed by $s1%.
+    crippling_poison_dot = {
+        id = 3409,
+        duration = 12,
+        mechanic = "snare",
+        type = "Magic",
+        max_stack = 1
+    },
+
+    -- Each strike has a chance of causing the target to suffer Nature damage every $2818t1 sec for $2818d. Subsequent poison applications deal instant Nature damage.
+    deadly_poison = {
+        id = 2823,
+        duration = 3600,
+        max_stack = 1
+    },
+
+    -- Suffering $w1 Nature damage every $t1 seconds.
+    deadly_poison_dot = {
+        id = 2818,
+        duration = function () return 12 * haste end,
+        max_stack = 1,
+        meta = {
+            last_tick = function( t ) return t.up and ( tracked_bleeds.deadly_poison_dot.last_tick[ target.unit ] or t.applied ) or 0 end,
+            tick_time = function( t )
+                if t.down then return haste * 2 end
+                local hasteMod = tracked_bleeds.deadly_poison_dot.haste[ target.unit ]
+                hasteMod = 2 * ( hasteMod and ( 100 / hasteMod ) or haste )
+                return hasteMod
+            end,
+            haste_pct = function( t ) return ( 100 / haste ) end,
+            haste_pct_next_tick = function( t ) return t.up and ( tracked_bleeds.deadly_poison_dot.haste[ target.unit ] or ( 100 / haste ) ) or 0 end,
+        }
+    },
+
+    -- Disoriented.
+    distract = {
+        id = 1725,
+        duration = 10,
+        mechanic = "disorient",
+        type = "Ranged",
+        max_stack = 1
+    },
+
+    -- Talent: Dodge chance increased by ${$w1/2}%.$?a344363[ Dodging an attack while Evasion is active will trigger Mastery: Main Gauche.][]
+    evasion = {
+        id = 5277,
+        duration = 10,
+        max_stack = 1
+    },
+
+    -- Poison application chance increased by $s2%.$?s340081[  Poison critical strikes generate $340426s1 Energy.][]
     envenom = {
         id = 32645,
-        duration = function() return 1 + state.combo_points end,
+        duration = function () return effective_combo_points end,
+        tick_time = 5,
+        type = "Poison",
         max_stack = 1,
-        generate = function( aura )
-            local applied = action.envenom.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
+        meta = {
+            stack = function( t, type ) if type == "buff" then return state.envenom_stacks end end,
+            stacks = function( t, type ) if type == "buff" then return state.envenom_stacks end end,
+        }
     },
-    vendetta = {
-        id = 79140,
-        duration = 30,
-        max_stack = 1,
-        generate = function( aura )
-            local applied = action.vendetta.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
+
+    -- Talent: Damage taken from area-of-effect attacks reduced by $s1%$?$w2!=0[ and all other damage taken reduced by $w2%.  ][.]
+    feint = {
+        id = 1966,
+        duration = 6,
+        max_stack = 1
     },
+
     garrote = {
         id = 703,
         duration = 18,
         max_stack = 1,
-        tick_time = 3,
-        generate = function( aura )
-            local applied = action.garrote.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    rupture = {
-        id = 1943,
-        duration = function() return 6 + 4 * state.combo_points end,
-        max_stack = 1,
-        tick_time = 2,
-        generate = function( aura )
-            local applied = action.rupture.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
+        ss_buffed = false,
+        meta = {
+            duration = function( t ) return t.up and ( 18 * haste ) or class.auras.garrote.duration end,
+            last_tick = function( t ) return t.up and ( tracked_bleeds.garrote.last_tick[ target.unit ] or t.applied ) or 0 end,
+            tick_time = function( t )
+                if t.down then return haste * 2 end
+                local hasteMod = tracked_bleeds.garrote.haste[ target.unit ]
+                hasteMod = 2 * ( hasteMod and ( 100 / hasteMod ) or haste )
+                return hasteMod
+            end,
+            haste_pct = function( t ) return ( 100 / haste ) end,
+            haste_pct_next_tick = function( t ) return t.up and ( tracked_bleeds.garrote.haste[ target.unit ] or ( 100 / haste ) ) or 0 end,
+        }
     },
 
-    -- STEALTH AND MOVEMENT ABILITIES
-    stealth = {
-        id = 1784,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( aura )
-            if buff.stealth.up then
-                aura.applied = buff.stealth.applied
-                aura.expires = buff.stealth.expires
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    vanish = {
-        id = 1856,
+    -- Silenced.
+    garrote_silence = {
+        id = 1330,
         duration = 3,
-        max_stack = 1,
-        generate = function( aura )
-            local applied = action.vanish.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    subterfuge = {
-        id = 115191,
-        duration = 3,
-        max_stack = 1,
-        generate = function( aura )
-            if talent.subterfuge.enabled and stealthed.all then
-                aura.applied = stealth_applied or query_time
-                aura.expires = aura.applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    shadow_focus = {
-        id = 108209,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( aura )
-            if talent.shadow_focus.enabled then
-                aura.applied = query_time
-                aura.expires = query_time + 3600
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
+        mechanic = "silence",
+        max_stack = 1
     },
 
-    -- MAINTENANCE BUFFS
-    slice_and_dice = {
-        id = 5171,
-        duration = function() return 12 + 3 * state.combo_points end,
-        max_stack = 1,
-        generate = function( aura )
-            local applied = action.slice_and_dice.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    recuperate = {
-        id = 73651,
-        duration = function() return 6 + 6 * state.combo_points end,
-        max_stack = 1,
-        tick_time = 3,
-        generate = function( aura )
-            local applied = action.recuperate.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-
-    -- DEFENSIVE ABILITIES
-    feint = {
-        id = 1966,
-        duration = function() return glyph.glyph_of_feint.enabled and 7 or 5 end,
-        max_stack = 1,
-        generate = function( aura )
-            local applied = action.feint.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    evasion = {
-        id = 5277,
-        duration = function() return glyph.glyph_of_evasion.enabled and 15 or 10 end,
-        max_stack = 1,
-        generate = function( aura )
-            local applied = action.evasion.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    cloak_of_shadows = {
-        id = 31224,
-        duration = 5,
-        max_stack = 1,
-        generate = function( aura )
-            local applied = action.cloak_of_shadows.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-
-    -- MOBILITY ABILITIES
-    sprint = {
-        id = 2983,
-        duration = function() return glyph.glyph_of_sprint.enabled and 9 or 8 end,
-        max_stack = 1,
-        generate = function( aura )
-            local applied = action.sprint.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    burst_of_speed = {
-        id = 108212,
+    -- Talent: Incapacitated.
+    gouge = {
+        id = 1776,
         duration = 4,
-        max_stack = 1,
-        generate = function( aura )
-            local applied = action.burst_of_speed.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
+        mechanic = "incapacitate",
+        max_stack = 1
     },
 
-    -- MOP TALENT AURAS
-    anticipation = {
-        id = 115189,
-        duration = 15,
-        max_stack = 5,
-        generate = function( aura )
-            if talent.anticipation.enabled then
-                local stacks = anticipation_stacks or 0
-                if stacks > 0 then
-                    aura.applied = query_time
-                    aura.expires = query_time + aura.duration
-                    aura.count = stacks
-                    aura.caster = "player"
-                    return
-                end
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    cut_to_the_chase = {
-        id = 51667,
+    -- Each strike has a chance of poisoning the enemy, inflicting $315585s1 Nature damage.
+    instant_poison = {
+        id = 315584,
         duration = 3600,
-        max_stack = 1,
-        generate = function( aura )
-            if talent.cut_to_the_chase.enabled then
-                aura.applied = query_time
-                aura.expires = query_time + 3600
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    lethality = {
-        id = 14128,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( aura )
-            if talent.lethality.enabled then
-                aura.applied = query_time
-                aura.expires = query_time + 3600
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
+        max_stack = 1
     },
 
-    -- POISON AURAS
-    deadly_poison = {
-        id = 2818,
-        duration = 12,
-        max_stack = 5,
-        tick_time = 3,
-        generate = function( aura )
-            if poison_applied_time and poison_applied_time > 0 and 
-               query_time - poison_applied_time < aura.duration then
-                aura.applied = poison_applied_time
-                aura.expires = poison_applied_time + aura.duration
-                aura.count = math.min(5, deadly_poison_stacks or 1)
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
+    -- Stunned.
+    kidney_shot = {
+        id = 408,
+        duration = function() return ( 2 + effective_combo_points ) end,
+        mechanic = "stun",
+        max_stack = 1
     },
-    wound_poison = {
-        id = 8679,
-        duration = 15,
-        max_stack = 5,
-        generate = function( aura )
-            if wound_poison_applied and wound_poison_applied > 0 and 
-               query_time - wound_poison_applied < aura.duration then
-                aura.applied = wound_poison_applied
-                aura.expires = wound_poison_applied + aura.duration
-                aura.count = math.min(5, wound_poison_stacks or 1)
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    crippling_poison = {
-        id = 3409,
-        duration = 12,
-        max_stack = 1,
-        generate = function( aura )
-            if crippling_poison_applied and crippling_poison_applied > 0 and 
-               query_time - crippling_poison_applied < aura.duration then
-                aura.applied = crippling_poison_applied
-                aura.expires = crippling_poison_applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    mind_numbing_poison = {
-        id = 5760,
-        duration = 10,
-        max_stack = 1,
-        generate = function( aura )
-            if mind_numbing_applied and mind_numbing_applied > 0 and 
-               query_time - mind_numbing_applied < aura.duration then
-                aura.applied = mind_numbing_applied
-                aura.expires = mind_numbing_applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
+
+    -- Talent: When your Non-Lethal Poison is applied, you heal for 10% of your damage.
     leeching_poison = {
         id = 108211,
         duration = 3600,
-        max_stack = 1,
-        generate = function( aura )
-            if talent.leeching_poison.enabled then
-                aura.applied = query_time
-                aura.expires = query_time + 3600
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
+        max_stack = 1
     },
+
+    -- Talent: Attacks which strike this poison have $108212s1% chance to cause the victim to fall asleep for $108212d. Damage caused will awaken the victim. Limit 1.
     paralytic_poison = {
+        id = 108215,
+        duration = 3600,
+        max_stack = 1
+    },
+
+    -- Asleep. Damage taken will awaken the victim.
+    paralytic_poison_dot = {
         id = 113952,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( aura )
-            if talent.paralytic_poison.enabled then
-                aura.applied = query_time
-                aura.expires = query_time + 3600
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
+        duration = 30,
+        mechanic = "sleep",
+        max_stack = 1
     },
 
-    -- TIER SET BONUSES
-    rogue_t14_2pc = {
-        id = 123123, -- Tier 14 2-piece
-        duration = 3600,
-        max_stack = 1,
-        generate = function( aura )
-            if set_bonus.tier14_2pc > 0 then
-                aura.applied = query_time
-                aura.expires = query_time + 3600
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
-    },
-    rogue_t14_4pc = {
-        id = 123124, -- Tier 14 4-piece
-        duration = 3600,
-        max_stack = 1,
-        generate = function( aura )
-            if set_bonus.tier14_4pc > 0 then
-                aura.applied = query_time
-                aura.expires = query_time + 3600
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
+    -- Talent: Target taking 10% increased damage.
+    prey_on_the_weak = {
+        id = 58670,
+        duration = 10,
+        max_stack = 1
     },
 
-    -- SPECIAL PROC AURAS
-    venomous_wounds = {
-        id = 79134,
+    rupture = {
+        id = 1943,
+        duration = function () return 4 * ( 1 + effective_combo_points ) end,
+        tick_time = function() return 2 * haste end,
+        mechanic = "bleed",
+        max_stack = 1,
+        meta = {
+            last_tick = function( t ) return t.up and ( tracked_bleeds.rupture.last_tick[ target.unit ] or t.applied ) or 0 end,
+            tick_time = function( t )
+                if t.down then return haste * 2 end
+                local hasteMod = tracked_bleeds.rupture.haste[ target.unit ]
+                hasteMod = 2 * ( hasteMod and ( 100 / hasteMod ) or haste )
+                return hasteMod
+            end,
+            haste_pct = function( t ) return ( 100 / haste ) end,
+            haste_pct_next_tick = function( t ) return t.up and ( tracked_bleeds.rupture.haste[ target.unit ] or ( 100 / haste ) ) or 0 end,
+        }
+    },
+
+    -- Talent: Incapacitated.$?$w2!=0[  Damage taken increased by $w2%.][]
+    sap = {
+        id = 6770,
+        duration = 60,
+        mechanic = "sap",
+        max_stack = 1
+    },
+
+    -- Talent: Movement speed increased by $s2%.
+    shadowstep = {
+        id = 36554,
+        duration = 2,
+        max_stack = 1
+    },
+
+    -- Attack speed increased by $w1%.
+    slice_and_dice = {
+        id = 5171,
+        duration = function () return 6 * ( 1 + effective_combo_points ) end,
+        max_stack = 1
+    },
+
+    sprint = {
+        id = 2983,
+        duration = 8,
+        max_stack = 1
+    },
+
+    -- Stealthed.
+    stealth = {
+        id = 115191,
         duration = 3600,
         max_stack = 1,
-        generate = function( aura )
-            if talent.venomous_wounds.enabled then
-                aura.applied = query_time
-                aura.expires = query_time + 3600
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
+        copy = 1784
     },
+
+    -- Attacks deal $w1% additional damage.
+    vendetta = {
+        id = 79140,
+        duration = 20,
+        max_stack = 1
+    },
+
+    -- Improved stealth.$?$w3!=0[  Movement speed increased by $w3%.][]$?$w4!=0[  Damage increased by $w4%.][]
+    vanish = {
+        id = 11327,
+        duration = 3,
+        max_stack = 1
+    },
+
+    -- Each strike has a chance of inflicting additional Nature damage to the victim and reducing all healing received for $8680d.
+    wound_poison = {
+        id = 8679,
+        duration = 3600,
+        max_stack = 1
+    },
+
+    -- Healing effects reduced by $w2%.
+    wound_poison_dot = {
+        id = 8680,
+        duration = 12,
+        max_stack = 3
+    },
+
+    poisoned = {
+        alias = { "deadly_poison_dot", "wound_poison_dot" },
+        aliasMode = "longest",
+        aliasType = "debuff",
+        duration = 3600
+    },
+
+    lethal_poison = {
+        alias = { "deadly_poison", "wound_poison", "instant_poison" },
+        aliasMode = "shortest",
+        aliasType = "buff",
+        duration = 3600
+    },
+
+    nonlethal_poison = {
+        alias = { "crippling_poison", "paralytic_poison", "leeching_poison" },
+        aliasMode = "shortest",
+        aliasType = "buff",
+        duration = 3600
+    },
+
+    -- Tricks of the Trade debuff
+    tricks_of_the_trade = {
+        id = 57933,
+        duration = 6,
+        max_stack = 1
+    },
+
+    -- Crimson Tempest DoT
+    crimson_tempest = {
+        id = 122233,
+        duration = function () return 6 + ( 6 * effective_combo_points ) end,
+        tick_time = 2,
+        mechanic = "bleed",
+        max_stack = 1
+    },
+
+    -- Shadow Blades buff
+    shadow_blades = {
+        id = 121471,
+        duration = 12,
+        max_stack = 1
+    },
+
+    -- Shadow Dance buff
     shadow_dance = {
-        id = 51713,
-        duration = function() return talent.improved_shadow_dance.enabled and 8 or 6 end,
-        max_stack = 1,
-        generate = function( aura )
-            local applied = action.shadow_dance.lastCast or 0
-            if applied > 0 and query_time - applied < aura.duration then
-                aura.applied = applied
-                aura.expires = applied + aura.duration
-                aura.count = 1
-                aura.caster = "player"
-                return
-            end
-            aura.count = 0
-            aura.applied = 0
-            aura.expires = 0
-            aura.caster = "nobody"
-        end,
+        id = 185313,
+        duration = 8,
+        max_stack = 1
+    },
+
+    -- Blind debuff
+    blind = {
+        id = 2094,
+        duration = 60,
+        mechanic = "disorient",
+        max_stack = 1
     },
 } )
 
--- Assassination Rogue abilities
+-- Abilities
 spec:RegisterAbilities( {
-    mutilate = {
-        id = 1329,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        
-        spend = 50,  -- Corrected: MoP authentic energy cost
-        spendType = "energy",
-        
-        handler = function ()
-            -- MoP: Mutilate always generates 2 combo points (attacks with both weapons)
-            local cp_gain = 2
-            
-            -- Seal Fate can add 1 CP per weapon if both crits (max 4 total)
-            if talent.seal_fate.enabled and state.stat.crit > 0 then
-                local crit_chance = state.stat.crit / 100
-                -- Each weapon can crit independently
-                if math.random() < crit_chance then
-                    cp_gain = cp_gain + 1
-                end
-                if math.random() < crit_chance then
-                    cp_gain = cp_gain + 1
-                end
-            end
-            
-            gain(cp_gain, "combo_points")
-        end,
-    },
-      envenom = {
-        id = 32645,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        
-        spend = 35,  -- Verified: MoP authentic energy cost
-        spendType = "energy",
-        
-        handler = function ()
-            local cp = combo_points.current
-            spend(cp, "combo_points")
-            
-            -- MoP: Envenom duration is 1 + cp seconds, increases poison chance by 30%
-            applyBuff("envenom", 1 + cp)
-            
-            -- Cut to the Chase talent refreshes SnD to max duration
-            if talent.cut_to_the_chase.enabled and buff.slice_and_dice.up then
-                applyBuff("slice_and_dice", 21) -- 5 CP duration: 6 + 3*5 = 21 sec
-            end
-        end,
-    },
-      garrote = {
-        id = 703,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        
-        spend = 45,  -- Verified: MoP authentic energy cost
-        spendType = "energy",
-        
-        requires = function()
-            if not stealthed.all then return false, "not stealthed" end
-            return true
-        end,
-        
-        handler = function ()
-            applyDebuff("target", "garrote")
-            gain(1, "combo_points")
-            
-            -- MoP: Garrote silences for 3 sec with glyph
-            if glyph.garrote.enabled then
-                applyDebuff("target", "garrote_silence", 3)
-            end
-            
-            if not buff.shadow_dance.up then
-                removeBuff("stealth")
-            end
-        end,
-    },
-    
-    vendetta = {
-        id = 79140,
-        cast = 0,
-        cooldown = function() return glyph.vendetta.enabled and 90 or 120 end,
-        gcd = "spell",
-        
-        toggle = "cooldowns",
-        
-        handler = function ()
-            applyDebuff("target", "vendetta")
-        end,
-    },
-    
-    rupture = {
-        id = 1943,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        
-        spend = 25,
-        spendType = "energy",
-        
-        handler = function ()
-            local cp = combo_points.current
-            spend(cp, "combo_points")
-            
-            applyDebuff("target", "rupture")
-        end,
-    },
-    
-    slice_and_dice = {
-        id = 5171,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        
-        spend = function() 
-            if glyph.slice_and_dice.enabled then return 0 end
-            return 25
-        end,
-        spendType = "energy",
-        
-        handler = function ()
-            local cp = combo_points.current
-            spend(cp, "combo_points")
-            
-            applyBuff("slice_and_dice", 12 + (3 * cp))
-        end,
-    },
-      ambush = {
+    -- Ambush the target, causing $s1 Physical damage.$?s383281[    Has a $193315s3% chance to hit an additional time, making your next Pistol Shot half cost and double damage.][]    |cFFFFFFFFAwards $s2 combo $lpoint:points;$?s383281[ each time it strikes][].|r
+    ambush = {
         id = 8676,
         cast = 0,
         cooldown = 0,
         gcd = "spell",
-        
-        spend = 60,  -- Verified: MoP authentic energy cost
+
+        spend = 60,
         spendType = "energy",
-        
-        requires = function()
-            if not stealthed.all then return false, "not stealthed" end
-            return true
+
+        startsCombat = true,
+        usable = function () return stealthed.ambush, "requires stealth" end,
+
+        cp_gain = function ()
+            return 2
         end,
-        
+
         handler = function ()
-            -- MoP: Ambush generates 2 CP (3 with glyph)
-            gain(glyph.ambush.enabled and 3 or 2, "combo_points")
-            
-            if not buff.shadow_dance.up then
-                removeBuff("stealth")
+            gain( action.ambush.cp_gain, "combo_points" )
+        end,
+    },
+
+    -- Stuns the target for $d.    |cFFFFFFFFAwards $s2 combo $lpoint:points;.|r
+    cheap_shot = {
+        id = 1833,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        spend = function ()
+            if talent.dirty_tricks.enabled then return 0 end
+            return 40 end,
+        spendType = "energy",
+
+        startsCombat = true,
+
+        cycle = function () if talent.prey_on_the_weak.enabled then return "prey_on_the_weak" end end,
+
+        usable = function ()
+            if target.is_boss then return false, "cheap_shot assumed unusable in boss fights" end
+            return stealthed.all, "not stealthed"
+        end,
+
+        nodebuff = "cheap_shot",
+
+        cp_gain = function () return 1 end,
+
+        handler = function ()
+            applyDebuff( "target", "cheap_shot", 4 )
+
+            if talent.prey_on_the_weak.enabled then
+                applyDebuff( "target", "prey_on_the_weak" )
             end
-        end,
+
+            gain( action.cheap_shot.cp_gain, "combo_points" )
+        end
     },
-    
-    vanish = {
-        id = 1856,
+
+    -- Talent: Provides a moment of magic immunity, instantly removing all harmful spell effects. The cloak lingers, causing you to resist harmful spells for $d.
+    cloak_of_shadows = {
+        id = 31224,
         cast = 0,
-        cooldown = function() return glyph.vanish.enabled and 150 or 180 end,
-        gcd = "spell",
-        
-        toggle = "cooldowns",
-        
-        handler = function ()
-            applyBuff("vanish")
-            applyBuff("stealth")
-            -- Remove all threat
-        end,
-    },
-    
-    kick = {
-        id = 1766,
-        cast = 0,
-        cooldown = function() return glyph.kick.enabled and 13 or 15 end,
+        cooldown = 120,
         gcd = "off",
-        
+
+        startsCombat = false,
+
+        toggle = "interrupts",
+        buff = "dispellable_magic",
+
         handler = function ()
-            -- Interrupt target and lock out that school for 5 sec
-        end,
+            removeBuff( "dispellable_magic" )
+            applyBuff( "cloak_of_shadows" )
+        end
     },
-    
-    redirect = {
-        id = 73981,
+
+    -- Drink an alchemical concoction that heals you for $?a354425&a193546[${$O1}.1][$o1]% of your maximum health over $d.
+    crimson_vial = {
+        id = 185311,
         cast = 0,
-        cooldown = 60,
-        gcd = "spell",
-        
+        cooldown = 30,
+        gcd = "totem",
+        school = "nature",
+
+        spend = 30,
+        spendType = "energy",
+
+        startsCombat = false,
+        texture = 1373904,
+
         handler = function ()
-            -- Transfer combo points to new target
+            applyBuff( "crimson_vial" )
+        end
+    },
+
+    crippling_poison = {
+        id = 3408,
+        cast = 1.5,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        essential = true,
+        texture = 132274,
+
+        readyTime = function () return buff.crippling_poison.remains - 120 end,
+
+        handler = function ()
+            applyBuff( "crippling_poison" )
+        end
+    },
+
+    deadly_poison = {
+        id = 2823,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        essential = true,
+        texture = 132290,
+
+        readyTime = function () return buff.deadly_poison.remains - 120 end,
+
+        handler = function ()
+            applyBuff( "deadly_poison" )
+        end
+    },
+
+    -- Deal damage with increased attack power, increasing by $s1% per combo point:    1 point  : $s2% attack power    2 points: $s3% attack power    3 points: $s4% attack power    4 points: $s5% attack power    5 points: $s6% attack power
+    dispatch = {
+        id = 111240,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+
+        spend = function() return 30 end,
+        spendType = "energy",
+
+        startsCombat = true,
+
+        usable = function() 
+            return effective_combo_points > 0 and target.health_pct < 35, "requires combo_points and target below 35% health" 
+        end,
+
+        handler = function ()
+            spend( combo_points.current, "combo_points" )
+        end
+    },
+
+    -- Throws a distraction, attracting the attention of all nearby monsters for $s1 seconds. Usable while stealthed.
+    distract = {
+        id = 1725,
+        cast = 0,
+        cooldown = 30,
+        gcd = "totem",
+        school = "physical",
+
+        spend = 30,
+        spendType = "energy",
+
+        startsCombat = false,
+        texture = 132289,
+
+        handler = function ()
+        end
+    },
+
+    -- Finishing move that drives your poisoned blades in deep, dealing instant Nature damage and increasing your poison application chance by 30%. Damage and duration increased per combo point. 1 point : 288 damage, 2 sec 2 points: 575 damage, 3 sec 3 points: 863 damage, 4 sec 4 points: 1,150 damage, 5 sec 5 points: 1,438 damage, 6 sec
+    envenom = {
+        id = 32645,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "nature",
+
+        spend = 35,
+        spendType = "energy",
+
+        startsCombat = true,
+
+        usable = function () return combo_points.current > 0, "requires combo_points" end,
+
+        handler = function ()
+            local app_duration = spec.auras.envenom.duration + min( 0.3 * spec.auras.envenom.duration, buff.envenom.remains )
+            second_envenom = first_envenom
+            first_envenom = query_time + app_duration
+
+            addStack( "envenom" ) -- Buff.
+            applyDebuff( "target", "envenom" ) -- Debuff.
+
+            spend( combo_points.current, "combo_points" )
+        end
+    },
+
+    -- Talent: Increases your dodge chance by ${$s1/2}% for $d.$?a344363[ Dodging an attack while Evasion is active will trigger Mastery: Main Gauche.][]
+    evasion = {
+        id = 5277,
+        cast = 0,
+        cooldown = 120,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = false,
+
+        toggle = "defensives",
+
+        handler = function ()
+            applyBuff( "evasion" )
         end,
     },
-    
+
+    -- Sprays knives at all enemies within 18 yards, dealing 544 Physical damage and applying your active poisons at their normal rate. Deals reduced damage beyond 8 targets. Awards 1 combo point.
     fan_of_knives = {
         id = 51723,
         cast = 0,
         cooldown = 0,
-        gcd = "spell",
-        
+        gcd = "totem",
+        school = "physical",
         spend = 35,
         spendType = "energy",
-        
-        handler = function ()
-            gain(1, "combo_points")
+
+        startsCombat = true,
+        cycle = function () return buff.deadly_poison.up and "deadly_poison_dot" or nil end,
+
+        cp_gain = function()
+            return 1
         end,
-    },
-    
-    shuriken_toss = {
-        id = 114014,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        
-        spend = 40,
-        spendType = "energy",
-        
-        talent = "shuriken_toss",
-        
+
         handler = function ()
-            gain(1, "combo_points")
-        end,
-    },
-    
-    shadowstep = {
-        id = 36554,
-        cast = 0,
-        cooldown = 24,
-        gcd = "spell",
-        
-        talent = "shadowstep",
-        
-        handler = function ()
-            -- Teleport behind target and increase next damage ability
-            applyBuff("shadowstep")
-        end,
-    },
-    
-    preparation = {
-        id = 14185,
-        cast = 0,
-        cooldown = 300,
-        gcd = "spell",
-        
-        talent = "preparation",
-        
-        handler = function ()
-            -- Reset cooldowns of various abilities
-            setCooldown("vanish", 0)
-            setCooldown("sprint", 0)
-            setCooldown("shadowstep", 0)
-            
-            -- If glyphed, also reset these
-            if glyph.preparation.enabled then
-                setCooldown("kick", 0)
-                setCooldown("dismantle", 0) -- Not usually in MoP but included for completeness
-                setCooldown("smoke_bomb", 0)
+            gain( action.fan_of_knives.cp_gain, "combo_points" )
+
+            -- This is a rough estimation for AoE poison applications. If required, can be iterated on in the future if it needs to be referenced in an APL
+            local newDeadlyPoisons = floor( poison_chance * max( 0, true_active_enemies - active_dot.deadly_poison_dot ) )
+
+            if buff.deadly_poison.up then
+                applyDebuff( "target", "deadly_poison_dot" )
+                active_dot.deadly_poison_dot = min( active_enemies, active_dot.deadly_poison_dot + newDeadlyPoisons )
             end
-        end,
+        end
     },
-    
-    burst_of_speed = {
-        id = 108212,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        
-        spend = 60,
-        spendType = "energy",
-        
-        talent = "burst_of_speed",
-        
-        handler = function ()
-            applyBuff("burst_of_speed")
-            -- Remove movement impairing effects
-        end,
-    },
-    
-    tricks_of_the_trade = {
-        id = 57934,
-        cast = 0,
-        cooldown = 30,
-        gcd = "spell",
-        
-        handler = function ()
-            applyBuff("tricks_of_the_trade")
-        end,
-    },
-    
-    distract = {
-        id = 1725,
-        cast = 0,
-        cooldown = function() return glyph.distract.enabled and 20 or 30 end,
-        gcd = "spell",
-        
-        spend = 30,
-        spendType = "energy",
-        
-        handler = function ()
-            -- Distracts targets, causing them to face away
-        end,
-    },
-    
+
+    -- Talent: Performs an evasive maneuver, reducing damage taken from area-of-effect attacks by $s1% $?s79008[and all other damage taken by $s2% ][]for $d.
     feint = {
         id = 1966,
         cast = 0,
         cooldown = 15,
-        gcd = "spell",
-        
-        spend = 20,
+        gcd = "off",
+        school = "physical",
+
+        spend = function () return 35 end,
         spendType = "energy",
-        
+
+        startsCombat = false,
+        texture = 132294,
+
         handler = function ()
-            applyBuff("feint")
-        end,
+            applyBuff( "feint" )
+        end
     },
-    
+
+    -- Garrote the enemy, causing 2,407 Bleed damage over 18 sec. Awards 1 combo point.
+    garrote = {
+        id = 703,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+
+        spend = 45,
+        spendType = "energy",
+
+        startsCombat = true,
+        aura = "garrote",
+        cycle = "garrote",
+
+        cp_gain = function() return 1 end,
+
+        handler = function ()
+            applyDebuff( "target", "garrote" )
+            debuff.garrote.pmultiplier = persistent_multiplier
+
+            gain( action.garrote.cp_gain, "combo_points" )
+        end
+    },
+
+    -- Talent: Gouges the eyes of an enemy target, incapacitating for $d. Damage will interrupt the effect.    Must be in front of your target.    |cFFFFFFFFAwards $s2 combo $lpoint:points;.|r
+    gouge = {
+        id = 1776,
+        cast = 0,
+        cooldown = 25,
+        gcd = "totem",
+        school = "physical",
+
+        spend = function () return talent.dirty_tricks.enabled and 0 or 45 end,
+        spendType = "energy",
+
+        startsCombat = true,
+
+        cp_gain = function ()
+            return 1
+        end,
+
+        handler = function ()
+            applyDebuff( "target", "gouge" )
+            gain( action.gouge.cp_gain, "combo_points" )
+        end
+    },
+
+    instant_poison = {
+        id = 315584,
+        cast = 1.5,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        essential = true,
+        texture = 132273,
+
+        readyTime = function () return buff.instant_poison.remains - 120 end,
+
+        handler = function ()
+            applyBuff( "instant_poison" )
+        end
+    },
+
+    -- A quick kick that interrupts spellcasting and prevents any spell in that school from being cast for 5 sec.
+    kick = {
+        id = 1766,
+        cast = 0,
+        cooldown = 15,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = true,
+
+        toggle = "interrupts",
+
+        debuff = "casting",
+        readyTime = state.timeToInterrupt,
+
+        handler = function ()
+            interrupt()
+        end
+    },
+
+    -- Finishing move that stuns the target$?a426588[ and creates shadow clones to stun all other nearby enemies][]. Lasts longer per combo point, up to 5:;    1 point  : 2 seconds;    2 points: 3 seconds;    3 points: 4 seconds;    4 points: 5 seconds;    5 points: 6 seconds
+    kidney_shot = {
+        id = 408,
+        cast = 0,
+        cooldown = 30,
+        gcd = "spell",
+
+        spend = 25,
+        spendType = "energy",
+
+        startsCombat = true,
+
+        usable = function ()
+            if target.is_boss then return false, "kidney_shot assumed unusable in boss fights" end
+            return combo_points.current > 0, "requires combo points"
+        end,
+
+        handler = function ()
+            applyDebuff( "target", "kidney_shot", 1 + combo_points.current )
+            spend( combo_points.current, "combo_points" )
+        end
+    },
+
+    -- Talent: When your Non-Lethal Poison is applied, you heal for 10% of your damage.
+    leeching_poison = {
+        id = 108211,
+        cast = 1.5,
+        cooldown = 0,
+        gcd = "spell",
+
+        talent = "leeching_poison",
+        startsCombat = false,
+
+        handler = function ()
+            applyBuff( "leeching_poison" )
+        end
+    },
+
+    -- Attack with both weapons, dealing a total of 649 Physical damage. Awards 2 combo points.
+    mutilate = {
+        id = 1329,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+
+        spend = 60,
+        spendType = "energy",
+
+        startsCombat = true,
+        texture = 132304,
+
+        handler = function ()
+            gain( 2, "combo_points" )
+        end
+    },
+
+    -- Talent: Attacks which strike this poison have $108212s1% chance to cause the victim to fall asleep for $108212d. Damage caused will awaken the victim. Limit 1.
+    paralytic_poison = {
+        id = 108215,
+        cast = 1.5,
+        cooldown = 0,
+        gcd = "spell",
+
+        talent = "paralytic_poison",
+        startsCombat = false,
+
+        handler = function ()
+            applyBuff( "paralytic_poison" )
+        end
+    },
+
+    -- Throws a poison-coated knife, dealing 171 damage and applying your active Lethal and Non-Lethal Poisons. Awards 1 combo point.
+    poisoned_knife = {
+        id = 185565,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+
+        spend = 40,
+        spendType = "energy",
+
+        startsCombat = true,
+
+        handler = function ()
+        end
+    },
+
+    -- Talent: When activated, this ability immediately finishes the cooldown on your Vanish, Sprint, and Shadowstep abilities.
+    preparation = {
+        id = 14185,
+        cast = 0,
+        cooldown = 300,
+        gcd = "off",
+        school = "physical",
+
+        talent = "preparation",
+        startsCombat = false,
+
+        handler = function ()
+            resetCooldown( "vanish" )
+            resetCooldown( "sprint" )
+            resetCooldown( "shadowstep" )
+        end
+    },
+
+    -- Pick the target's pocket.
+    pick_pocket = {
+        id = 921,
+        cast = 0,
+        cooldown = 0.5,
+        gcd = "off",
+
+        startsCombat = true,
+        texture = 133644,
+
+        handler = function ()
+        end
+    },
+
+    -- Finishing move that tears open the target, dealing Bleed damage over time. Lasts longer per combo point. 1 point : 1,250 over 8 sec 2 points: 1,876 over 12 sec 3 points: 2,501 over 16 sec 4 points: 3,126 over 20 sec 5 points: 3,752 over 24 sec
+    rupture = {
+        id = 1943,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+
+        spend = 25,
+        spendType = "energy",
+
+        startsCombat = true,
+        aura = "rupture",
+        cycle = "rupture",
+
+        usable = function ()
+            if combo_points.current == 0 then return false, "requires combo_points" end
+            return true
+        end,
+
+        handler = function ()
+            debuff.rupture.pmultiplier = persistent_multiplier
+            applyDebuff( "target", "rupture" )
+
+            spend( combo_points.current, "combo_points" )
+        end
+    },
+
+    sap = {
+        id = 6770,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+
+        spend = function () return talent.dirty_tricks.enabled and 0 or 35 end,
+        spendType = "energy",
+
+        startsCombat = false,
+
+        handler = function ()
+            applyDebuff( "target", "sap" )
+        end
+    },
+
+    -- Talent: Step through the shadows to appear behind your target and gain 70% increased movement speed for 2 sec.
+    shadowstep = {
+        id = 36554,
+        cast = 0,
+        cooldown = 24,
+        gcd = "off",
+
+        talent = "shadowstep",
+        startsCombat = false,
+        texture = 132303,
+
+        handler = function ()
+            applyBuff( "shadowstep" )
+            setDistance( 5 )
+        end
+    },
+
+    -- Talent: Throws a shuriken at an enemy target, dealing 240% of normal weapon damage. Awards 1 combo point.
+    shuriken_toss = {
+        id = 114014,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+
+        spend = 40,
+        spendType = "energy",
+
+        talent = "shuriken_toss",
+        startsCombat = true,
+
+        cp_gain = 1,
+
+        handler = function()
+            gain( 1, "combo_points" )
+        end
+    },
+
+    -- Finishing move that consumes combo points to increase attack speed by 50%. Lasts longer per combo point. 1 point : 12 seconds 2 points: 18 seconds 3 points: 24 seconds 4 points: 30 seconds 5 points: 36 seconds
+    slice_and_dice = {
+        id = 5171,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+
+        spend = 25,
+        spendType = "energy",
+
+        startsCombat = false,
+        texture = 132306,
+
+        usable = function() return combo_points.current > 0, "requires combo points" end,
+
+        handler = function ()
+            applyBuff( "slice_and_dice", combo_points.current * 6 )
+            spend( combo_points.current, "combo_points" )
+        end
+    },
+
+    -- Increases your movement speed by 70% for 8 sec. Usable while stealthed.
+    sprint = {
+        id = 2983,
+        cast = 0,
+        cooldown = 60,
+        gcd = "off",
+
+        startsCombat = false,
+        texture = 132307,
+
+        toggle = "interrupts",
+
+        handler = function ()
+            applyBuff( "sprint" )
+        end
+    },
+
+    -- Conceals you in the shadows until cancelled, allowing you to stalk enemies without being seen.
+    stealth = {
+        id = 1784,
+        cast = 0,
+        cooldown = 2,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = false,
+        texture = 132320,
+
+        usable = function ()
+            if time > 0 then return false, "cannot stealth in combat"
+            elseif buff.stealth.up then return false, "already in stealth"
+            elseif buff.vanish.up then return false, "already vanished" end
+            return true
+        end,
+
+        handler = function ()
+            applyBuff( "stealth" )
+            if talent.subterfuge.enabled then applyBuff( "subterfuge" ) end
+        end,
+
+        copy = 115191
+    },
+
+    -- Increases your Energy regeneration rate by 100% for 15 sec.
+    vendetta = {
+        id = 79140,
+        cast = 0,
+        cooldown = 120,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = true,
+        texture = 458726,
+
+        toggle = "cooldowns",
+
+        handler = function ()
+            applyBuff( "vendetta" )
+            applyDebuff( "target", "vendetta" )
+        end
+    },
+
+    -- Allows you to vanish from sight, entering stealth while in combat. For the first 3 sec after vanishing, damage and harmful effects received will not break stealth. Also breaks movement impairing effects.
+    vanish = {
+        id = 1856,
+        cast = 0,
+        cooldown = 180,
+        gcd = "off",
+
+        startsCombat = false,
+        texture = 132331,
+
+        disabled = function ()
+            if ( settings.solo_vanish and solo ) or group then return false end
+            return true
+        end,
+
+        toggle = "cooldowns",
+
+        handler = function ()
+            applyBuff( "vanish" )
+            applyBuff( "stealth" )
+            if talent.subterfuge.enabled then applyBuff( "subterfuge" ) end
+        end
+    },
+
+    wound_poison = {
+        id = 8679,
+        cast = 1.5,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        essential = true,
+        texture = 134197,
+
+        readyTime = function () return buff.wound_poison.remains - 120 end,
+
+        handler = function ()
+            applyBuff( "wound_poison" )
+        end
+    },
+
+    -- TODO: Dragontempered Blades allows for 2 Lethal Poisons and 2 Non-Lethal Poisons.
+    apply_poison_actual = {
+        name = "|cff00ccff[" .. _G.MINIMAP_TRACKING_VENDOR_POISON .. "]|r",
+        cast = 1.5,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        essential = true,
+
+        next_poison = function()
+            if buff.lethal_poison.down then
+                if action.deadly_poison.known and buff.deadly_poison.down then return "deadly_poison"
+                elseif action.instant_poison.known and buff.instant_poison.down then return "instant_poison"
+                elseif action.wound_poison.known and buff.wound_poison.down then return "wound_poison" end
+
+            elseif buff.nonlethal_poison.down then
+                if talent.leeching_poison.enabled and buff.leeching_poison.down then return "leeching_poison"
+                elseif talent.paralytic_poison.enabled and buff.paralytic_poison.down then return "paralytic_poison"
+                elseif action.crippling_poison.known and buff.crippling_poison.down then return "crippling_poison" end
+            end
+
+            return "apply_poison_actual"
+        end,
+
+        texture = function ()
+            local np = action.apply_poison_actual.next_poison
+            if np == "apply_poison_actual" then return 136242 end
+            return action[ np ].texture
+        end,
+
+        bind = function ()
+            return action.apply_poison_actual.next_poison
+        end,
+
+        readyTime = function ()
+            if action.apply_poison_actual.next_poison ~= "apply_poison_actual" then return 0 end
+            return 0.01 + min( buff.lethal_poison.remains, buff.nonlethal_poison.remains )
+        end,
+
+        handler = function ()
+            applyBuff( action.apply_poison_actual.next_poison )
+        end,
+
+        copy = "apply_poison"
+    },
+
+    -- Shiv the target, dealing 1,250 Physical damage. Awards 1 combo point.
+    shiv = {
+        id = 5938,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+
+        spend = 40,
+        spendType = "energy",
+
+        startsCombat = true,
+
+        cp_gain = function() return 1 end,
+
+        handler = function ()
+            gain( action.shiv.cp_gain, "combo_points" )
+        end
+    },
+
+    -- Your next damaging ability threatens the target, causing them to deal 20% less damage to everyone except you for 6 sec. Awards 1 combo point.
+    tricks_of_the_trade = {
+        id = 57934,
+        cast = 0,
+        cooldown = 30,
+        gcd = "off",
+        school = "physical",
+
+        spend = 15,
+        spendType = "energy",
+
+        startsCombat = false,
+
+        handler = function ()
+            applyDebuff( "target", "tricks_of_the_trade" )
+        end
+    },
+
+    -- Finishing move that causes a Crimson Tempest to erupt on the target and all nearby enemies, dealing Bleed damage every 2 sec for 6 to 30 sec. Longer duration per combo point.
+    crimson_tempest = {
+        id = 121411,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+
+        spend = 35,
+        spendType = "energy",
+
+        startsCombat = true,
+
+        usable = function () return combo_points.current > 0, "requires combo_points" end,
+
+        handler = function ()
+            applyDebuff( "target", "crimson_tempest", 6 + ( 6 * combo_points.current ) )
+            spend( combo_points.current, "combo_points" )
+        end
+    },
+
+    -- Draws upon surrounding shadows to empower your weapons, causing your attacks to deal 50% additional damage as Shadow damage and granting your abilities a chance to generate Shadow Clones for 12 sec.
+    shadow_blades = {
+        id = 121471,
+        cast = 0,
+        cooldown = 180,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = false,
+        texture = 376022,
+
+        toggle = "cooldowns",
+
+        handler = function ()
+            applyBuff( "shadow_blades" )
+        end
+    },
+
+    -- Jade Serpent Potion (MoP Classic consumable)
+    jade_serpent_potion = {
+        id = 76093,
+        cast = 0,
+        cooldown = 0,
+        gcd = "off",
+
+        startsCombat = false,
+        item = true,
+
+        handler = function ()
+            -- Potion effect handled by game
+        end
+    },
+
+    -- Blind the target, causing it to wander disoriented for 1 min.
     blind = {
         id = 2094,
         cast = 0,
         cooldown = 180,
         gcd = "spell",
-        
-        spend = 15,
+        school = "physical",
+
+        spend = function () return talent.dirty_tricks.enabled and 0 or 30 end,
         spendType = "energy",
-        
+
+        startsCombat = true,
+
         handler = function ()
-            applyDebuff("target", "blind")
-        end,
+            applyDebuff( "target", "blind" )
+        end
     },
-    
-    evasion = {
-        id = 5277,
-        cast = 0,
-        cooldown = 180,
-        gcd = "spell",
-        
-        toggle = "defensives",
-        
-        handler = function ()
-            applyBuff("evasion")
-        end,
-    },
-    
-    cloak_of_shadows = {
-        id = 31224,
-        cast = 0,
-        cooldown = 90,
-        gcd = "spell",
-        
-        toggle = "defensives",
-        
-        handler = function ()
-            applyBuff("cloak_of_shadows")
-            -- Remove magical debuffs
-        end,
-    },
-    
-    sap = {
-        id = 6770,
+
+    -- Generic trinket support
+    use_items = {
+        id = 0,
         cast = 0,
         cooldown = 0,
-        gcd = "spell",
-        
-        spend = 35,
-        spendType = "energy",
-        
-        requires = function()
-            if not stealthed.all then return false, "not stealthed" end
-            return true
-        end,
-        
+        gcd = "off",
+
+        item = true,
+        startsCombat = false,
+
         handler = function ()
-            applyDebuff("target", "sap")
-        end,
-    },
-    
-    sprint = {
-        id = 2983,
-        cast = 0,
-        cooldown = 60,
-        gcd = "spell",
-        
-        handler = function ()
-            applyBuff("sprint")
-        end,
-    },
-    
-    apply_poison = {
-        id = 2823, -- Deadly Poison
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
-        
-        handler = function ()
-            -- Apply poison to weapons
-        end,
-    },
+            -- Generic item use
+        end
+    }
 } )
 
--- Register default pack for MoP Assassination Rogue
-spec:RegisterPack( "Assassination", 20250517, [[Hekili:T1tBVTnUr8pkEYV8iQu0j)Nf5aP38KYDXtl9i5rPjbJPNH1YAksY(OkvoS5Q2O5vbgdIUw2dejxvLvuPzQdxiMmmpFmShjl3ZxaeHTWwodzLbh7(Gg35W)IVxtdNmTzpF(S)T3BtPS8wtpA5CELlztZQeX0BP8kaOBcbpNFgmrW68YHL0pCc6uzVqBNsxIxMTmppQKlu5lpdVMXHrMVNtSM(6awj4Mjdq1Q5lhhpZIWUq6jYBzNxZFs2dk6VtCzItwKJFriiKsOFJ0iBjzvQxEReb4KGkAwLYoTkELuUKyEPbzR4kWKV9zhHjevQi5Qemi93kj8QBdH3(S86R1viPsvoMqv0imVScGvGnml2CkD7OJkpz7LfbATIYs0ccnTZvmM(4cfS0dpEPTw3jEasRlSyqUoJdlsNzYX0LiKpyihcDJYiLza9admWK8I3hb4aUAHkoJ62ZA1cfUDO9vcOF1]])
+spec:RegisterRanges( "pick_pocket", "mutilate", "blind", "shadowstep" )
 
--- Register pack selector for Assassination
-
--- Assassination-specific state tables
-spec:RegisterStateTable("stealthed", { all = false, rogue = false })
-
--- Handle stealth state tracking
-spec:RegisterHook("reset_preprocess", function()
-    if buff.stealth.up or buff.vanish.up or buff.subterfuge.up then
-        stealthed.all = true
-        stealthed.rogue = true
-    else
-        stealthed.all = false
-        stealthed.rogue = false
-    end
-    
-    -- MoP stealth detection for abilities
-    if talent.shadow_focus.enabled and stealthed.all then
-        -- Shadow Focus reduces energy costs by 75% in stealth
-        for action_name, action in pairs(state.actions) do
-            if action.spendType == "energy" then
-                action.spend = action.spend * 0.25
-            end
-        end
-    end
-end)
-
--- Register ranges for Assassination
-spec:RegisterRanges(
-    "mutilate",           -- 5 yards (melee)
-    "garrote",            -- 5 yards (melee)
-    "throw",              -- 30 yards
-    "blind",              -- 15 yards
-    "shuriken_toss"       -- 30 yards
-)
-
--- Register options for Assassination
 spec:RegisterOptions( {
     enabled = true,
-    
-    aoe = 2,
-    
-    gcd = "spell",
-    
-    package = "Assassination",
-    
+
+    aoe = 3,
+    cycle = false,
+
     nameplates = true,
-    nameplateRange = 8,
-    
+    nameplateRange = 10,
+    rangeFilter = false,
+
+    canFunnel = true,
+    funnel = false,
+
     damage = true,
-    damageExpiration = 3,
-    
-    potion = "virmen_bite_potion",
-    
-    -- Assassination-specific options
-    envenom_pool_pct = 50,       -- Energy percentage to pool before Envenom
-    priority_rotation = false,   -- Ignore energy pooling
-    use_rupture = true,          -- Use Rupture in rotation
-    use_garrote = true,          -- Use Garrote in rotation
-    maintain_garrote = true,     -- Keep Garrote up in single target
-    vendetta_duration = 20,      -- Vendetta duration (for sync calculations)
+    damageExpiration = 6,
+
+    potion = "virmens_bite",
+
+    package = "Assassination",
 } )
 
--- Assassination-specific settings
-spec:RegisterSetting("envenom_pool_pct", 50, {
-    name = "Envenom Energy Pool %",
-    desc = "Set the percentage of energy the addon should recommend to pool up to before using Envenom in non-priority rotations.",
-    type = "range",
-    min = 0,
-    max = 100,
-    step = 5,
-    width = "full"
-})
-
-spec:RegisterSetting("priority_rotation", false, {
-    name = "Use Priority Rotation",
-    desc = "If checked, the addon will prioritize using abilities immediately instead of waiting for energy pools and buff alignments.",
-    type = "toggle",
-    width = "full"
-})
-
-spec:RegisterSetting("maintain_garrote", true, {
-    name = "Maintain |T132297:0|t Garrote",
-    desc = "If checked, the addon will recommend keeping |T132297:0|t Garrote active on the target in single-target scenarios.",
-    type = "toggle",
-    width = "full"
-})
+spec:RegisterPack( "Assassination", 20250406, [[Hekili:9QvAZTnU5)plE6ufNzZQvs2YzBN1EgLyL9VsDKZyPU703isisil838Q8WhD8Op79bNeeeeskjtFXUHchpx45c)GxnC1YvlcrL4vZhny04bVFWz9hmCWWXRwu(sgE1ImuWdO7HpsqXW)Frv(JKhrrdPZ8sukkKsGI0Q8ay2vlwxrIkNLSADBQoy4zdHTvKHdGHhdCyljmeZxlUiy1ILBjf78P)hANVGX78t3a)oOKKMSZpIuuctVjnFN))h(bsePpii5PBira7)lWGvjLyysPCUZ)N35)L0VUZ)0prEgh2yVVD3N39zyt)XK7Mn5d3mDXo)jZVEN)hVD(1Zwo725lOl4ruobToc)oQf4YnPbvfEBj3V9Da5RedC1LxmW(kJsFsFH)25DSUyCiPkUjnpFqp(MAtCQvKGI8QsiLInvIYVhx2hhrkXV(Q4xr4hXrxDzwe6fCo)x)0zQzljXyVYuVqc(QHJBXdCEgoP0ROKKCVxoEtoUqQ1HPL9BmF)CCmIKaYQjzwhbNKEO880NmiYjuQOnnipbpa0YKcrP0vKe6r938O(cpIfKyD1Mn9BmF)QmZ9xUnNef5LUXRCl2Bl4IyHiTxeJsmhKVufvs(zUrdCgta3OjPt35hIlXCptdoIsXEfKYkeDsbxGJmG(CIu0pMssVITPLxD5zMBpicJE8WPWLJeY5httJctFccuGtwQH0xs3ctwKJYiHEBi5yp0JiseBgoBceuPF9AGtxu4l9oHzP0gUkdglknnmQQO0ILVQa7jjxHG8Yv0x3hUNfpYrdOQftX(6Dt)4TF5dtwY(8RtUBcn8C3N55fk6NLJdsJxJk)Pl)feLULQds0tp8oYMl5IE754Qq75c2IXLOTmDYgxcqWrrgUKr7mAC3ZSCtwx8wwwjiihLZfMqmJL6JtfKocl5(GtMnhC7(itXbRWSBVB2Y)1o)BMTyjBbtJXWUtcEr4HwvcP4kFrM8SqqNjm1CNFmkbsVgdbWkzwQw8F6rt2kCNz7rsHpHj3dUyxJrLB35JvSvJmBOlXlKUcQ(UfJIk32plO834hQ0Jue4CSZppTeXZThKMes4sknP9wylIS1chf4dzarHoZEcb5alWbxoO)qk3ItFe897XJwifIagyOxFLz1dZjjuZT4NBa3x2VItPhhHs5dFKgjWjWtF9mQCnEdoPas1yCOSxQfQ2O4yJMVzDokjylld5(2pKbIAlubBnYizKUOqiCXO)FQ5gTMkJeCX(5Ik2wrXC9Z09U)6vkvZfFD6hxs92Np53N(LPZHVRJPe(HTcYfbRSqlXPypHxWHgB3fPL5p2dzKh3t)005lM9htfDs8pxo7gAuQInQJvGr4N3c5DZ5z4bwCQwyY4bV(knRsJiN3ANo81uuMMGnc2OnByBhXKIqi9DGKZqTpiuTVY)4Qlh1706KAY(KwcUF)BObpY)HvBzbu6reHgJUNea(NGrQ4xWj5qqqHDwxQtdw1lMaWt8fsybTuhwzu40Mod1PxBeTr1jm0aGiHSHLRaxsd)5BIoETJHCx0SVwZIBYMoZ7lJaU92BU(2)CEtPMM)MhCD9xxqt1Pc8AMGJwkegmnjQofrF1Qb2xx7Tr0DJ6S9udBRiVD6wuIIZWHUO6PTl(dzq1k()2EQohKKJ33qhQcmfjbxu4GN2BfH1O5vJuELq6CCzh2sRSMYeOl543vebDpvYjWWULJJGkJCrfM8EhIlF1Pz9dRYzrukzhQNMY7nWoRr5bOeApc55GBjLL8lkC24EhJgSgyaoN2Y9XQ7SZDVnv5VSx9DY9I(qYszP6vA7wCEkPi(xu(q2zfFB86fpsYH4WcV1GDNLvwZ9RtnN7Lm5gwXKjFGMrEgCxp2Oe6Lfph6xgfbgYou2n48htZ55POlRpFG(4ek7cfxsJEDnEsfX06Lx0jhn1R3AmQOuJK1dkjRuWzI44Ar0xVIydNcV4Q8qCoT(uaCDQcnY3AoLWl7fT9k0nP69Q3Lhb4)d3fmN8awJX6dxuRA2Oq0ljp7LxvSvB7QXAjV1Z0TCQzaVypNX3hHGcuqevHUztBu3YEw6tqSKQAgBZQXuY(XyoHBedvD0TK8rmCpMCl0RXD3UKFHi)tp7NO(6397txUqRDbO7VdHM1cynmhMe5GnuhcXQVdBJ0iDVHGuOh4U2qu6tA1HVRHHrm8coMfWhLSCqOSSisG4giSMGfquOhKj7sLwNuhZdwpaTrcrGIrx3MZcvBQvDtXA)hBqZ486J)dsuKSLncOR4NXbvL0M1rjuu2oD0G)knLmTPP3AviFGcpIrdBAnzDP6MDtFolkLFNho)YYjP5SsaN(0wmW8e6O3Kg8GWMFtkk0otXsAP48jkJGnyHeIWhOGkbbhuuLe9fWCr25dxvfNRFEFD6sRCwdxQgUAwGZsWudfYIH4uQlnUOHjHBr4s)HAdoetWewlcn6sxyccRIZ6W9w0xHKpNkb389V(QINDIM2BT5aEH6MHGlUnPr)a5acoe1AV4IEUDe6DIQ3XM2pjuwQP1bGu0UkhMJzZNCd9FU5MP3PKm7ceCHPXRw8ekpHEpdks2GLNeNLMl12308MeVHMObUhuofs6I0yk(avLPXikae(bBPbLf9395Bi0ZWr)D4QKjfvzucsxaxyaQkVoYB6tLABSvcd1)Z4OQk2pkokVmXBuRD4zDUy9(n6ueLExhNeo2btvUqDYt1LGpoMEENmT9nP58EwSCP)QXdNatVAb7l6J2iq8a(Co7vGeLTx9HvlcGutyi4A1ItG72lGfZVh97hzLnHppHFD)oXebyaJ3sgzSc(B(KtY4RXgUpRkxnFuNs23eZPO5aKTC1IMHJUncnHtyN)VbNBwGuOHzrdyb241qfulBY1yylmW8WTz4e7KwgLYvwW3dbDAztlBWzNymVFaMTGTSHeX)bdaqUNOh)zfL(IovvJJGrdQjUgEZgQuhGvt50zUmfFFWtVArboy1Ib9hwlJuyQ1vhzS0o)xFv40irMwBib608reHIuH)CNcp(B5qWiKayYyxmPdOTpqMPshs5ZfU4ttKVDr(ABRDyVB6YLYy97DX69bq(bQRQkIug(RUzOo(5hi5vlhO(FRZOhr7wxDje5mwJYQMzmdC0B)rKZu2lXERz09JT9Dv7GL(UPyEKp4VR36)aEMxNVWAhVs53B(7w5PASz7VKiZk3UBC44hAEs70xFB8Z4AFvNNXDG1gLTorFUM11ZAgdydb9Jg(C3wDhIFBuUPPO7vZvdWTR1i54UpZCWAhODZo5gPz9KGNBRwGCrsGTbrlIgFx)79joghjoHy3wHcdjy0HWXgY4iBLfALmd6c4SXnD6miQkpsdaZnuVJdrEBvn2V2jfKAi3Tvm4iOJcaEBP9Bwa9GbGx(x5Lom7hJqXzavGgoOtnZkg6Sdr5PkuI68bnkuOquxVLp6qMoQTq5Vfe)mPR7eBDchFnNRNJrRUZYSpS3LQOde4B6CRdBSMVT5(mnkwEbbMK3DskxG3R7dQnnJIMzIArXw45Byd0r1)q0D16zS3mnul2BbM6AAPnPvl4fn9H6o7ux4)FikKAtmE0DEg7a4RD2WNGxux1H4(6BRtONp0gkAS5wf2nGK)yqJ3D9C3YTByZpuvtRtzNf4BbnopJM(1vvqPByHokq6Tv5VXHPt8rRfMMWJAirFJy5BRNalLrSGLUE2f1Kgc1XHUV7oj(ryK(ba8V7MkovPG0RVDX75ObSFe535)wxE3x0Q)ilk3(Ehb3TXOvs)IlK56D)8fIf5e((wlQfi(hWnCpONKyLeanbAfoZGAGq14b6oq1)XEzcKI9)OXCNXZGvNRXkT)EWALPATLmvA)vxP35Uj6YTUtWX8hdg3msXCXPbSJN6Urs86hhUD1odxxhVnUBRRJN)FVYIEBeh2nbTrL6xg3DE(2pbEhvS4havLBPnn)NKimumeLbxiInZQ)7d]] )

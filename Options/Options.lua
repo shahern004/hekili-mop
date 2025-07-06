@@ -5908,31 +5908,8 @@ found = true end
         wipe( packs.plugins.packages )
         wipe( packs.plugins.links )
 
-        local count = 0        
-          -- Debug: Log the count of profile.packs
-        local packCount = 0
-        for _ in pairs( self.DB.profile.packs ) do packCount = packCount + 1 end
-        print( "EmbedPackOptions: Found " .. packCount .. " profile packs" )
-        
-        -- Debug: Log available specs
-        if class and class.specs then
-            local specCount = 0
-            for specID, spec in pairs( class.specs ) do 
-                specCount = specCount + 1
-                print( "EmbedPackOptions: Available spec " .. specID .. " (" .. (spec.name or "unknown") .. ")" )
-            end
-            print( "EmbedPackOptions: Found " .. specCount .. " available specs" )
-        else
-            print( "EmbedPackOptions: No class.specs available" )
-        end
+        local count = 0
           for pack, data in orderedPairs( self.DB.profile.packs ) do
-            print( "EmbedPackOptions: Checking pack '" .. pack .. "'" )
-            print( "  - data.spec: " .. tostring(data.spec) )
-            print( "  - class exists: " .. tostring(class ~= nil) )
-            print( "  - class.specs exists: " .. tostring(class and class.specs ~= nil) )
-            print( "  - class.specs[data.spec] exists: " .. tostring(class and class.specs and class.specs[ data.spec ] ~= nil) )
-            print( "  - data.hidden: " .. tostring(data.hidden) )
-            
             if data.spec and class and class.specs and class.specs[ data.spec ] and not data.hidden then
                 packs.plugins.links.packButtons = packs.plugins.links.packButtons or {
                     type = "header",
@@ -6303,9 +6280,8 @@ found = true end
                                         self:LoadScripts()
                                     end,                                    disabled = function()
                                         local p = rawget( Hekili.DB.profile.packs, pack )
-                                        local disabled = p.spec ~= state.spec.id
-                                        -- Import disabled check
-                                        return disabled
+                                        -- Removed spec check for MoP Classic - allow all imports
+                                        return false
                                     end,
                                 },
                                 importWarningSpace = {
@@ -6343,9 +6319,8 @@ found = true end
                                     width = 2.2,
                                     order = 5.12,                                    hidden = function()
                                         local p = rawget( Hekili.DB.profile.packs, pack )
-                                        local hidden = p.spec == state.spec.id
-                                        -- Import warning hidden check
-                                        return hidden
+                                        -- Removed spec check for MoP Classic - hide warning
+                                        return true
                                     end
                                 },
                                 profileConsiderations = {
@@ -7644,9 +7619,6 @@ n = tonumber( n ) + 1
                     n = n + 1
                 end ]]                packs.plugins.packages[ pack ] = opts
                 count = count + 1
-                print( "EmbedPackOptions: Pack '" .. pack .. "' ADDED to UI" )
-            else
-                print( "EmbedPackOptions: Pack '" .. pack .. "' FILTERED OUT" )
             end
         end        collectgarbage()
         db.args.packs = packs
@@ -10041,15 +10013,10 @@ function Hekili:MakeSnapshot( isAuto )
     
     -- Explicitly call SaveDebugSnapshot for manual snapshots
     if not isAuto then
-        print("Calling SaveDebugSnapshot explicitly...")
         if self:SaveDebugSnapshot("Primary") then
-            print("Snapshot saved successfully!")
             if self.Config then 
                 LibStub("AceConfigDialog-3.0"):SelectGroup("Hekili", "snapshots")
-                print("Opened snapshots interface")
             end
-        else
-            print("SaveDebugSnapshot returned false")
         end
     end
     

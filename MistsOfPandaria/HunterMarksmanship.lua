@@ -1,8 +1,6 @@
 if not Hekili or not Hekili.NewSpecialization then return end
 -- HunterMarksmanship.lua
--- Updated May 28, 2025 - Modern Structure
--- Mists of Pandaria module for Hunter: Marksmanship spec
--- Enhanced with comprehensive MoP mechanics, talent integration, and optimal rotation priorities
+-- Updated July 05, 2025 - by Smufrik
 
 if not Hekili or not Hekili.NewSpecialization then return end
 if select(2, UnitClass('player')) ~= 'HUNTER' then return end
@@ -55,7 +53,7 @@ end)
 local function RegisterMarksmanshipSpec()
     if not class or not state or not Hekili.NewSpecialization then return end
     
-    local spec = Hekili:NewSpecialization( 254 ) -- Marksmanship spec ID for MoP
+    local spec = Hekili:NewSpecialization( 254, false ) -- Marksmanship spec ID for MoP (ranged)
     if not spec then return end -- Not ready yet
 
 -- Enhanced Resource System for Marksmanship
@@ -216,7 +214,7 @@ spec:RegisterTalents( {
     -- Tier 5 (Level 75) - Focus Management Talents
     fervor                 = { 109306, 82726, 1 }, -- Instantly restores 50 Focus to you and your pet, and then an additional 50 Focus over 10 sec.
     dire_beast             = { 120364, 120679, 1 }, -- Summons a powerful wild beast that attacks the target for 15 sec. Each time the beast deals damage, you gain 2 Focus.
-    thrill_of_the_hunt     = { 118455, 34497, 1 }, -- Your Arcane Shot and Multi-Shot have a 30% chance to instantly restore 20 Focus.
+    thrill_of_the_hunt     = { 118455, 34720, 1 }, -- Your Arcane Shot and Multi-Shot have a 30% chance to instantly restore 20 Focus.
     
     -- Tier 6 (Level 90) - AoE/Ranged Talents
     glaive_toss            = { 109215, 109215, 1 }, -- Throw a glaive at your target and another nearby enemy within 10 yards for 7,750 to 8,750 damage, and reduce their movement speed by 70% for 3 sec.
@@ -407,6 +405,20 @@ spec:RegisterAuras( {
         max_stack = 1,
     },
     
+    -- Focus regeneration tracking for Cobra Shot
+    cobra_shot_regen = {
+        id = 1, -- Virtual aura for focus regen tracking
+        duration = 3600,
+        max_stack = 1,
+        generate = function( t )
+            -- This tracks Cobra Shot focus regeneration timing
+            t.count = 1
+            t.expires = query_time + 3600
+            t.applied = 0
+            t.caster = "player"
+        end,
+    },
+    
     -- === TALENT-SPECIFIC AURAS ===
     thrill_of_the_hunt = {
         id = 34720,
@@ -543,11 +555,14 @@ spec:RegisterAuras( {
         max_stack = 1,
     },
     
+    -- Readiness not available in MoP - removed
+    --[[
     readiness = {
         id = 23989,
         duration = 2,
         max_stack = 1,
     },
+    --]]
     
     trueshot_aura = {
         id = 19506,
@@ -1441,6 +1456,8 @@ spec:RegisterAbilities( {
         end,
     },
     
+    -- Readiness not available in MoP - removed
+    --[[
     readiness = {
         id = 23989,
         cast = 0,
@@ -1462,6 +1479,7 @@ spec:RegisterAbilities( {
             applyBuff( "readiness", 2 )
         end,
     },
+    --]]
     
     trueshot_aura = {
         id = 19506,
@@ -1943,7 +1961,7 @@ spec:RegisterSetting( "mark_boss_only", true, {
 } )
 
 -- Register default pack for MoP Marksmanship Hunter
-spec:RegisterPack( "Marksmanship", 20250515, [[Hekili:T1nBVTnUr8FlSnLLAWOoYHTO4yrwMQLf8SKPLynoS49AOPrRkvaN1HA2YIPvrsSsTkSiRKQfaLBYuZ1Ya3MFtFJpNvFtNLzZYvyeoKq)QL9aP6WLL3aUckUk(ifF9719nEY78dcN3w(GiIrD0H))scKuHteK0o1IrFIIS4mPxpw)mHkP8kHbFCGcQeDzGK9Sc9OVqTSdErLzLuXwvgnt0usg0y3OcvLsciToasrJIPzvzzyyHkFasw1us5czKzSkH1agzQu5Gunv0QOsnwCPl0bvzLKQ2YXKtvn...]] )
+spec:RegisterPack( "Marksmanship", 20250705, [[Hekili:vZXAVnUXXFlgbvXoxov9(8fylGMMuKC4sqa01VkkkQvwSwIuLK685cd9BVZUlj3xZSK02OxkkAsm1UZ7x7ml5YHl)0YfBclyl)9rdgnDW7gmT)Gbthn66LlkE8iB5IJHr3hEh8FKeEa(N)wy295hctY3fFK)JpUpnCdhi5PNYIGfSCX6tX7l(1KLRrH8W3dR9ilcE80jlxSlEZgMCTS8OLl(0U48ZR4))WZRkX95vPBH)oQion58Q9X5fWpVnn78QFHDF8(4(lxiEiNmyFHfDcq6Nw(7cEJLeUEpBZYFC5cjawUa2Y(G8DPfsCMfFu(8FwUvaT7cZH)1LfHz3XkoVAnBF6dNxnAWF58QDSW9f7UA5cyFfSS4qqojwwF5VeCmc2Xn3Yx(5v940z0jGCNdpzYGLfaBBrwTfqRpTDB)dH5WIdouQf6F6OIVcJpW2izmanJFMOzdtGOCw2rwsrqErCYDaAS5LXduioAhG5SWAup5zIAdrLINl2LX1yPBdk2Xc2DkPWKTZIcty1iF6ld58NmvJ3aXD4MhRGoyYSpn6(GWKnbLg(KMzSVCCFAE8Nzy2AFeGcysNS58QpcWbS5YsJoVcuPG9(bqWBs47HN03eG9lrPsozqzCrKxJn0Tia2fNx5fJewCajFKveOXcEeos748GOW97Ten)b3L7ub4xx8yPicxSuzPcoNmjX)0t12VzPPfSMLcLmACsr8HyiAfqbgc2sBMOqHFG(JGnWcksd2edHkMdgnkMthA(DfbrniZ6hUhKXcGhLEyDyHMRfiFc4I1H(DSmHIuceEmEtW24mMH7YAgWkH7dEilSyNuTj5OG8hIlI25tRX994AnE4ha7pgThebInNZ3KRUrFd93K(qIpjipKIHLWNkJ)kjmH8xyoCmlontyDiHe8lyA5Axy9qzwsFFr7iiZHY4fCOdogSe2HywzGJjicfe9pACted7UqutXrnTfJn9lcQBhgwps4Ht7lI1C2dt9MLvB5MA1)w6pRRcd38VoLxW9TZFoKxB8U9e4KgnkJdRTR7mzfJVH0UcIzDywgemRrQyQnZottxucKMs2kq4D7d5aVinpVrKoYgPd1cRPbOMs0kq8riUCwRK4tqQuQgT1GHJ0zDYEEcPMSaIosOj5)ehvVZFQt0QsOfSK1RC9FsJAXJifMX2EAFaKM3NNUwvaME6)D5(pV6VfFaQH)ipR4)rKvekUofiDriDr12x5iF1qUfRPxahWzV3P4Xznew4LaF)1h6X9NcPTtD6qtugksfxAglilTqwbIhvNLrMP2daY5vvqPoKny20wRrE5yxs87zSdHXjvwG9N6Z296ZRUYVg1Ne8sEvvP75vF0xpJlqcGMtsLUfmXrj5bCAmiVNmopZ8k0H5FjwZ25vmpc5l8Ou2bYvN72BG8sPZXywweOgf7iVIPW)rdJjTqTMlZFqD60HOXmBDLsob4BDEeQFoViKF4rrPkKPvEVFSwg2sWaQcZjuCwX4goOdW2q1mwXxgls303gz2HUuit3gEwLRoMNm3dxDO2nWJdwZGt0P8l5ROoiH2cQP(5IcYUIuCpKo2KHRwtKjvKkfzm2KmSob(wWyHL5nKVM81UNep82sIvcgQy(gPcRcQHQvBonmTXYOUBSqhx2OZv6rsiYkn3W3kkDDRAVLBdSU0xpSKQCSKEC(NxXgTbhDSzx7nsmmL2qA9PSCVDWrz8Azg9J8Dw3ev9Q(SQBaZhWjOABoFxyWHtzByzCXBuw6d5U9gJOzio7Svz33)yYxcYoLVZapTVfm17Vfj2DB4BJGVTjX9v0Kp4BxneDQ8M1W6PzSSWB48xUGLodEBYtlIgULLWR6YND)ggqfzSKiB7(FQA3uHnJtIspWRgzt4b4W7btLXzKfrbk6VCE13DE1G(t8B0BdMXeGzMIM3YIVljydt2XVMhnWMyOgdGdLHjU2ieFiF4nf1rYcF4ETtYGSI4S0KQLPPRnwZH0K7zp63BW09I)xqmvGJaAKZTxxgPl5EXjzQvXX5805Y)sMHKBl0YUutNR8FiTOuGHosNeHvbFf6N5w9Y6gvS6))itQj7iYLuEeUgtRoP7PvBOoznHOE4e3neiJqiTdaVZSG1PjNYz5(Sbi7UXNI5viLZBqDzxP5tWHYkawNeB95iE4KGjhJ0QYV(ziXiBQDgwGEAWihqlEM1zOSJ7thGN2yWb1UC1ucUYtKFAlbl8ndHvNPZQOPeisa4jtPdADzZz6Sj(rSOC2KzEcbAbZo0WM73a3OQHeP3e98hbqEqtGEc8nR4lHLt1VaM7baBDixhji64Q1Fm12sM6OluvzY7VG8UdSjlKLehfeENy4EyQ6Atq1CVSgspyzEhK99rroaZiWc3WYjhAvRzD2d)kA3KmgT4W58oevibKZgo17V6ON1SfJsfJuRfvjvwSAEm8VQBcYlF4MMWBP3gC8QKZ2PvgMtlolgQngSg(P)yHQBLwgsY)iGFjrKxvKaPbz1PTfL970wJwbcR6Z1lSaR7fTcMMTV1F3fWIWnUL4Hpbpo0jNpPVnx2Pbr4RJG2so4AFjsDkC0sv(lcl7F48k97y05v8)3FKXEBvupiympKJmNRziGLihW0t1OT6SLeBVApeSx9c9N)0iYewWVQqKv)K5e4nIGthvJUh9AU1ytrOY7WxBaGmzXjS8CNPhi3Sh1tRo9EDdX0c1Qxoztfhr3NHlToxO2KaS7MUwBy0A7HxnBxZsoYOFRHhoY20UX76x85PvJ05Rn77ewlsAC2VTPfjpdABOztynAKIVeTKn(vZoaoF824O4cv)7AXKHuWSvjJ3YY(CAMb6nAMQcWYv6p9A1nkiozJV87QtZpV(08EUgjvuGoyXsd7qhKxIkt1o5aQvO26cuv4nn7Z5SB)MaCQmnU3)UYlyQ44CHYryZ5MfaSGAmZf3iwlVDFTQZ(3SMyvZNU)f3hWgcvraF6MttHNNx)mDBA9fOXIPWkDaPgLEDy0PeyNBFM(5MTgnQqiAhJveUZ2WSeoEpmtvLq9O65wjSBrnoibigoTcYLfneLMakh8bvB9B(n0W7UOEW0CwYDnEVMQK140Tw80R9CpEbD2dHz8BGso)sNdWi(WX0Sk)(VT8EK)TWzky)7tGRfOnYtpaRJF26dHf8heTlm5owE)ZF4JqnqajafV(ptYpDKdj(cKyhax9SV)26fpICXkJl1QhtUA9U1Wx)5pGWogx03xlMY8wk0DodLsLgjLxg1UrPVqzeCCOUHpA(0vYGIrTqpDdZ06etjSaNBt3Vp9bXj8dpLfcohpW4xTNt58DYBOubFzvGGFgpEuLIQ1LKki4tjgREZg(IHC0HRdZz)aWHRElqOkoIIN1pCB34AA5TT(Tj7bkl3jTuUkx90U4UpJCXM3sf1og2w)OVYAz(tm5HYhQ3bucRbzxe6MzaTy)RSyPf8RyS6DJDFTSjBvmW6rG2nAK2tdBqFKy3E2CTLi(ZOMwF(sTLp6wW9Ugu8RTuI)iTX2y8GjIhqyrYhns3eH0bB17FUsi(oY1B2UB6m5v9kRB0jTQUUVATjDwvdJ(QOLBoLp9H3FTKwDZXOB1xJT6xRyYFLtyzP6(1dve4W3zIbUoyjFQI7sZwUyXHtBZIVN33)uiboB5IV58k6U3)HVP1nW)8hKynVF9ifEZT)v3jh89XBV9IgAVFBGv965aSDD8hhSQw2linvhVqxTEx8XxHr74fGK62A9bH81)GHRXbxaunAy9hwpvy9hkh973Zh3ZTwJULtrUTE6PNCBx0n3oBqjn22r3QtdnkxH1unTv(kQxqpZH3EZ0b9UaPxU6OslZG0CqF6O9CzT5t13UzIcn7j8bW2RJGxFOOUmQCSQ3mO)19khNAPmhF8Oosy5FkgYNuFxNpR5LshDV59ACyWMxoCcDoVZFUAMNZVDCZ7S8cnlfkyZMs5gwZ6aWQZclS(AAIl98mSQ5C3auuuVuvqndB0ExkkGA(Tth80tiDS8kC4wvtqxCvhrqJoCSE4ssPXLTfTZgqWd1Z3rdFotwQNYvO1yC4ucmQMNJgkDhCuPoPAKrZVDsLUXa5eiroBhneyowOEcyFdOVX3U(Gz0ac2yG6z1Y153EnwKMHtXXK(Cy0We2GE00cyiyqDEQx(Gxu0kDOhUrBDTv1UaUJbONVPZaoeV(4cp)ZRb4rn0h8QIIYirZQsMAn7KxtuHa)EoZLz(7huhtN6Tvu30wlBtxkY6PNU039A9MBN0FkMz)1xrJC9tNZXnbQ7DPNxEXgJ5yIsZUEQ5qJ)6k27cQxurAuGOBBHouzxrd56wQQvBMw9DqURkOmXdum7tPMC351nSN3x1qJqd2irDTsXQwzupZNawp9QZW7rYQUJS1Iw07eDpQFs8EdQxTKRdHAiz14i3(AS2gXCJaQwmoUN7p61aZumuz4mdp3)fKzWF6jpVVFZN6XlY0exfreLa8((8nF8vLrVO)MyOOdO43gTTgJzjj3yxD(DbDlchirv5xNc9Atm)Ox4a8PyraKat7RoHgar(Ow4a0rvavV8gjqR)MsObsNpxfoaCcMPVT0L)5Jat1mbr(v(vOWgyT3v3HLTbLzkoJpZd3o0xkp8Q4CdDvvxh69wqRGGYF)n2DGP8Qkiifz7l6H1yh1nAafMwxdbTueQkFhoTwd4EJgqHA99rabE3C71O7XkYNZDvqqhLf4FDvXlOV6ykWxpugonv)6NXbV7Ru2C17b23nO)eCGO9(GHbLXwqzgouWgTdUKcvLw2Mo0FdVpE6i)52peFFCXuy6OXhYmo6efOk)ELPxTw13ESNEY(7oMhG1LJv1L2e5IjQ2N1RStH0704ZeMPag7ymcHBdVuCkSzpNpx)g5k0ElZMpUYRP(WhK1m0m49uqYOgkibb4Q3JnushofgC8aFhGy(eVWN8nzRHSdLcSjvHz6W3tnf9yCFCEJzVRXsOuYNoF53WmDhpGgp)piZffQnoAgnl2kepLgnDOuoP6RXx4qnCPn9zNAwXExelp1G(7HiwnzwW1(qSyVkIAqU61qe3zq3lZM(nRic71o0anMmWeAgWuhG96fQb3QxTqFLDzbFR4oyViHgiOKWXp5vPDa9hybfziUNjVPnDxg5advB(512xS0d2qURn2TnWSdTvQbi12wZ0gyHvlpQcycIcW06ezVogIobn8(rDrlRJ43iYdZBfDJ5CjaWljtBfirYVcXhh4pL6yeaH38GjvNDhnlkXae0hzHc(eTgaFeevJfTdF2Pv4S8(j)MNBJXu73KOXbaH3eg4SDEWbiLlvTYfLsnvFnWRK9bdNUTSB9a8BuExD5lCOcPADefpU1ZTLPgWfZrS1a2A6tMa2UT5yGUPQZW6HFJFuSvuKX9z)nDV7wcAZ5RFnj4r0r2BU3fEXO4voy5)9]] )
 
 end
 

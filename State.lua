@@ -1,3 +1,4 @@
+
 -- State.lua
 -- January 2025
 
@@ -86,6 +87,40 @@ state.now = 0
 state.offset = 0
 state.modified = false
 state.resetType = "heavy"
+
+-- MoP: Update state.talent with actual enabled/disabled state for each registered talent.
+local function UpdateMoPTalents()
+    if not class or not class.specs or not state or not state.talent then return end
+    local spec = class.specs[Hekili and Hekili.Spec or 255] or class.specs[255] -- 255 = Survival default
+    if not spec or not spec.talents then return end
+    local groupIndex = (GetActiveSpecGroup and GetActiveSpecGroup()) or 1
+    for talentName, id in pairs(spec.talents) do
+        if type(id) == "table" and id[1] and id[2] and id[3] then
+            local tier, column, spellID = id[1], id[2], id[3]
+            local _, _, _, selected = GetTalentInfo and GetTalentInfo(tier, column, groupIndex)
+            state.talent[talentName] = state.talent[talentName] or {}
+            state.talent[talentName].enabled = selected or false
+        end
+    end
+end
+
+-- Hook to PLAYER_TALENT_UPDATE for MoP
+if select(4, GetBuildInfo()) >= 50400 then
+    local f = CreateFrame("Frame")
+    f:RegisterEvent("PLAYER_TALENT_UPDATE")
+    f:SetScript("OnEvent", function()
+        -- Only update if state is available
+        if state and state.talent then
+            UpdateMoPTalents()
+        end
+    end)
+    -- Also update talents on load (with delay to ensure state is initialized)
+    C_Timer.After(3, function()
+        if state and state.talent then
+            UpdateMoPTalents()
+        end
+    end)
+end
 
 state.encounterID = 0
 state.encounterName = "None"
@@ -1653,13 +1688,22 @@ local resourceChange = function( amount, resource, overcap )
     if amount == 0 then return false end
 
     local r = state[ resource ]
+    if not r then 
+        return false -- Resource doesn't exist
+    end
+    
+    -- Ensure current is properly initialized
+    if r.current == nil then
+        r.current = r.actual or 0
+    end
+    
     local pre = r.current
 
     if amount < 0 and r.spend then r.spend( -amount, resource, overcap )
     elseif amount > 0 and r.gain then r.gain( amount, resource, overcap )
     else
         r.actual = max( 0, r.current + amount )
-        if not overcap then r.actual = min( r.max, r.actual ) end
+        if not overcap then r.actual = min( r.max or 100, r.actual ) end
     end
 
     return true
@@ -2410,8 +2454,7 @@ do
             local ability = class.abilities[ action ]
             local cooldown = t.cooldown[ action ]
 
-            -- Empowerment oddity.
-            if k == "duration" and action and model and model.empowered then return max( t.gcd.max, model.cast_time ) end -- Still ugh.
+            -- MoP: Empowerment spells don't exist, removed this check
 
             if k == "action_cooldown" then return ability and ability.cooldown or 0
             elseif k == "cast_delay" then return 0
@@ -2540,7 +2583,8 @@ do
             if t.toggle[ k ]   ~= nil then return t.toggle[ k ] end
 
             if k ~= "scriptID" and not ( logged_state_errors[ t.scriptID ] and logged_state_errors[ t.scriptID ][ k ] ) then
-                Hekili:Error( "Unknown key '" .. k .. "' in emulated environment for [ " .. t.scriptID .. " : " .. t.this_action .. " ].\n\n" .. debugstack() )
+                local key_str = type(k) == "function" and tostring(k) or k
+                Hekili:Error( "Unknown key '" .. key_str .. "' in emulated environment for [ " .. t.scriptID .. " : " .. t.this_action .. " ].\n\n" .. debugstack() )
                 logged_state_errors[ t.script ] = logged_state_errors[ t.script ] or {}
                 logged_state_errors[ t.script ][ k ] = true
             end
@@ -4194,7 +4238,8 @@ do
                 end
             end
 
-            Error( "UNK: buff." .. t.key .. "." .. k .. "\n\n" .. debugstack() )
+            local key_str = type(k) == "function" and tostring(k) or k
+            Error( "UNK: buff." .. t.key .. "." .. key_str .. "\n\n" .. debugstack() )
 
         end,
 
@@ -4246,12 +4291,18 @@ do
             if k == "__scanned" then
                 return false
             end
+            
+            -- Safety check: ignore function keys
+            if type(k) == "function" then
+                return unknown_buff
+            end
 
             local aura = class.auras[ k ]
 
             if not aura then
                 if Hekili.PLAYER_ENTERING_WORLD and not buffs_warned[ k ] then
-                    Hekili:Error( "Unknown buff in [" .. state.scriptID .. "]: " .. k .. "\n\n" .. debugstack() )
+                    local key_str = type(k) == "function" and tostring(k) or k
+                    Hekili:Error( "Unknown buff in [" .. state.scriptID .. "]: " .. key_str .. "\n\n" .. debugstack() )
                     buffs_warned[ k ] = true
                 end
                 return unknown_buff
@@ -4342,7 +4393,8 @@ local logged_talent_errors = {}
 local mt_talents = {
     __index = function( t, k )
         if class.talents[ k ] == nil and not logged_talent_errors[ k ] and #class.specs > 1 then
-            Hekili:Error( "Unknown talent in [ " .. state.scriptID .. " ]: " .. k .. "\n\n" .. debugstack() )
+            local key_str = type(k) == "function" and tostring(k) or k
+            Hekili:Error( "Unknown talent in [ " .. state.scriptID .. " ]: " .. key_str .. "\n\n" .. debugstack() )
             logged_talent_errors[ k ] = true
         end
         return ( null_talent )
@@ -5245,6 +5297,11 @@ do
         -- and copy it so we don't have to use the API next time.
 
         __index = function( t, k )
+            -- Safety check: ignore function keys
+            if type(k) == "function" then
+                return unknown_debuff
+            end
+            
             local aura = class.auras[ k ]
 
             if aura then
@@ -5271,7 +5328,8 @@ do
 
             else
                 if Hekili.PLAYER_ENTERING_WORLD and not debuffs_warned[ k ] then
-                    Hekili:Error( "WARNING: Unknown debuff in [" .. ( state.scriptID or "unknown" ) .. "]: " .. k .. "\n\n" .. debugstack() )
+                    local key_str = type(k) == "function" and tostring(k) or k
+                    Hekili:Error( "WARNING: Unknown debuff in [" .. ( state.scriptID or "unknown" ) .. "]: " .. key_str .. "\n\n" .. debugstack() )
                     debuffs_warned[ k ] = true
                 end
 
@@ -5625,15 +5683,7 @@ local mt_aura = {
     end
 }
 
--- Empowering system disabled for MoP
---[[
-local mt_empowering = {
-    __index = function( t, k )
-        if state.buff.empowering.down then return false end
-        return state.buff.empowering.spell == k
-    end
-}
---]]
+-- Empowering system disabled for MoP - completely removed
 
 
 setmetatable( state, mt_state )
@@ -6847,59 +6897,7 @@ do
 
             if ability then
                 casting = ability.key
-
-                --[[ if ability.empowered then
-                    local empowerment = state.empowerment
-                    local timeDiff = state.now - state.buff.casting.applied
-
-                    state.gainCharges( casting, 1 )
-                    state.setCooldown( casting, 0 )
-
-                    if timeDiff >= 0 then
-                        if Hekili.ActiveDebug then Hekili:Print( "Empowerment [%s] is active; turning back time by %.2fs...", casting, timeDiff ) end
-                        state.now = state.now - timeDiff
-
-                        empowerment.active = true
-                        empowerment.spell = casting
-                        empowerment.start = state.now
-
-                        wipe( empowerment.stages )
-
-                        for i = 1, 4 do
-                            local n = GetUnitEmpowerStageDuration( "player", i - 1 )
-                            if n == 0 then break end
-
-                            if i == 1 then insert( empowerment.stages, state.now + n * 0.001 )
-                            else insert( empowerment.stages, empowerment.stages[ i - 1 ] + n * 0.001 ) end
-                        end
-
-                        local stage = state.args.empower_to or ability.empowerment_default or #empowerment.stages
-
-                        empowerment.finish = state.buff.casting.expires
-                        empowerment.hold = state.buff.casting.expires + GetUnitEmpowerHoldAtMaxTime( "player" ) * 0.001
-
-                        print( empowerment.active, empowerment.spell, empowerment.start, empowerment.finish, empowerment.hold )
-                    end
-
-                    removeBuff( "casting" )
-
-                    casting = nil
-                    ability = nil
-                    cast_time = 0
-                else ]]
-                    if castID == class.abilities.cyclotronic_blast.id then
-                        -- Set up Pocket-Sized Computation Device.
-                        if state.buff.casting.v3 == 1 then
-                            -- We are in the channeled part of the cast.
-                            setCooldown( "pocketsized_computation_device", state.buff.casting.applied + 120 - state.now )
-                            setCooldown( "global_cooldown", cast_time )
-                        else
-                            -- This is the casting portion.
-                            casting = class.abilities.pocketsized_computation_device.key
-                            state.buff.casting.v1 = class.abilities.pocketsized_computation_device.id
-                        end
-                    end
-                -- end
+                -- MoP: Removed empowerment and BfA trinket code as they don't exist in MoP
             end
         end
 

@@ -270,12 +270,35 @@ function Hekili:HandleFixCommand( args )
                 display.x = def and def.x or 0
                 display.y = def and def.y or -200
 
-                -- Ensure visibility is sane
+                -- Ensure visibility is sane - initialize complete structure
                 display.visibility = display.visibility or {}
+                display.visibility.advanced = display.visibility.advanced or false
+                
+                -- Initialize PvE visibility settings
                 display.visibility.pve = display.visibility.pve or {}
+                display.visibility.pve.alpha = display.visibility.pve.alpha or 1
+                display.visibility.pve.always = display.visibility.pve.always or 1
+                display.visibility.pve.target = display.visibility.pve.target or 1
+                display.visibility.pve.combat = display.visibility.pve.combat or 1
+                display.visibility.pve.combatTarget = display.visibility.pve.combatTarget or 1
+                display.visibility.pve.hideMounted = display.visibility.pve.hideMounted or false
+                
+                -- Initialize PvP visibility settings
                 display.visibility.pvp = display.visibility.pvp or {}
-                display.visibility.pve.alpha = 1
-                display.visibility.pvp.alpha = 1
+                display.visibility.pvp.alpha = display.visibility.pvp.alpha or 1
+                display.visibility.pvp.always = display.visibility.pvp.always or 1
+                display.visibility.pvp.target = display.visibility.pvp.target or 1
+                display.visibility.pvp.combat = display.visibility.pvp.combat or 1
+                display.visibility.pvp.combatTarget = display.visibility.pvp.combatTarget or 1
+                display.visibility.pvp.hideMounted = display.visibility.pvp.hideMounted or false
+                
+                -- Initialize mode visibility settings
+                display.visibility.mode = display.visibility.mode or {}
+                display.visibility.mode.aoe = display.visibility.mode.aoe == nil and true or display.visibility.mode.aoe
+                display.visibility.mode.automatic = display.visibility.mode.automatic == nil and true or display.visibility.mode.automatic
+                display.visibility.mode.dual = display.visibility.mode.dual == nil and true or display.visibility.mode.dual
+                display.visibility.mode.single = display.visibility.mode.single == nil and true or display.visibility.mode.single
+                display.visibility.mode.reactive = display.visibility.mode.reactive == nil and true or display.visibility.mode.reactive
             end
         end
 

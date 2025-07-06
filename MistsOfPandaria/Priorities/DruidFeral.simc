@@ -37,7 +37,7 @@ actions+=/skull_bash,if=target.casting
 actions+=/call_action_list,name=defensive
 
 # Stealth opener
-actions+=/prowl,if=!buff.prowl.up
+actions+=/prowl,if=!buff.prowl.up&(!combat|feral_solo_prowl)
 
 # Core rotation
 actions+=/call_action_list,name=cooldowns
@@ -78,7 +78,7 @@ actions.finishers+=/ferocious_bite,if=combo_points>=5&dot.rip.ticking&buff.savag
 actions.finishers+=/savage_roar,if=combo_points>=1&buff.savage_roar.remains<7.2&(combo_points>=5|buff.savage_roar.remains<2|energy>=80)
 
 # Rip application and pandemic refresh
-actions.finishers+=/rip,if=combo_points>=5&(!dot.rip.ticking|(dot.rip.remains<7.2&dot.rip.remains<target.time_to_die&target.time_to_die>dot.rip.duration))
+actions.finishers+=/rip,if=combo_points>=5&(!dot.rip.ticking|(dot.rip.remains<7.2&dot.rip.remains<target.time_to_die&target.time_to_die>max(feral_rip_duration,dot.rip.duration)))
 
 # Multi-target Rip spreading
 actions.finishers+=/rip,cycle_targets=1,if=combo_points>=5&!dot.rip.ticking&target.time_to_die>dot.rip.duration&active_enemies<=4
@@ -114,13 +114,15 @@ actions.fillers+=/wait,sec=0.1,if=variable.pool_energy&cooldown.tigers_fury.rema
 actions.fillers+=/mangle_cat,if=combo_points<5&energy>=40
 
 # Shred when behind target or with OoC
-actions.fillers+=/shred,if=(behind_target|buff.omen_of_clarity.up)&combo_points<5&energy>=40
+actions.fillers+=/shred,if=(behind_target|buff.omen_of_clarity.up)&combo_points<5&energy>=40&(!variable.aoe|!feral_lazy_swipe)
 
 # Mangle when can't get behind
 actions.fillers+=/mangle_cat,if=combo_points<5&!behind_target&!buff.omen_of_clarity.up&energy>=40
 
 # Emergency filler
 actions.fillers+=/shred,if=combo_points<5&energy>=40
+# Regrowth filler om aktiverad
+actions.fillers+=/regrowth,if=feral_regrowth&energy<30
 
 
 # AOE ROTATION (3+ TARGETS)
@@ -144,7 +146,7 @@ actions.cleave+=/shred,if=combo_points<5&(behind_target|buff.omen_of_clarity.up)
 # UTILITY AND MOVEMENT
 actions.utility+=/faerie_fire_feral,if=debuff.faerie_fire.down&target.armor>0&energy>=25
 actions.utility+=/cat_form,if=!buff.cat_form.up&!buff.bear_form.up
-actions.utility+=/prowl,if=!buff.prowl.up
+actions.utility+=/prowl,if=!buff.prowl.up&(!combat|feral_solo_prowl)
 
 # Movement abilities
 actions.utility+=/dash,if=movement.distance>20&!buff.dash.up&energy>=30

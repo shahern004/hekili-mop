@@ -1,784 +1,517 @@
 -- RogueSubtlety.lua
--- Updated May 30, 2025 - Advanced Structure Implementation
--- Mists of Pandaria module for Rogue: Subtlety spec
+-- Mists of Pandaria (5.4.8)
 
--- MoP: Use UnitClass instead of UnitClassBase
-local _, playerClass = UnitClass('player')
-if playerClass ~= 'ROGUE' then return end
+if UnitClassBase( "player" ) ~= "ROGUE" then return end
 
 local addon, ns = ...
 local Hekili = _G[ addon ]
-local class = Hekili.Class
-local state = Hekili.State
+local class, state = Hekili.Class, Hekili.State
 
-local function getReferences()
-    -- Legacy function for compatibility
-    return class, state
-end
-
-local spec = Hekili:NewSpecialization( 261 ) -- Subtlety spec ID for MoP
-
+local insert, wipe = table.insert, table.wipe
 local strformat = string.format
-local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
-local function UA_GetPlayerAuraBySpellID(spellID)
-    for i = 1, 40 do
-        local name, _, count, _, duration, expires, caster, _, _, id = UnitBuff("player", i)
-        if not name then break end
-        if id == spellID then return name, _, count, _, duration, expires, caster end
-    end
-    for i = 1, 40 do
-        local name, _, count, _, duration, expires, caster, _, _, id = UnitDebuff("player", i)
-        if not name then break end
-        if id == spellID then return name, _, count, _, duration, expires, caster end
-    end
-    return nil
-end
+local GetSpellInfo = ns.GetUnpackedSpellInfo
 
--- ===================
--- ENHANCED COMBAT LOG EVENT TRACKING
--- ===================
+local spec = Hekili:NewSpecialization( 261 )
 
-local subtletyCombatLogFrame = CreateFrame("Frame")
-local subtletyCombatLogEvents = {}
-
-local function RegisterSubtletyCombatLogEvent(event, handler)
-    if not subtletyCombatLogEvents[event] then
-        subtletyCombatLogEvents[event] = {}
-        subtletyCombatLogFrame:RegisterEvent(event)
-    end
-    
-    tinsert(subtletyCombatLogEvents[event], handler)
-end
-
-subtletyCombatLogFrame:SetScript("OnEvent", function(self, event, ...)
-    local handlers = subtletyCombatLogEvents[event]
-    if handlers then
-        for _, handler in ipairs(handlers) do
-            handler(event, ...)
-        end
-    end
-end)
-
--- Shadow Dance charge tracking
-local shadow_dance_charges = 0
-local shadow_dance_last_check = 0
-
-RegisterSubtletyCombatLogEvent("COMBAT_LOG_EVENT_UNFILTERED", function(event, ...)
-    local _, subEvent, _, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags = CombatLogGetCurrentEventInfo()
-    
-    if sourceGUID ~= UnitGUID("player") then return end
-    
-    local spellID, spellName, spellSchool
-    if subEvent == "SPELL_CAST_SUCCESS" then
-        spellID, spellName, spellSchool = select(12, CombatLogGetCurrentEventInfo())
-        
-        -- Shadow Dance usage tracking
-        if spellID == 51713 then -- Shadow Dance
-            shadow_dance_charges = max(0, shadow_dance_charges - 1)
-        end
-        
-        -- Hemorrhage application tracking
-        if spellID == 16511 then -- Hemorrhage
-            local now = GetTime()
-            state.hemorrhage_last_applied = now
-        end
-        
-        -- Stealth ability tracking for Find Weakness
-        if spellID == 8676 or spellID == 703 or spellID == 1833 then -- Ambush, Garrote, Cheap Shot
-            state.find_weakness_trigger = GetTime()
-        end
-        
-    elseif subEvent == "SPELL_AURA_APPLIED" then
-        spellID, spellName, spellSchool = select(12, CombatLogGetCurrentEventInfo())
-        
-        -- Master of Subtlety proc tracking
-        if spellID == 31665 then -- Master of Subtlety
-            state.master_of_subtlety_applied = GetTime()
-        end
-        
-        -- Honor Among Thieves proc tracking
-        if spellID == 51699 then -- Honor Among Thieves stack
-            state.honor_among_thieves_procs = (state.honor_among_thieves_procs or 0) + 1
-        end
-        
-    elseif subEvent == "SPELL_ENERGIZE" then
-        spellID, spellName, spellSchool = select(12, CombatLogGetCurrentEventInfo())
-        local amount, powerType = select(16, CombatLogGetCurrentEventInfo())
-        
-        -- Honor Among Thieves combo point generation
-        if spellID == 51699 and powerType == 4 then -- Combo Points
-            state.hat_combo_points_gained = (state.hat_combo_points_gained or 0) + amount
-        end
-        
-        -- Relentless Strikes energy generation
-        if spellID == 58423 and powerType == 3 then -- Energy
-            state.relentless_strikes_energy = (state.relentless_strikes_energy or 0) + amount
-        end
-    end
-end)
-
--- Shadow Dance charge regeneration tracking
-RegisterSubtletyCombatLogEvent("PLAYER_ENTERING_WORLD", function()
-    shadow_dance_charges = 2 -- MoP Shadow Dance has 2 charges
-    shadow_dance_last_check = GetTime()
-end)
-
--- MoP compatibility: use fallback for C_Timer
-local tickerFunc = function()
-    local now = GetTime()
-    local time_since_last = now - shadow_dance_last_check    
-    if shadow_dance_charges < 2 and time_since_last >= 60 then -- 60 second recharge
-        shadow_dance_charges = min(2, shadow_dance_charges + 1)
-        shadow_dance_last_check = now
-    end
-end
-
--- Setup timer with MoP compatibility
-if C_Timer and C_Timer.NewTicker then
-    C_Timer.NewTicker(1, tickerFunc)
-elseif ns.ScheduleRepeatingTimer then
-    ns.ScheduleRepeatingTimer(tickerFunc, 1)
-end
-
--- ===================
--- ENHANCED RESOURCE SYSTEMS
--- ===================
-
--- Advanced Energy system with multiple generation sources
-spec:RegisterResource( 3, { -- Energy = 3 in MoP
-    -- Relentless Strikes: Finishers have chance to restore energy
-    relentless_strikes = {
-        aura = "relentless_strikes",
-        last = function() return state.relentless_strikes_energy or 0 end,
-        interval = function() return state.gcd.execute * 2 end,
-        value = function() 
-            if not state.talent.relentless_strikes.enabled then return 0 end
-            return state.combo_points.current * 5 -- 5 energy per combo point spent on finishers
-        end,
-    },
-    
-    -- Adrenaline Rush: 100% energy regeneration
-    adrenaline_rush = {
-        aura = "adrenaline_rush",
-        last = function() return state.adrenaline_rush_energy or 0 end,
-        interval = 1,
-        value = function() 
-            if not state.buff.adrenaline_rush.up then return 0 end
-            return 10 -- Double energy regeneration
-        end,
-    },
-    
-    -- Shadow Focus: 75% reduced energy costs while stealthed
-    shadow_focus = {
-        aura = "shadow_focus",
-        last = function() return state.shadow_focus_energy or 0 end,
-        interval = function() return state.gcd.execute end,
-        value = function() 
-            if not state.talent.shadow_focus.enabled then return 0 end
-            if not state.stealthed.all then return 0 end
-            return 5 -- Effective energy gain from reduced costs
-        end,
-    },
-    
-    -- Preparation: Instantly restores energy
-    preparation = {
-        aura = "preparation",
-        last = function() return state.preparation_energy or 0 end,
-        interval = 180, -- Cooldown based
-        value = function() 
-            if not state.talent.preparation.enabled then return 0 end
-            return 100 -- Full energy restoration
-        end,
-    },
-    
-    -- Energetic Recovery: Energy over time after finishers
-    energetic_recovery = {
-        aura = "energetic_recovery",
-        last = function() return state.energetic_recovery_energy or 0 end,
-        interval = 1,
-        value = function() 
-            if not state.talent.energetic_recovery.enabled then return 0 end
-            if not state.buff.energetic_recovery.up then return 0 end
-            return 8 -- Energy per second during recovery
-        end,
-    },
-}, {
-    -- Base energy regeneration with bonuses
-    base_regen = function() 
-        local base = 10
-        
-        -- Vitality bonus
-        if state.buff.vitality.up then
-            base = base * 1.25
-        end
-        
-        -- Shadow Focus reduces effective costs (simulated as increased regen)
-        if state.talent.shadow_focus.enabled and state.stealthed.all then
-            base = base * 1.75 -- 75% cost reduction = 175% effective regen
-        end
-        
-        return base
-    end,
+spec:RegisterResource( Enum.PowerType.Energy, {
+  shadow_techniques = {
+    last = function () return state.query_time end,
+    interval = function () return state.time_to_sht[5] end,
+    value = 7,
+    stop = function () return state.time_to_sht[5] == 0 or state.time_to_sht[5] == 3600 end,
+  }
 } )
 
--- Advanced Combo Points system
-spec:RegisterResource( 4, { -- ComboPoints = 4 in MoP
-    -- Honor Among Thieves: Combo points from party/raid crits
-    honor_among_thieves = {
-        aura = "honor_among_thieves",
-        last = function() return state.hat_combo_points_gained or 0 end,
-        interval = 2, -- Roughly every 2 seconds in raid
-        value = function() 
-            if not state.talent.honor_among_thieves.enabled then return 0 end
-            return 1 -- One combo point per proc
-        end,
-    },
-    
-    -- Anticipation: Store up to 10 combo points
-    anticipation = {
-        aura = "anticipation",
-        last = function() return state.anticipation_combo_points or 0 end,
-        interval = function() return state.gcd.execute end,
-        value = function() 
-            if not state.talent.anticipation.enabled then return 0 end
-            if state.combo_points.current >= 5 then
-                return min(5, state.buff.anticipation.stack or 0) -- Convert stored points
-            end
-            return 0
-        end,
-    },
-    
-    -- Vendetta: Enhanced combo point generation during Vendetta
-    vendetta = {
-        aura = "vendetta",
-        last = function() return state.vendetta_combo_points or 0 end,
-        interval = function() return state.gcd.execute * 1.5 end,
-        value = function() 
-            if not state.buff.vendetta.up then return 0 end
-            return 1 -- Bonus combo point generation
-        end,
-    },
-    
-    -- Premeditation: 2 combo points instantly
-    premeditation = {
-        aura = "premeditation",
-        last = function() return state.premeditation_combo_points or 0 end,
-        interval = 20, -- Cooldown based
-        value = function() 
-            if not state.cooldown.premeditation.ready then return 0 end
-            return 2 -- Instant combo points
-        end,
-    },
-} )
+spec:RegisterResource( Enum.PowerType.ComboPoints )
 
--- ===================
--- COMPREHENSIVE TIER SET REGISTRATION
--- ===================
-
--- Tier 13 (Dragon Soul) - ALL DIFFICULTY LEVELS
-spec:RegisterGear( "tier13", 
-    -- LFR
-    78391, 78392, 78393, 78394, 78395,
-    -- Normal
-    77024, 77025, 77026, 77027, 77028,
-    -- Heroic
-    78027, 78028, 78029, 78030, 78031
-)
-
--- Tier 14 (Mogu'shan Vaults / Heart of Fear / Terrace) - ALL DIFFICULTY LEVELS
-spec:RegisterGear( "tier14", 
-    -- LFR
-    89236, 89237, 89238, 89239, 89240,
-    -- Normal
-    85299, 85300, 85301, 85302, 85303,
-    -- Heroic
-    89041, 89042, 89043, 89044, 89045
-)
-
--- Tier 15 (Throne of Thunder) - ALL DIFFICULTY LEVELS
-spec:RegisterGear( "tier15", 
-    -- LFR
-    95824, 95825, 95826, 95827, 95828,
-    -- Normal
-    95298, 95299, 95300, 95301, 95302,
-    -- Heroic
-    96567, 96568, 96569, 96570, 96571
-)
-
--- Tier 16 (Siege of Orgrimmar) - ALL DIFFICULTY LEVELS
-spec:RegisterGear( "tier16", 
-    -- LFR
-    103321, 103322, 103323, 103324, 103325,
-    -- Normal
-    99342, 99343, 99344, 99345, 99346,
-    -- Heroic
-    104581, 104582, 104583, 104584, 104585,
-    -- Mythic (added later in patch)
-    105849, 105850, 105851, 105852, 105853
-)
-
--- ===================
--- LEGENDARY ITEMS AND NOTABLE GEAR
--- ===================
-
--- Legendary Daggers Questline (Subtlety BiS)
-spec:RegisterGear( "legendary_daggers", {
-    77946, -- Golad, Twilight of Aspects (Main Hand)
-    77948, -- Tiriosh, Nightmare of Ages (Off Hand)
-    78480, -- Fangs of the Father (Set bonus)
-} )
-
--- Notable MoP Legendary Items
-spec:RegisterGear( "legendary_cloak", {
-    102246, -- Qian-Ying, Fortitude of Niuzao (Tank)
-    102247, -- Qian-Le, Courage of Niuzao (DPS)
-    102248, -- Fen-Yu, Fury of Xuen (DPS Alternative)
-} )
-
--- PvP Sets
-spec:RegisterGear( "gladiator_s12", 84430, 84431, 84432, 84433, 84434 ) -- Malevolent
-spec:RegisterGear( "gladiator_s13", 91672, 91673, 91674, 91675, 91676 ) -- Tyrannical  
-spec:RegisterGear( "gladiator_s14", 98758, 98759, 98760, 98761, 98762 ) -- Grievous
-
--- Challenge Mode Sets
-spec:RegisterGear( "challenge_mode", 90713, 90714, 90715, 90716, 90717 )
-
--- ===================
--- TIER SET BONUSES AND ASSOCIATED AURAS
--- ===================
-
--- T13 Set Bonuses
-spec:RegisterAura( "subtlety_t13_2pc", {
-    id = 105849, -- 2pc bonus ID
-    duration = 3600,
-} )
-
-spec:RegisterAura( "subtlety_t13_4pc", {
-    id = 105850, -- 4pc bonus ID  
-    duration = 3600,
-} )
-
--- T14 Set Bonuses
-spec:RegisterAura( "subtlety_t14_2pc", {
-    id = 123125, -- Shadow Clone chance increase
-    duration = 3600,
-} )
-
-spec:RegisterAura( "subtlety_t14_4pc", {
-    id = 123126, -- Find Weakness duration increase
-    duration = 3600,
-} )
-
--- T15 Set Bonuses
-spec:RegisterAura( "subtlety_t15_2pc", {
-    id = 138150, -- Hemorrhage crit chance increase
-    duration = 3600,
-} )
-
-spec:RegisterAura( "subtlety_t15_4pc", {
-    id = 138151, -- Shadow Dance energy cost reduction
-    duration = 3600,
-} )
-
--- T16 Set Bonuses  
-spec:RegisterAura( "subtlety_t16_2pc", {
-    id = 145193, -- Shadow Clone damage increase
-    duration = 3600,
-} )
-
-spec:RegisterAura( "subtlety_t16_4pc", {
-    id = 145194, -- Backstab and Ambush chance for extra combo point
-    duration = 3600,
-} )
-
--- Talents (MoP 6-tier talent system)
+-- Talents
 spec:RegisterTalents( {
-    -- Tier 1 (Level 15) - Stealth/Opener
-    nightstalker               = { 4908, 1, 14062  }, -- Damage increased by 50% while stealthed
-    subterfuge                 = { 4909, 1, 108208 }, -- Abilities usable for 3 sec after breaking stealth
-    shadow_focus               = { 4910, 1, 108209 }, -- Abilities cost 75% less energy while stealthed
-    
-    -- Tier 2 (Level 30) - Ranged/Utility
-    deadly_throw               = { 4911, 1, 26679  }, -- Throws knife to interrupt and slow
-    nerve_strike               = { 4912, 1, 108210 }, -- Reduces healing by 50% for 10 sec
-    combat_readiness           = { 4913, 1, 74001  }, -- Stacks reduce damage taken
-    
-    -- Tier 3 (Level 45) - Survivability
-    cheat_death                = { 4914, 1, 31230  }, -- Fatal damage instead leaves you at 7% health
-    leeching_poison            = { 4915, 1, 108211 }, -- Poisons heal you for 10% of damage dealt
-    elusiveness                = { 4916, 1, 79008  }, -- Feint and Cloak reduce damage by additional 30%
-    
-    -- Tier 4 (Level 60) - Mobility
-    preparation                = { 4917, 1, 14185  }, -- Resets cooldowns of finishing moves
-    shadowstep                 = { 4918, 1, 36554  }, -- Teleport behind target
-    burst_of_speed             = { 4919, 1, 108212 }, -- Sprint that breaks movement impairing effects
-    
-    -- Tier 5 (Level 75) - Crowd Control
-    prey_on_the_weak           = { 4920, 1, 51685  }, -- +20% damage to movement impaired targets
-    paralytic_poison           = { 4921, 1, 108215 }, -- Poisons apply stacking slow and eventual stun
-    dirty_tricks               = { 4922, 1, 108216 }, -- Blind and Gouge no longer break on damage
-      -- Tier 6 (Level 90) - Ultimate
-    shuriken_toss              = { 4923, 1, 114014 }, -- Ranged attack that generates combo points
-    marked_for_death           = { 4924, 1, 137619 }, -- Target gains 5 combo points
-    anticipation               = { 4925, 1, 115189 }  -- Store up to 10 combo points
+  -- Tier 1
+  nightstalker          = { 1181, 14062, 1 }, -- While Stealth or Vanish is active, your abilities deal 25% more damage.
+  subterfuge            = { 1182, 108208, 1 }, -- Your abilities requiring Stealth can still be used for 3 sec after Stealth breaks.
+  shadow_focus          = { 1183, 108209, 1 }, -- Abilities used while in Stealth cost 75% less energy.
+  
+  -- Tier 2
+  deadly_throw          = { 1184, 26679, 1 }, -- Finishing move that throws a deadly blade at the target, dealing damage and reducing movement speed by 70% for 6 sec. 1 point: 12 damage 2 points: 24 damage 3 points: 36 damage 4 points: 48 damage 5 points: 60 damage
+  nerve_strike          = { 1185, 108210, 1 }, -- Kidney Shot and Cheap Shot also reduce the damage dealt by the target by 50% for 6 sec after the effect ends.
+  combat_readiness      = { 1186, 74001, 1 }, -- Reduces all damage taken by 50% for 10 sec. Each time you are struck while Combat Readiness is active, the damage reduction decreases by 10%.
+  
+  -- Tier 3
+  cheat_death           = { 1187, 31230, 1 }, -- Fatal attacks instead bring you to 10% of your maximum health. For 3 sec afterward, you take 90% reduced damage. Cannot occur more than once per 90 sec.
+  leeching_poison       = { 1188, 108211, 1 }, -- Your Deadly Poison also causes your Poison abilities to heal you for 10% of the damage they deal.
+  elusiveness           = { 1189, 79008, 1 }, -- Feint also reduces all damage you take by 30% for 5 sec.
+  
+  -- Tier 4
+  prep                  = { 1190, 14185, 1 }, -- When activated, the cooldown on your Vanish, Sprint, and Shadowstep abilities are reset.
+  shadowstep            = { 1191, 36554, 1 }, -- Step through the shadows to appear behind your target and gain 70% increased movement speed for 2 sec. Cooldown reset by Preparation.
+  burst_of_speed        = { 1192, 108212, 1 }, -- Increases your movement speed by 70% for 4 sec. Usable while stealthed. Removes all snare and root effects.
+  
+  -- Tier 5
+  prey_on_the_weak      = { 1193, 51685, 1 }, -- Targets you disable with Cheap Shot, Kidney Shot, Sap, or Gouge take 10% additional damage for 6 sec.
+  paralytic_poison      = { 1194, 108215, 1 }, -- Your Crippling Poison has a 4% chance to paralyze the target for 4 sec. Only one poison per weapon.
+  dirty_tricks          = { 1195, 108216, 1 }, -- Cheap Shot, Gouge, and Blind no longer cost energy.
+  
+  -- Tier 6
+  shuriken_toss         = { 1196, 114014, 1 }, -- Throws a shuriken at an enemy target, dealing 400% weapon damage (based on weapon damage) as Physical damage. Awards 1 combo point.
+  versatility           = { 1197, 108214, 1 }, -- You can apply both Wound Poison and Deadly Poison to your weapons.
+  anticipation          = { 1198, 114015, 1 }, -- You can build combo points beyond the normal 5. Combo points generated beyond 5 are stored (up to 5) and applied when your combo points reset to 0.
+  
+  -- Subtlety Specific Talents (1-45 talents)
+  master_of_subtlety    = { 243, 31223, 3 }, -- Attacks made while stealthed and for 6 sec after breaking stealth do 10/20/30% additional damage.
+  opportunity           = { 244, 1477, 3 }, -- Increases the damage dealt by your Backstab, Ambush, Garrote, and Eviscerate by 10/20/30%.
+  initiative            = { 245, 13979, 2 }, -- Your Ambush, Garrote, and Cheap Shot abilities generate 1/2 additional combo point.
+  
+  -- 46-60 talents
+  improved_ambush       = { 246, 14079, 2 }, -- Increases the critical strike chance of your Ambush ability by 25/50%.
+  heightened_senses     = { 247, 30895, 1 }, -- Increases your Stealth detection and reduces the chance you are hit by spells and ranged attacks by 2%.
+  premeditation         = { 248, 14183, 1 }, -- When you Ambush, you generate 2 additional combo points that can only be used on Eviscerate, Slice and Dice, or Rupture. These combo points cannot be used on other finishing moves. Lasts 20 sec.
+  
+  -- 61-75 talents
+  hemorrhage           = { 249, 16511, 1 }, -- An instant strike that damages the target and causes the target to hemorrhage, dealing additional damage over time. Each strike of the Rogue's weapons has a chance to expose a flaw in their target's defenses, causing all attacks against the target to bypass 35% of that target's armor for 10 sec. Awards 1 combo point.
+  honor_among_thieves  = { 250, 51701, 3 }, -- When anyone in your group critically hits with a spell or ability, you have a 33/66/100% chance to gain a combo point on your current target. This effect cannot occur more than once every 2 sec.
+  waylay               = { 251, 51692, 2 }, -- Your Ambush and Backstab critical hits have a 50/100% chance to reduce the target's movement speed by 70% for 8 sec.
+  
+  -- 76-90 talents
+  sanguinary_vein      = { 252, 79147, 2 }, -- Increases damage caused against targets with bleed effects by 8/16%.
+  energetic_recovery   = { 253, 79152, 2 }, -- Your Slice and Dice ability also increases your Energy regeneration rate by 5/10%.
+  find_weakness        = { 254, 91023, 2 }, -- Your Ambush, Garrote, and Cheap Shot abilities bypass 35/70% of your target's armor for 10 sec.
+  
+  -- 91+ talents
+  slaughter_from_shadows = { 255, 51708, 3 }, -- Reduces the energy cost of your Ambush by 5/10/15, Backstab by 4/8/12, and Hemorrhage by 3/6/9.
+  serrated_blades        = { 256, 14171, 2 }, -- Your attacks that apply your Deadly Poison also have a 10/20% chance to extend the duration of Rupture on the target by 2 sec.
+  shadow_dance            = { 257, 51713, 1 }, -- Allows use of abilities that require Stealth for 8 sec, and increases damage by 20%. Does not break Stealth if already active.
 } )
 
--- ===================
--- COMPREHENSIVE GLYPH SYSTEM (40+ Glyphs)
--- ===================
-
-spec:RegisterGlyphs( {
-    -- ===================
-    -- MAJOR GLYPHS (Core Functionality Changes)
-    -- ===================
-    
-    -- Stealth and Opener Glyphs
-    [56813] = "ambush",                -- Ambush critical strikes generate 2 additional combo points
-    [63253] = "shadow_dance",          -- Increases Shadow Dance duration by 2 seconds  
-    [89758] = "vanish",                -- When you Vanish, your threat is reduced on all enemies
-    [56798] = "sap",                   -- Increases Sap duration by 20 seconds
-    [58039] = "blurred_speed",         -- Sprint can be used while stealthed but reduces duration by 5 sec
-    [56811] = "sprint",                -- Increases Sprint duration by 1 second
-    
-    -- Positional and Combat Glyphs
-    [56800] = "backstab",              -- Backstab deals 20% additional damage when used on stunned targets
-    [56807] = "hemorrhage",            -- Hemorrhage deals 40% additional damage
-    [56819] = "preparation",           -- Adds Dismantle, Kick, and Smoke Bomb to abilities reset by Preparation
-    [56820] = "crippling_poison",      -- Crippling Poison reduces movement speed by additional 20%
-    [56812] = "garrote",               -- Garrote silences the target for 3 seconds
-    
-    -- Finishing Move Glyphs  
-    [56802] = "eviscerate",            -- Eviscerate critical strikes have 50% chance to refund 1 combo point
-    [56801] = "rupture",               -- Rupture ability no longer has range limitation
-    [56810] = "slice_and_dice",        -- Slice and Dice costs no energy
-    [56803] = "expose_armor",          -- Expose Armor lasts 24 seconds longer
-    
-    -- Defensive and Utility Glyphs
-    [56804] = "feint",                 -- Increases Feint duration by 2 seconds
-    [56799] = "evasion",               -- Increases Evasion duration by 5 seconds
-    [63269] = "cloak_of_shadows",      -- Cloak of Shadows removes harmful magic effects when used
-    [56809] = "gouge",                 -- Reduces energy cost of Gouge by 25
-    [56805] = "kick",                  -- Reduces cooldown of Kick by 2 seconds
-    
-    -- Poison Glyphs
-    [58038] = "poisons",               -- Weapon enchantments no longer have time restriction
-    [91299] = "blind",                 -- Removes damage over time effects from Blind target
-    [58032] = "distract",              -- Reduces cooldown of Distract by 10 seconds
-    [56806] = "deadly_throw",          -- Deadly Throw interrupts spellcasting for 3 seconds
-    
-    -- AoE and Multi-target Glyphs
-    [63254] = "fan_of_knives",         -- Increases range of Fan of Knives by 5 yards
-    [63256] = "tricks_of_the_trade",   -- Tricks of the Trade lasts additional 4 seconds
-    
-    -- Utility and Quality of Life Glyphs
-    [58027] = "pick_lock",             -- Pick Lock no longer requires Thieves' Tools
-    [58017] = "pick_pocket",           -- Allows Pick Pocket to be used in combat
-    [58033] = "safe_fall",             -- Reduces falling damage by 30%
-    
-    -- ===================
-    -- MINOR GLYPHS (Cosmetic and Convenience)
-    -- ===================
-    
-    -- Utility Minor Glyphs
-    [63415] = "blinding_powder",       -- Blind no longer requires reagent
-    [57115] = "detection",             -- Increases stealth detection range
-    [57114] = "distract",              -- Increases Distract range by 5 yards
-    [57112] = "pick_pocket",           -- Increases Pick Pocket range by 5 yards
-    [57116] = "poisons",               -- 50% chance to apply poison to other weapon
-    [57113] = "safe_fall",             -- Reduces falling damage by 30%
-    [57117] = "vanish",                -- Reduces Vanish cooldown by 30 seconds
-    [57118] = "tricks_of_the_trade",   -- Tricks grants 10% movement speed for 6 sec
-    
-    -- Cosmetic Minor Glyphs
-    [58037] = "hemorrhaging_veins",    -- Hemorrhage trails blood on floor
-    [92579] = "shadow_dance",          -- Shadow Dance has unique visual effect
-    [94657] = "stealth",               -- Enhanced stealth visual effects
-    
-    -- ===================
-    -- MOP-SPECIFIC GLYPHS
-    -- ===================
-    
-    -- New MoP Major Glyphs
-    [108214] = "shadow_clone",         -- Shadow Clone duration increased by 2 seconds
-    [108213] = "shadow_step",          -- Shadow Step range increased by 5 yards
-    [115189] = "anticipation",         -- Anticipation stores 1 additional combo point
-    [108212] = "burst_of_speed",       -- Burst of Speed removes all movement impairing effects
-    [108211] = "leeching_poison",      -- Leeching Poison heals for 15% more
-    [108215] = "paralytic_poison",     -- Paralytic Poison slows by additional 10%
-    
-    -- Advanced Subtlety Glyphs
-    [114015] = "shuriken_toss",        -- Shuriken Toss generates combo points at max range
-    [137619] = "marked_for_death",     -- Marked for Death has 50% shorter cooldown if target dies
-    [76577]  = "shadowmeld",           -- Shadowmeld can be used in combat (Night Elf racial)
-      -- PvP-Focused Glyphs
-    [91023] = "cheap_shot",            -- Cheap Shot has 10 yard range
-    [89775] = "redirect",              -- Redirect no longer has cooldown
-    [94023] = "smoke_bomb",            -- Smoke Bomb lasts 2 seconds longer
-    [63420] = "expose_armor",          -- Expose Armor affects up to 3 nearby enemies
+-- PvP Talents
+spec:RegisterPvpTalents( {
+  smoke_bomb           = 1209, -- (359053) Creates a cloud of thick smoke in an 8 yard radius around the Rogue for 5 sec. Enemies are unable to target into or out of the smoke cloud.
 } )
 
--- ===================
--- ADVANCED ACTION PRIORITY LIST REGISTRATION
--- ===================
+-- Auras
+spec:RegisterAuras( {
+  -- Abilities
+  blind = {
+    id = 2094,
+    duration = 60,
+    max_stack = 1
+  },
+  combat_readiness = {
+    id = 74001,
+    duration = 10,
+    max_stack = 5
+  },
+  evasion = {
+    id = 5277,
+    duration = 10,
+    max_stack = 1
+  },
+  feint = {
+    id = 1966,
+    duration = 5,
+    max_stack = 1
+  },
+  kidney_shot = {
+    id = 408,
+    duration = function() return 5 + ( effective_combo_points > 0 and min( 6, effective_combo_points ) - 1 or 0 ) end,
+    max_stack = 1
+  },
+  preparation = {
+    id = 14185,
+    duration = 3600,
+    max_stack = 1
+  },
+  premeditation = {
+    id = 14183,
+    duration = 20,
+    max_stack = 1
+  },
+  sap = {
+    id = 6770,
+    duration = 60,
+    max_stack = 1
+  },
+  shadow_dance = {
+    id = 51713,
+    duration = 8,
+    max_stack = 1
+  },
+  shadowstep = {
+    id = 36563,
+    duration = 2,
+    max_stack = 1
+  },
+  slice_and_dice = {
+    id = 5171,
+    duration = function() return 12 + ( 6 * min( 5, effective_combo_points ) ) end,
+    max_stack = 1
+  },
+  sprint = {
+    id = 2983,
+    duration = 8,
+    max_stack = 1
+  },
+  stealth = {
+    id = 1784,
+    duration = 3600,
+    max_stack = 1
+  },
+  vanish = {
+    id = 11327,
+    duration = 10,
+    max_stack = 1
+  },
+  
+  -- Bleeds/Poisons
+  garrote = {
+    id = 703,
+    duration = 18,
+    max_stack = 1
+  },
+  rupture = {
+    id = 1943,
+    duration = function() return 8 + ( 4 * min( 5, effective_combo_points ) ) end,
+    max_stack = 1
+  },
+  deadly_poison = {
+    id = 2818,
+    duration = 12,
+    max_stack = 5
+  },
+  crippling_poison = {
+    id = 3409,
+    duration = 12,
+    max_stack = 1
+  },
+  mind_numbing_poison = {
+    id = 5760,
+    duration = 10,
+    max_stack = 1
+  },
+  
+  -- Talents
+  master_of_subtlety = {
+    id = 31665,
+    duration = 6,
+    max_stack = 1
+  },
+  find_weakness = {
+    id = 91021,
+    duration = 10,
+    max_stack = 1
+  },
+  honor_among_thieves = {
+    id = 51701,
+    duration = 2,
+    max_stack = 1
+  },
+  subterfuge = {
+    id = 115192,
+    duration = 3,
+    max_stack = 1
+  },
+  anticipation = {
+    id = 115189,
+    duration = 3600,
+    max_stack = 5
+  },
+} )
 
-spec:RegisterAPL( "subtlety", 20250530, {
-    name = "Subtlety (Enhanced MoP Implementation)",
-    desc = "Advanced Subtlety Rogue rotation with sophisticated decision-making for MoP.",
-    
-    -- Pre-combat preparation
-    precombat = {
-        -- Stealth before combat
-        { "stealth", "!stealthed.all&!in_combat" },
-        
-        -- Apply poisons
-        { "deadly_poison", "!poison.deadly.up&!poison.wound.up" },
-        { "crippling_poison", "!poison.nonlethal.up&pvp" },
-        
-        -- Premeditation if talented
-        { "premeditation", "talent.premeditation.enabled&combo_points<=2" },
-        
-        -- Shadow Focus if moving into combat
-        { "shadow_focus", "talent.shadow_focus.enabled&in_stealth&energy<40" },
-    },
-    
-    -- Main combat rotation
-    combat = {
-        -- === EMERGENCY ACTIONS ===
-        -- Cloak of Shadows for magic damage
-        { "cloak_of_shadows", 
-          "health.pct<=35&debuff.magic.up&!buff.cloak_of_shadows.up" },
-        
-        -- Evasion for physical damage
-        { "evasion", 
-          "health.pct<=40&incoming_damage_5s>health.max*0.3&!buff.evasion.up" },
-        
-        -- Feint for AoE damage reduction
-        { "feint", 
-          "incoming_damage_3s>health.max*0.25&energy>=20&!buff.feint.up" },
-        
-        -- === STEALTH MANAGEMENT ===
-        -- Shadow Dance usage for burst windows
-        { "shadow_dance", 
-          "energy>=75&!buff.stealthed.all&!buff.shadow_blades.up&" ..
-          "buff.slice_and_dice.up&(" ..
-          "cooldown.cold_blood.ready|cooldown.cold_blood.remains>20" ..
-          ")&toggle.cooldowns" },
-        
-        -- Vanish for repositioning and burst
-        { "vanish", 
-          "time>15&energy>=60&combo_points<=2&!buff.stealthed.all&" ..
-          "cooldown.shadow_dance.remains>15&target.time_to_die>25&toggle.cooldowns" },
-        
-        -- === STEALTH ABILITIES ===
-        -- Garrote application from stealth
-        { "garrote", 
-          "stealthed.all&!dot.garrote.ticking&target.time_to_die>12" },
-        
-        -- Ambush from stealth
-        { "ambush", 
-          "stealthed.all&combo_points<5&energy>=40&" ..
-          "(buff.find_weakness.down|buff.find_weakness.remains<3)" },
-        
-        -- Cheap Shot for control
-        { "cheap_shot", 
-          "stealthed.all&combo_points<5&target.time_to_die>6&" ..
-          "!dot.garrote.ticking&target.debuff.stun.down" },
-        
-        -- === MAJOR COOLDOWNS ===
-        -- Shadow Blades for sustained DPS
-        { "shadow_blades", 
-          "buff.bloodlust.react|target.time_to_die<40|" ..
-          "(buff.shadow_dance.up&combo_points>=3)|" ..
-          "cooldown.shadow_dance.remains>45&toggle.cooldowns" },
-        
-        -- Cold Blood for finishing moves
-        { "cold_blood", 
-          "combo_points>=4&buff.slice_and_dice.up&" ..
-          "(buff.shadow_dance.up|buff.find_weakness.up)&toggle.cooldowns" },
-        
-        -- Preparation for cooldown reset
-        { "preparation", 
-          "cooldown.vanish.remains>60&cooldown.shadow_dance.remains>40&" ..
-          "energy<30&toggle.cooldowns" },
-        
-        -- === FINISHING MOVES ===
-        -- Slice and Dice maintenance (highest priority)
-        { "slice_and_dice", 
-          "combo_points>=2&(" ..
-          "!buff.slice_and_dice.up|" ..
-          "buff.slice_and_dice.remains<=6" ..
-          ")&target.time_to_die>8" },
-        
-        -- Rupture application and refresh
-        { "rupture", 
-          "combo_points>=4&(" ..
-          "!dot.rupture.ticking|" ..
-          "dot.rupture.remains<=4" ..
-          ")&target.time_to_die>12&buff.slice_and_dice.up" },
-        
-        -- Execute phase Eviscerate
-        { "eviscerate", 
-          "combo_points>=3&target.health.pct<20&buff.slice_and_dice.up" },
-        
-        -- Burst window Eviscerate
-        { "eviscerate", 
-          "combo_points>=5&buff.slice_and_dice.up&" ..
-          "(buff.shadow_dance.up|buff.find_weakness.up|buff.shadow_blades.up)" },
-        
-        -- Standard Eviscerate
-        { "eviscerate", 
-          "combo_points>=5&buff.slice_and_dice.up&" ..
-          "(dot.rupture.up|target.time_to_die<8)" },
-        
-        -- Emergency healing
-        { "recuperate", 
-          "health.pct<50&combo_points>=1&energy<50&!buff.recuperate.up" },
-        
-        -- === COMBO POINT GENERATORS ===
-        -- Hemorrhage for debuff and behind positioning
-        { "hemorrhage", 
-          "combo_points<5&(" ..
-          "!dot.hemorrhage.ticking|" ..
-          "dot.hemorrhage.remains<4" ..
-          ")&target.time_to_die>8" },
-        
-        -- Backstab from behind
-        { "backstab", 
-          "position.behind&combo_points<5&energy>=40&" ..
-          "(!dot.hemorrhage.ticking|dot.hemorrhage.remains>4)" },
-        
-        -- Hemorrhage when not behind
-        { "hemorrhage", 
-          "combo_points<5&!position.behind&energy>=30" },
-        
-        -- Ghostly Strike if talented
-        { "ghostly_strike", 
-          "talent.ghostly_strike.enabled&combo_points<5&energy>=40" },
-        
-        -- Shuriken Toss for ranged combat
-        { "shuriken_toss", 
-          "talent.shuriken_toss.enabled&combo_points<5&" ..
-          "energy<30&target.distance>8" },
-        
-        -- === UTILITY ABILITIES ===
-        -- Shadowstep for positioning
-        { "shadowstep", 
-          "talent.shadowstep.enabled&target.distance>=12&" ..
-          "!position.behind&cooldown.shadowstep.ready" },
-        
-        -- Burst of Speed for mobility
-        { "burst_of_speed", 
-          "talent.burst_of_speed.enabled&movement.distance>20&" ..
-          "!buff.burst_of_speed.up" },
-        
-        -- === RESOURCE MANAGEMENT ===
-        -- Wait for energy when needed
-        { "wait", 
-          "energy<40&combo_points<4&cooldown.shadow_dance.remains>10", 
-          "sec=0.1" },
-        
-        -- Auto attack when all else fails
-        { "auto_attack", "true" },
-    },
-    
-    -- AoE rotation for multiple targets
-    aoe = {
-        -- Crimson Tempest for AoE DoT
-        { "crimson_tempest", 
-          "combo_points>=4&spell_targets.fan_of_knives>=4&" ..
-          "(!dot.crimson_tempest.ticking|dot.crimson_tempest.remains<4)" },
-        
-        -- Slice and Dice for AoE
-        { "slice_and_dice", 
-          "combo_points>=2&(!buff.slice_and_dice.up|" ..
-          "buff.slice_and_dice.remains<8)&spell_targets.fan_of_knives>=3" },
-        
-        -- Fan of Knives for combo points
-        { "fan_of_knives", 
-          "combo_points<5&spell_targets.fan_of_knives>=3&energy>=35" },
-        
-        -- Garrote on priority targets
-        { "garrote", 
-          "stealthed.all&!dot.garrote.ticking&spell_targets.fan_of_knives<=4" },
-        
-        -- Standard finisher
-        { "eviscerate", "combo_points>=5&buff.slice_and_dice.up" },
-        
-        -- Fallback generator
-        { "hemorrhage", "combo_points<5&energy>=30" },
-    },
-    
-    -- Cleave rotation for 2-3 targets  
-    cleave = {
-        -- DoT management on primary target
-        { "rupture", 
-          "combo_points>=4&!dot.rupture.ticking&target.time_to_die>12" },
-        
-        { "garrote", 
-          "stealthed.all&!dot.garrote.ticking&target.time_to_die>12" },
-        
-        -- Slice and Dice maintenance
-        { "slice_and_dice", 
-          "combo_points>=2&(!buff.slice_and_dice.up|" ..
-          "buff.slice_and_dice.remains<6)" },
-        
-        -- Primary combo generators
-        { "hemorrhage", "combo_points<5&energy>=30" },
-        { "backstab", "position.behind&combo_points<5&energy>=40" },
-        
-        -- Finishers
-        { "eviscerate", "combo_points>=5&buff.slice_and_dice.up" },
-    },
-}, {
-    -- Advanced parameters for sophisticated execution
-    energy_pooling_enabled = true,
-    stealth_optimization = true,
-    burst_window_detection = true,
-    positional_awareness = true,
-    threat_management = true,
-})
+local true_stealth_change, emu_stealth_change = 0, 0
+local last_mh, last_oh, last_shadow_techniques, swings_since_sht, sht = 0, 0, 0, 0, {} -- Shadow Techniques
 
--- Register opener-specific APL
-spec:RegisterAPL( "subtlety_opener", 20250530, {
-    name = "Subtlety Opener",
-    desc = "Optimized opener sequence for Subtlety Rogue",
-    
-    combat = {
-        -- Stealth opener sequence
-        { "stealth", "!stealthed.all&!in_combat" },
-        { "premeditation", 
-          "stealthed.all&talent.premeditation.enabled&combo_points<=2" },
-        { "garrote", 
-          "stealthed.all&!dot.garrote.ticking&target.time_to_die>12" },
-        { "ambush", "stealthed.all&combo_points<5&energy>=40" },
-        { "slice_and_dice", "combo_points>=2&!buff.slice_and_dice.up" },
-        { "rupture", 
-          "combo_points>=4&!dot.rupture.ticking&buff.slice_and_dice.up" },
-    },
-})
+spec:RegisterEvent( "UPDATE_STEALTH", function ()
+  true_stealth_change = GetTime()
+end )
 
--- Register execute-specific APL
-spec:RegisterAPL( "subtlety_execute", 20250530, {
-    name = "Subtlety Execute",
-    desc = "Execute phase optimization for Subtlety Rogue",
-    
-    combat = {
-        -- Execute priority (target below 20% health)
-        { "eviscerate", "combo_points>=3&target.health.pct<20" },
-        { "eviscerate", 
-          "combo_points>=4&target.health.pct<35&" ..
-          "(buff.find_weakness.up|dot.rupture.up)" },
-        { "rupture", 
-          "combo_points>=4&!dot.rupture.ticking&" ..
-          "target.health.pct<50&target.time_to_die>8" },
-        { "hemorrhage", "combo_points<5&energy>=30" },
-        { "backstab", "position.behind&combo_points<5&energy>=40" },
-    },
-})
+spec:RegisterStateExpr( "cp_max_spend", function ()
+  return 5
+end )
 
--- Register context-aware APL selection
-spec:RegisterAPLCondition( "opener", "combat.time<=10" )
-spec:RegisterAPLCondition( "execute", "target.health.pct<=20" )
-spec:RegisterAPLCondition( "aoe", "active_enemies>=4" )
-spec:RegisterAPLCondition( "cleave", "active_enemies>=2&active_enemies<=3" )
-spec:RegisterAPLCondition( "single_target", "active_enemies=1" )
+spec:RegisterStateExpr( "effective_combo_points", function ()
+  local c = combo_points.current or 0
+  return c
+end )
+
+-- Abilities
+spec:RegisterAbilities( {
+  -- Stab the target, causing 632 Physical damage. Damage increased by 20% when you are behind your target. Awards 1 combo point.
+  backstab = {
+    id = 53,
+    cast = 0,
+    cooldown = 0,
+    gcd = "totem",
+    school = "physical",
+
+    spend = function () return 60 * ( ( talent.shadow_focus.enabled and ( buff.stealth.up ) ) and 0.25 or 1 ) * ( talent.slaughter_from_shadows.enabled and (1 - 0.04 * talent.slaughter_from_shadows.rank) or 1 ) end,
+    spendType = "energy",
+
+    startsCombat = true,
+
+    handler = function ()
+      gain( 1, "combo_points" )
+    end
+  },
+
+  -- Finishing move that disembowels the target, causing damage per combo point. 1 point : 273 damage 2 points: 546 damage 3 points: 818 damage 4 points: 1,091 damage 5 points: 1,363 damage
+  eviscerate = {
+    id = 2098,
+    cast = 0,
+    cooldown = 0,
+    gcd = "totem",
+    school = "physical",
+
+    spend = function () return 35 * ( ( talent.shadow_focus.enabled and ( buff.stealth.up ) ) and 0.25 or 1 ) end,
+    spendType = "energy",
+
+    startsCombat = true,
+    usable = function () return combo_points.current > 0, "requires combo points" end,
+
+    handler = function ()
+      if buff.slice_and_dice.up then
+        buff.slice_and_dice.expires = buff.slice_and_dice.expires + effective_combo_points * 3
+      end
+      
+      spend( combo_points.current, "combo_points" )
+    end
+  },
+
+  -- An instant strike that damages the target and causes the target to hemorrhage, dealing additional damage over time. Awards 1 combo point.
+  hemorrhage = {
+    id = 16511,
+    cast = 0,
+    cooldown = 0,
+    gcd = "totem",
+    school = "physical",
+
+    spend = function () return 35 * ( ( talent.shadow_focus.enabled and ( buff.stealth.up ) ) and 0.25 or 1 ) * ( talent.slaughter_from_shadows.enabled and (1 - 0.03 * talent.slaughter_from_shadows.rank) or 1 ) end,
+    spendType = "energy",
+
+    talent = "hemorrhage",
+    startsCombat = true,
+
+    handler = function ()
+      gain( 1, "combo_points" )
+      applyDebuff( "target", "hemorrhage", 24 )
+    end
+  },
+
+  -- Finishing move that tears open the target, dealing damage over time. Lasts longer per combo point. 1 point : 8 sec 2 points: 12 sec 3 points: 16 sec 4 points: 20 sec 5 points: 24 sec
+  rupture = {
+    id = 1943,
+    cast = 0,
+    cooldown = 0,
+    gcd = "totem",
+    school = "physical",
+
+    spend = function () return 25 * ( ( talent.shadow_focus.enabled and ( buff.stealth.up ) ) and 0.25 or 1 ) end,
+    spendType = "energy",
+
+    startsCombat = true,
+    usable = function () return combo_points.current > 0, "requires combo points" end,
+
+    handler = function ()
+      applyDebuff( "target", "rupture", 8 + (4 * effective_combo_points) )
+      spend( combo_points.current, "combo_points" )
+    end
+  },
+
+  -- Finishing move that cuts your target, dealing instant damage and increasing your attack speed by 40%. Lasts longer per combo point. 1 point : 12 sec 2 points: 18 sec 3 points: 24 sec 4 points: 30 sec 5 points: 36 sec
+  slice_and_dice = {
+    id = 5171,
+    cast = 0,
+    cooldown = 0,
+    gcd = "totem",
+    school = "physical",
+
+    spend = function () return 25 * ( ( talent.shadow_focus.enabled and ( buff.stealth.up ) ) and 0.25 or 1 ) end,
+    spendType = "energy",
+
+    startsCombat = false,
+    usable = function () return combo_points.current > 0, "requires combo points" end,
+
+    handler = function ()
+      applyBuff( "slice_and_dice", 12 + (6 * effective_combo_points) )
+      spend( combo_points.current, "combo_points" )
+    end
+  },
+
+  -- Ambush the target, causing 275% weapon damage plus 348. Must be stealthed. Awards 2 combo points.
+  ambush = {
+    id = 8676,
+    cast = 0,
+    cooldown = 0,
+    gcd = "totem",
+    school = "physical",
+
+    spend = function () return 60 * ( ( talent.shadow_focus.enabled and ( buff.stealth.up ) ) and 0.25 or 1 ) * ( talent.slaughter_from_shadows.enabled and (1 - 0.05 * talent.slaughter_from_shadows.rank) or 1 ) end,
+    spendType = "energy",
+
+    startsCombat = true,
+    usable = function () return stealthed.all, "requires stealth" end,
+
+    handler = function ()
+      gain( 2 + ( talent.initiative.enabled and talent.initiative.rank or 0 ), "combo_points" )
+      
+      if talent.find_weakness.enabled then
+        applyDebuff( "target", "find_weakness" )
+      end
+      
+      if talent.premeditation.enabled then
+        applyBuff( "premeditation", 20 )
+      end
+    end
+  },
+
+  -- Talent: Allows use of abilities that require Stealth for 8 sec, and increases damage by 20%. Does not break Stealth if already active.
+  shadow_dance = {
+    id = 51713,
+    cast = 0,
+    cooldown = 60,
+    gcd = "off",
+
+    talent = "shadow_dance",
+    startsCombat = false,
+
+    toggle = "cooldowns",
+
+    handler = function ()
+      applyBuff( "shadow_dance" )
+    end
+  },
+
+  -- Talent: Step through the shadows to appear behind your target and gain 70% increased movement speed for 2 sec.
+  shadowstep = {
+    id = 36554,
+    cast = 0,
+    cooldown = 24,
+    gcd = "off",
+    school = "physical",
+
+    talent = "shadowstep",
+    startsCombat = false,
+
+    handler = function ()
+      applyBuff( "shadowstep" )
+      if buff.preparation.up then removeBuff( "preparation" ) end
+    end
+  },
+
+  -- Throws a shuriken at an enemy target, dealing 400% weapon damage (based on weapon damage) as Physical damage. Awards 1 combo point.
+  shuriken_toss = {
+    id = 114014,
+    cast = 0,
+    cooldown = 0,
+    gcd = "totem",
+    school = "physical",
+
+    spend = function () return 40 * ( ( talent.shadow_focus.enabled and ( buff.stealth.up ) ) and 0.25 or 1 ) end,
+    spendType = "energy",
+
+    talent = "shuriken_toss",
+    startsCombat = true,
+
+    handler = function ()
+      gain( 1, "combo_points" )
+    end
+  },
+
+  -- Stuns the target for 4 sec. Awards 2 combo points.
+  cheap_shot = {
+    id = 1833,
+    cast = 0,
+    cooldown = 0,
+    gcd = "totem",
+    school = "physical",
+
+    spend = function ()
+      if talent.dirty_tricks.enabled then return 0 end
+      return 40 * ( ( talent.shadow_focus.enabled and ( buff.stealth.up ) ) and 0.25 or 1 )
+    end,
+    spendType = "energy",
+
+    startsCombat = true,
+    nodebuff = "cheap_shot",
+
+    usable = function ()
+      if boss then return false, "cheap_shot assumed unusable in boss fights" end
+      return stealthed.all, "not stealthed"
+    end,
+
+    handler = function ()
+      applyDebuff( "target", "cheap_shot", 4 )
+      gain( 2 + ( talent.initiative.enabled and talent.initiative.rank or 0 ), "combo_points" )
+      
+      if talent.find_weakness.enabled then
+        applyDebuff( "target", "find_weakness" )
+      end
+    end
+  },
+
+  -- Finishing move that strikes the target, causing damage. If used during Shadow Dance, Cheap Shot is also performed on the target for no energy or combo points. 1 point : 12 damage 2 points: 24 damage 3 points: 36 damage 4 points: 48 damage 5 points: 60 damage
+  deadly_throw = {
+    id = 26679,
+    cast = 0,
+    cooldown = 0,
+    gcd = "totem",
+    school = "physical",
+
+    spend = function () return 25 * ( ( talent.shadow_focus.enabled and ( buff.stealth.up ) ) and 0.25 or 1 ) end,
+    spendType = "energy",
+
+    talent = "deadly_throw",
+    startsCombat = true,
+    usable = function () return combo_points.current > 0, "requires combo points" end,
+
+    handler = function ()
+      spend( combo_points.current, "combo_points" )
+      
+      if buff.shadow_dance.up then
+        applyDebuff( "target", "cheap_shot", 4 )
+      end
+    end
+  },
+
+  -- When activated, the cooldown on your Vanish, Sprint, and Shadowstep abilities are reset.
+  preparation = {
+    id = 14185,
+    cast = 0,
+    cooldown = 300,
+    gcd = "off",
+    school = "physical",
+
+    talent = "prep",
+    startsCombat = false,
+
+    toggle = "cooldowns",
+
+    handler = function ()
+      applyBuff( "preparation" )
+      setCooldown( "vanish", 0 )
+      setCooldown( "sprint", 0 )
+      if talent.shadowstep.enabled then setCooldown( "shadowstep", 0 ) end
+    end
+  }
+} )
+
+spec:RegisterOptions( {
+  enabled = true,
+
+  aoe = 3,
+  cycle = false,
+
+  nameplates = true,
+  nameplateRange = 10,
+  rangeFilter = false,
+
+  canFunnel = true,
+  funnel = false,
+
+  damage = true,
+  damageExpiration = 6,
+
+  potion = "draenic_agility",
+
+  package = "Subtlety",
+} )
+
+spec:RegisterPack( "Subtlety", 20250406, [[Hekili:TZv3Unom4FPB4dQDKQ(ovYLlr9QKCe4rnCvzUCBkQu8zJV3xRy3o2oKf1TojBwKC0AuXCTY)NUo8dZFcvz9Pih73(zAA94b7nzJn69Gzxi9Xh3FjGFAT)gU1Y0oF7n8XW)IbcEJEw8nC5PtEJd57w4G8CkUhF99I3Mx4u(BVN6LNMwbJ)fmolp3rj)YMZYj97X67mRZO8L7o(Z88Yy)xhxEhgpN(Cl4uGOWEZlxpJVCgDjwEgCXgqG92UqV4ooFJRmGR0MpFOTU)NsZm21z94Pco2f8UdcCrlUYXZhf76QKKYZtmUvxP6nrZwB1YEMTYFGtgYYYfGQK66yIwKEK8A51dT9Ys4HsPNKDPpGZyWEJpbMwLyBU3(yPG2Ev0NVl3aAUTJCUTPZ(UGxKG5W9)DdkGOMk4u4HZ)2bGEF6OFQ04g(NdzR9jgBf)M6vZ6JoswmQUPOmk1cMnjPeUjG7s9NKOMC)mjj9KuY1)Gu(OZ9FbWQIJf(gblB(sgpXmLW0vkwW03EsKbxlEYGhVdw98rTm)gKP(LLuEBjB(0gVs)4acUd)xbxvKfTm3LsGdUkygkxqyeQa0GqhZx9)uJHrwb(gMJyWVyXJBiIdTIVOl4FeN2YZAJJyGQ30ZKBu8MYHmcI3N(WGTfNcgTl2jy2Y28YUX65CjmMBZYlPiMmYlPdZS3WKSlYE)1Nck3SL0rqLkYc87gFIdPi1o0JKE9LsyWENzOBzILEXzMnBglZZR4G30Lh4r)YjMgwJEPz4cNbS7kMqZZZIKYoXqwFJspjRnzQ8h9kRHsv68iUPsQGiokI09Wj6vePRBzZsYm2)cKprgqoqaUEVkLyvPJuDLBXb8J5OXCVZSGZyWGbcMTrg9Qai4vDrE(CcK)P4uj3wFd27Ij5bfUG9HuqZdQ6vr1sbCfaFHLu4rL8d90yJxeNVHKSbUdPPNuoZEPsV9i3YyQFHFgCsB6h9wqwUZ7bCbeBJ4EXP9eDUvdvCFimVCYAZCFZVP1(iMpYtb1UfhcQVW16y1sJJN)bOBTwTJCc4Y4bYVhOGPeIjDUfFk(x)X0Gw3lFqvbw9Q0DWl7z5kNjSCszh2MwY9E1nUZIWZU(ByEFGK1qN4vwJVGX7Z5Tz9b28mPQFUTlm(3UD)qOsGgPZW2LrLAO1S9UPFqDgPo7qVvzixAHqcDd2sSvEuQaHBvJZTr6dCkr(lQpbq)SkOBHFQpZqkNWl0(h9MsDg0KCcYKjX7EqVVA9UFAvqZ9GXIBnP9(Q5J6kkFZkBbxHzXZgF(xFMbgIHyHMM(IfnW9oVtq5UEA0iOGcuaXNyYvXUQ2TpZOcuLJxJF6GQQFHEMklHhESRvmtGsQNMIxwgbQlGXSsjE)9zQWYErbmJpqK9sQOzDnxC5bLe0Lv5MxQK7sOEiEXI6lvb3bFw7fYSyI)yiPdFjHPIlFzIc8YMSXaFb01jrFzC4(hq10yNK21yiWdL0c7wK)7YW9I9(PjnF6WVrAZ2HdgYiKSA1kXIXOlIVAl2XuUonjlPB67yqp1gXA53DWBRCJAzDsUG7cwI87dDH(HdUXaAJ9wNbI8Vir4X6QfYgYVuQsGcjEXbgw)BO9Fh9fQGvS3JqEptLFwkwjwk(XpRvPFwSAX0NRFy(VCixF9PuDZZ89V5vbRK6I83GfDXkbV35Io0qfDGMZsCg83k07X3i1T1E2LLnVNn)FbKfYyMJj8uRZs6X7r3W9lzSa)y1WgmxrPMTmFZMVz)mGCEHxvwjG(hERUxTnR2lxiKlZgb29sBwQu1x53d8Vy7OQfr(dqupD6Wvx8GVyYcmIJ(pTtqKvnR91a3HoEZj)1LFaQyqpb5nz5ZZ4VtQI9gCUY9ztTY1s9fEUkRx8X1xVljZgpG4hL0VZMEKFLSk(t3I0VlnZVLt)2nKhE4U2kn09C35EpGlfP1HNVvlnm1)KORMmRcDVb5dQRVlGOblCXt9x3z1mWVS2uynKMdW1FJKr0Fo8OXWUKIFZlk90kvjLwVlkffN)XjPo2V0uAJnmDyf8kB3DpVh2Kju09Zs2GU1sBLuOIQFvT11klkjOVkd2H8N9Og5WtlpbFFxZ)2Xf3eMLaLPAuF7O2XVEJ9m0FU4Vo4Cf6pQi4xmOWQdLh24MFoxoW6S)5TFvxWVpR2lKGlZ33uSR1bCLFzvL)UVFQL)WL5MdRxlsGH)6q9D)XaH)hCEWap8v3QWrGHdaY)Wbm4z9)]] )

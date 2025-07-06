@@ -1,18 +1,3 @@
--- DEBUG: Check Hekili state at file load
-print("DEBUG [DeathKnightBlood]: Hekili exists:", Hekili ~= nil)
-if Hekili then
-    print("DEBUG [DeathKnightBlood]: Hekili.NewSpecialization exists:", Hekili.NewSpecialization ~= nil)
-    if Hekili.NewSpecialization then
-        print("DEBUG [DeathKnightBlood]: Hekili.NewSpecialization type:", type(Hekili.NewSpecialization))
-    end
-else
-    print("DEBUG [DeathKnightBlood]: Hekili is nil, cannot check NewSpecialization")
-end
-
-if not Hekili or not Hekili.NewSpecialization then 
-    print("DEBUG [DeathKnightBlood]: EARLY RETURN - Missing Hekili or NewSpecialization")
-    return 
-end
 -- DeathKnightBlood.lua
 -- Updated June 03, 2025
 
@@ -22,6 +7,11 @@ if playerClass ~= 'DEATHKNIGHT' then return end
 
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
+
+if not Hekili or not Hekili.NewSpecialization then 
+    return 
+end
+
 local class = Hekili.Class
 local state = Hekili.State
 
@@ -31,7 +21,6 @@ local function getReferences()
 end
 
 local spec = Hekili:NewSpecialization( 250 ) -- Blood spec ID for MoP
-print("DEBUG [DeathKnightBlood]: NewSpecialization called with ID 250, result:", spec ~= nil)
 
 local strformat = string.format
 local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
