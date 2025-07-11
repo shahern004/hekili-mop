@@ -43,8 +43,10 @@ if not _G.GetSpecializationInfo then
             -- Add warrior detection as needed
             specID = 71; specName = "Arms"
         elseif class == "PALADIN" then
-            -- Add paladin detection as needed
-            specID = 70; specName = "Retribution"
+            if IsPlayerSpell(85256) then specID = 70; specName = "Retribution" -- Templar's Verdict
+            elseif IsPlayerSpell(20473) then specID = 65; specName = "Holy" -- Holy Shock
+            elseif IsPlayerSpell(31935) then specID = 66; specName = "Protection" -- Avenger's Shield
+            else specID = 70; specName = "Retribution" end -- Default to Retribution
         else
             specID = 1; specName = "Unknown"
         end

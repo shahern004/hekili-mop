@@ -16,7 +16,10 @@ local function getReferences()
     return class, state
 end
 
-local spec = Hekili:NewSpecialization( 66 ) -- Protection spec ID for MoP
+local function RegisterProtectionSpec()
+    if not Hekili or not Hekili.NewSpecialization then return end
+    local spec = Hekili:NewSpecialization( 66 )
+    if not spec then return end
 
 local strformat = string.format
 local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
@@ -83,7 +86,7 @@ spec:RegisterGlyphs( {
     [56416] = "word_of_glory",      -- Increases the effectiveness of your Word of Glory by 20% when used on yourself.
     [54935] = "battle_healer",      -- Your successful melee attacks heal a nearby injured friendly target within 30 yards for 10% of the damage done.
     [63219] = "final_wrath",        -- Avenging Wrath increases the damage of Hammer of Wrath by 50%.
-    
+
     -- Minor Glyphs
     [57954] = "dazing_shield",      -- Your Avenger's Shield now also dazes targets for 10 sec.
     [57947] = "blessed_life",       -- You have a 50% chance to generate 1 charge of Holy Power when you take damage.
@@ -99,7 +102,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 85416 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -108,14 +111,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Shield of the Righteous: Active mitigation ability
     shield_of_the_righteous = {
         id = 132403,
@@ -123,7 +126,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 132403 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -132,14 +135,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Bastion of Glory: Increases healing of Word of Glory on self
     bastion_of_glory = {
         id = 114637,
@@ -147,7 +150,7 @@ spec:RegisterAuras( {
         max_stack = 5,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 114637 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -156,14 +159,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Divine Plea: Restore mana over time, but reduce healing done
     divine_plea = {
         id = 54428,
@@ -171,7 +174,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 54428 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -180,14 +183,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Sacred Shield: Absorbs damage periodically
     sacred_shield = {
         id = 65148,
@@ -196,7 +199,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 65148 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -205,14 +208,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Holy Avenger: Holy Power abilities more effective
     holy_avenger = {
         id = 105809,
@@ -220,7 +223,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 105809 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -229,24 +232,24 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Avenging Wrath: Increased damage and healing
     avenging_wrath = {
         id = 31884,
-        duration = function() 
+        duration = function()
             return state.talent.sanctified_wrath.enabled and 25 or 20
         end,
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 31884 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -255,14 +258,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Divine Protection: Reduces damage taken
     divine_protection = {
         id = 498,
@@ -270,7 +273,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 498 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -279,14 +282,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Divine Shield: Complete immunity
     divine_shield = {
         id = 642,
@@ -294,7 +297,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 642 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -303,14 +306,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Forbearance: Cannot receive certain immunities again
     forbearance = {
         id = 25771,
@@ -318,7 +321,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "player", 25771 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -327,14 +330,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Speed of Light: Increased movement speed
     speed_of_light = {
         id = 85499,
@@ -342,7 +345,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 85499 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -351,14 +354,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Long Arm of the Law: Increased movement speed after Judgment
     long_arm_of_the_law = {
         id = 114158,
@@ -366,7 +369,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 114158 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -375,14 +378,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Pursuit of Justice: Increased movement speed from Holy Power
     pursuit_of_justice = {
         id = 26023,
@@ -395,7 +398,7 @@ spec:RegisterAuras( {
             t.caster = "player"
         end
     },
-    
+
     -- Divine Purpose: Free and enhanced Holy Power ability
     divine_purpose = {
         id = 86172,
@@ -403,7 +406,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 86172 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -412,14 +415,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Eternal Flame: HoT from talent
     eternal_flame = {
         id = 114163,
@@ -428,7 +431,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 114163, "PLAYER" )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -437,14 +440,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Guardian of Ancient Kings: Major defensive cooldown
     guardian_of_ancient_kings = {
         id = 86659,
@@ -452,7 +455,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 86659 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -461,14 +464,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Ardent Defender: Emergency defensive cooldown
     ardent_defender = {
         id = 31850,
@@ -476,7 +479,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 31850 )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -485,14 +488,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Hand of Freedom: Immunity to movement impairing effects
     hand_of_freedom = {
         id = 1044,
@@ -500,7 +503,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 1044, "PLAYER" )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -509,14 +512,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Hand of Protection: Immunity to physical damage
     hand_of_protection = {
         id = 1022,
@@ -524,7 +527,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 1022, "PLAYER" )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -533,14 +536,14 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
         end
     },
-    
+
     -- Hand of Sacrifice: Redirects damage to Paladin
     hand_of_sacrifice = {
         id = 6940,
@@ -548,7 +551,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "target", 6940, "PLAYER" )
-            
+
             if name then
                 t.name = name
                 t.count = count
@@ -557,7 +560,7 @@ spec:RegisterAuras( {
                 t.caster = caster
                 return
             end
-            
+
             t.count = 0
             t.expires = 0
             t.applied = 0
@@ -574,102 +577,102 @@ spec:RegisterAbilities( {
         cast = 0,
         cooldown = 1.5,
         gcd = "spell",
-        
-        spend = function() 
+
+        spend = function()
             if state.buff.divine_purpose.up then return 0 end
-            return 3 
+            return 3
         end,
         spendType = "holy_power",
-        
+
         startsCombat = true,
         texture = 236265,
-        
+
         handler = function()
             -- Shield of the Righteous mechanic
             if state.buff.divine_purpose.up then
                 removeBuff("divine_purpose")
             end
-            
+
             applyBuff("shield_of_the_righteous")
-            
+
             -- Divine Purpose talent proc chance
             if state.talent.divine_purpose.enabled and not state.buff.divine_purpose.up and math.random() < 0.15 then
                 applyBuff("divine_purpose")
             end
         end
     },
-    
+
     avengers_shield = {
         id = 31935,
         cast = 0,
         cooldown = 15,
         gcd = "spell",
-        
+
         spend = 0.10,
         spendType = "mana",
-        
+
         startsCombat = true,
         texture = 135874,
-        
+
         usable = function()
             if state.buff.grand_crusader.up then return true end
             return not (cooldown.avengers_shield.remains > 0)
         end,
-        
+
         handler = function()
             if state.buff.grand_crusader.up then
                 removeBuff("grand_crusader")
             end
         end
     },
-    
+
     guardian_of_ancient_kings = {
         id = 86659,
         cast = 0,
         cooldown = 180,
         gcd = "off",
-        
+
         toggle = "defensives",
-        
+
         startsCombat = false,
         texture = 409594,
-        
+
         handler = function()
             applyBuff("guardian_of_ancient_kings")
         end
     },
-    
+
     ardent_defender = {
         id = 31850,
         cast = 0,
         cooldown = 180,
         gcd = "off",
-        
+
         toggle = "defensives",
-        
+
         startsCombat = false,
         texture = 135870,
-        
+
         handler = function()
             applyBuff("ardent_defender")
         end
     },
-    
+
     word_of_glory = {
         id = 85673,
         cast = 0,
         cooldown = 0,
         gcd = "spell",
-        
-        spend = function() 
+
+        spend = function()
             if state.buff.divine_purpose.up then return 0 end
-            return 3 
+            return 3
         end,
         spendType = "holy_power",
-        
+
         startsCombat = false,
         texture = 646176,
-        
+
         handler = function()
             -- Word of Glory mechanic - consumes all Holy Power and Bastion of Glory
             if state.buff.divine_purpose.up then
@@ -677,170 +680,170 @@ spec:RegisterAbilities( {
             else
                 -- Modify healing based on Holy Power consumed
                 -- Word of Glory's base healing amount is multiplied per Holy Power
-                
+
                 -- Bastion of Glory effect - increases healing of Word of Glory on self
                 if state.buff.bastion_of_glory.up then
                     -- Increased healing based on Bastion of Glory stacks (30% per stack)
                     removeBuff("bastion_of_glory")
                 end
             end
-            
+
             -- Selfless Healer reductions for next Flash of Light if talented
             if state.talent.selfless_healer.enabled then
                 applyBuff("selfless_healer", nil, 3)
             end
-            
+
             -- Eternal Flame talent application instead of direct heal
             if state.talent.eternal_flame.enabled then
                 applyBuff("eternal_flame")
             end
-            
+
             -- Divine Purpose talent proc chance
             if state.talent.divine_purpose.enabled and not state.buff.divine_purpose.up and math.random() < 0.15 then
                 applyBuff("divine_purpose")
             end
         end
     },
-    
+
     hammer_of_the_righteous = {
         id = 53595,
         cast = 0,
         cooldown = 4.5,
         gcd = "spell",
-        
+
         spend = 0.06,
         spendType = "mana",
-        
+
         startsCombat = true,
         texture = 236157,
-        
+
         range = 8,
-        
+
         handler = function()
             gain(1, "holy_power")
-            
+
             -- Grand Crusader proc chance (12%)
             if math.random() < 0.12 then
                 applyBuff("grand_crusader")
                 setCooldown("avengers_shield", 0)
             end
-            
+
             -- Bastion of Glory proc - 1 stack per target hit
             applyBuff("bastion_of_glory", nil, 1)
         end
     },
-    
+
     holy_prism = {
         id = 114165,
         cast = 0,
         cooldown = 20,
         gcd = "spell",
-        
+
         spend = 0.35,
         spendType = "mana",
-        
+
         talent = "holy_prism",
-        
+
         startsCombat = function() return not state.option.holy_prism_heal end,
         texture = 613407,
-        
+
         handler = function()
             -- Holy Prism mechanic
             -- If cast on enemy, damages target and heals 5 nearby friendlies
             -- If cast on friendly, heals target and damages 5 nearby enemies
         end
     },
-    
+
     lights_hammer = {
         id = 114158,
         cast = 0,
         cooldown = 60,
         gcd = "spell",
-        
+
         spend = 0.38,
         spendType = "mana",
-        
+
         talent = "lights_hammer",
-        
+
         startsCombat = true,
         texture = 613952,
-        
+
         handler = function()
             -- Light's Hammer mechanic - ground target AoE that heals allies and damages enemies
         end
     },
-    
+
     execution_sentence = {
         id = 114157,
         cast = 0,
         cooldown = 60,
         gcd = "spell",
-        
+
         spend = 0.38,
         spendType = "mana",
-        
+
         talent = "execution_sentence",
-        
+
         startsCombat = function() return not state.option.execution_sentence_heal end,
         texture = 613954,
-        
+
         handler = function()
             -- Execution Sentence mechanic
             -- If cast on enemy, damages after 10 seconds
             -- If cast on friendly, heals after 10 seconds
         end
     },
-    
+
     divine_plea = {
         id = 54428,
         cast = 0,
         cooldown = 120,
         gcd = "spell",
-        
+
         toggle = "cooldowns",
-        
+
         startsCombat = false,
         texture = 237537,
-        
+
         handler = function()
             applyBuff("divine_plea")
         end
     },
-    
+
     avenging_wrath = {
         id = 31884,
         cast = 0,
         cooldown = 180,
         gcd = "off",
-        
+
         toggle = "cooldowns",
-        
+
         startsCombat = false,
         texture = 135875,
-        
+
         handler = function()
             applyBuff("avenging_wrath")
         end
     },
-    
+
     holy_avenger = {
         id = 105809,
         cast = 0,
         cooldown = 180,
         gcd = "off",
-        
+
         toggle = "cooldowns",
-        
+
         talent = "holy_avenger",
-        
+
         startsCombat = false,
         texture = 571555,
-        
+
         handler = function()
             applyBuff("holy_avenger")
         end
     },
-    
+
     divine_shield = {
         id = 642,
         cast = 0,
@@ -848,18 +851,18 @@ spec:RegisterAbilities( {
             return state.talent.unbreakable_spirit.enabled and 150 or 300
         end,
         gcd = "spell",
-        
+
         toggle = "defensives",
-        
+
         startsCombat = false,
         texture = 524354,
-        
+
         handler = function()
             applyBuff("divine_shield")
             applyDebuff("player", "forbearance")
         end
     },
-    
+
     divine_protection = {
         id = 498,
         cast = 0,
@@ -867,306 +870,306 @@ spec:RegisterAbilities( {
             return state.talent.unbreakable_spirit.enabled and 30 or 60
         end,
         gcd = "off",
-        
+
         toggle = "defensives",
-        
+
         startsCombat = false,
         texture = 524353,
-        
+
         handler = function()
             applyBuff("divine_protection")
         end
     },
-    
+
     lay_on_hands = {
         id = 633,
         cast = 0,
-        cooldown = function() 
+        cooldown = function()
             return state.talent.unbreakable_spirit.enabled and 360 or 600
         end,
         gcd = "spell",
-        
+
         toggle = "defensives",
-        
+
         startsCombat = false,
         texture = 135928,
-        
+
         handler = function()
             -- Heals target for Paladin's maximum health
             -- Applies Forbearance
             applyDebuff("target", "forbearance")
         end
     },
-    
+
     hand_of_freedom = {
         id = 1044,
         cast = 0,
-        cooldown = function() 
+        cooldown = function()
             if state.talent.clemency.enabled then
                 return { charges = 2, execRate = 25 }
             end
             return 25
         end,
         gcd = "spell",
-        
+
         startsCombat = false,
         texture = 135968,
-        
+
         handler = function()
             applyBuff("hand_of_freedom")
         end
     },
-    
+
     hand_of_protection = {
         id = 1022,
         cast = 0,
-        cooldown = function() 
+        cooldown = function()
             if state.talent.clemency.enabled then
                 return { charges = 2, execRate = 300 }
             end
             return 300
         end,
         gcd = "spell",
-        
+
         toggle = "defensives",
-        
+
         startsCombat = false,
         texture = 135964,
-        
+
         handler = function()
             applyBuff("hand_of_protection")
             applyDebuff("player", "forbearance")
         end
     },
-    
+
     hand_of_sacrifice = {
         id = 6940,
         cast = 0,
-        cooldown = function() 
+        cooldown = function()
             if state.talent.clemency.enabled then
                 return { charges = 2, execRate = 120 }
             end
             return 120
         end,
         gcd = "off",
-        
+
         toggle = "defensives",
-        
+
         startsCombat = false,
         texture = 135966,
-        
+
         handler = function()
             applyBuff("hand_of_sacrifice", "target")
         end
     },
-    
+
     hand_of_purity = {
         id = 114039,
         cast = 0,
         cooldown = 30,
         gcd = "off",
-        
+
         talent = "hand_of_purity",
-        
+
         startsCombat = false,
         texture = 458726,
-        
+
         handler = function()
             -- Applies Hand of Purity effect
         end
     },
-    
+
     -- Shared Paladin abilities
     crusader_strike = {
         id = 35395,
         cast = 0,
         cooldown = 4.5,
         gcd = "spell",
-        
+
         spend = 0.06,
         spendType = "mana",
-        
+
         startsCombat = true,
         texture = 135891,
-        
+
         handler = function()
             gain(1, "holy_power")
-            
+
             -- Grand Crusader proc chance (12%)
             if math.random() < 0.12 then
                 applyBuff("grand_crusader")
                 setCooldown("avengers_shield", 0)
             end
-            
+
             -- Bastion of Glory proc
             applyBuff("bastion_of_glory", nil, 1)
         end
     },
-    
+
     judgment = {
         id = 20271,
         cast = 0,
         cooldown = 6,
         gcd = "spell",
-        
+
         spend = 0.05,
         spendType = "mana",
-        
+
         startsCombat = true,
         texture = 135959,
-        
+
         handler = function()
             gain(1, "holy_power")
-            
+
             -- Long Arm of the Law movement speed
             if state.talent.long_arm_of_the_law.enabled then
                 applyBuff("long_arm_of_the_law")
             end
         end
     },
-    
+
     cleanse = {
         id = 4987,
         cast = 0,
         cooldown = 8,
         gcd = "spell",
-        
+
         spend = 0.14,
         spendType = "mana",
-        
+
         startsCombat = false,
         texture = 135949,
-        
+
         handler = function()
             -- Removes 1 Poison effect, 1 Disease effect, and 1 Magic effect from a friendly target
         end
     },
-    
+
     hammer_of_justice = {
         id = 853,
         cast = 0,
-        cooldown = function() 
+        cooldown = function()
             if state.talent.fist_of_justice.enabled then
                 return 30
             end
             return 60
         end,
         gcd = "spell",
-        
+
         startsCombat = true,
         texture = 135963,
-        
+
         handler = function()
             -- Stuns target for 6 seconds
         end
     },
-    
+
     hammer_of_wrath = {
         id = 24275,
         cast = 0,
         cooldown = 6,
         gcd = "spell",
-        
+
         spend = 0.12,
         spendType = "mana",
-        
+
         usable = function()
             return target.health_pct < 20
         end,
-        
+
         startsCombat = true,
         texture = 138168,
-        
+
         handler = function()
             gain(1, "holy_power")
         end
     },
-    
+
     consecration = {
         id = 26573,
         cast = 0,
         cooldown = 9,
         gcd = "spell",
-        
+
         spend = 0.24,
         spendType = "mana",
-        
+
         startsCombat = true,
         texture = 135926,
-        
+
         handler = function()
             -- Creates consecrated ground that deals Holy damage over time
         end
     },
-    
+
     repentance = {
         id = 20066,
         cast = 1.5,
         cooldown = 15,
         gcd = "spell",
-        
+
         talent = "repentance",
-        
+
         spend = 0.09,
         spendType = "mana",
-        
+
         startsCombat = false,
         texture = 135942,
-        
+
         handler = function()
             -- Incapacitates target for up to 1 minute
         end
     },
-    
+
     blinding_light = {
         id = 115750,
         cast = 0,
         cooldown = 120,
         gcd = "spell",
-        
+
         talent = "blinding_light",
-        
+
         spend = 0.18,
         spendType = "mana",
-        
+
         startsCombat = true,
         texture = 571553,
-        
+
         handler = function()
             -- Disorients all nearby enemies
         end
     },
-    
+
     speed_of_light = {
         id = 85499,
         cast = 0,
         cooldown = 45,
         gcd = "off",
-        
+
         talent = "speed_of_light",
-        
+
         startsCombat = false,
         texture = 538056,
-        
+
         handler = function()
             applyBuff("speed_of_light")
         end
     },
-    
+
     sacred_shield = {
         id = 20925,
         cast = 0,
         cooldown = 0,
         gcd = "spell",
-        
+
         talent = "sacred_shield",
-        
+
         spend = 0.23,
         spendType = "mana",
-        
+
         startsCombat = false,
         texture = 612316,
-        
+
         handler = function()
             applyBuff("sacred_shield")
         end
@@ -1205,19 +1208,19 @@ spec:RegisterRanges( "judgment", "avengers_shield", "hammer_of_justice", "rebuke
 -- Options
 spec:RegisterOptions( {
     enabled = true,
-    
+
     aoe = 3,
-    
+
     nameplates = true,
     nameplateRange = 8,
-    
+
     damage = true,
     damageExpiration = 8,
-    
+
     potion = "jade_serpent_potion",
-    
+
     package = "Protection",
-    
+
     holy_prism_heal = false,
     execution_sentence_heal = false,
 } )
@@ -1226,3 +1229,7 @@ spec:RegisterOptions( {
 spec:RegisterPack( "Protection", 20250515, [[Hekili:T1PBVTTn04FlXjHj0OfnrQ97Lvv9n0KxkzPORkyzyV1ikA2JC7fSOhtkfLjjRKKGtkLQfifs4YC7O3MF11Fw859fNZXPb72TQWN3yiOtto8jREEP(D)CaaR7oXR]hYdVp)NhS4(SZdhFpzmYBPn2qGdjcw5Jt8jc((52Lbb6W0P)MM]] )
 
 -- Register pack selector for Protection
+
+end
+
+RegisterProtectionSpec()

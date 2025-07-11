@@ -431,6 +431,89 @@ local function RegisterMistsAuras()
             duration = 20,
             max_stack = 1,
         },
+
+        -- MoP Buff Categories
+        stats = {
+            alias = {
+                "blessing_of_kings",
+                "embrace_of_the_shale_spider",
+                "legacy_of_the_emperor",
+                "mark_of_the_wild"
+            },
+            aliasMode = "latest",
+            aliasType = "buff",
+            shared = "target",
+            shared_aura = true
+        },
+        mastery = {
+            alias = {
+                "blessing_of_might",
+                "grace_of_air",
+                "roar_of_courage",
+                "spirit_beast_blessing"
+            },
+            aliasMode = "latest",
+            aliasType = "buff",
+            shared = "target",
+            shared_aura = true
+        },
+    
+        blessing_of_kings = {
+            id = 20217,
+            duration = 3600,
+            max_stack = 1,
+            shared = "target",
+            shared_aura = true
+        },
+        embrace_of_the_shale_spider = {
+            id = 90363,
+            duration = 3600,
+            max_stack = 1,
+            shared = "target",
+            shared_aura = true
+        },
+        legacy_of_the_emperor = {
+            id = 115921,
+            duration = 3600,
+            max_stack = 1,
+            shared = "target",
+            shared_aura = true
+        },
+        mark_of_the_wild = {
+            id = 1126,
+            duration = 3600,
+            max_stack = 1,
+            shared = "target",
+            shared_aura = true
+        },
+        blessing_of_might = {
+            id = 19740,
+            duration = 3600,
+            max_stack = 1,
+            shared = "target",
+            shared_aura = true
+        },
+        grace_of_air = {
+            id = 116956,
+            duration = 3600,
+            max_stack = 1,
+            shared = "target",
+            shared_aura = true
+        },
+        roar_of_courage = {
+            id = 93435,
+            duration = 3600,
+            max_stack = 1,
+            shared = "target",
+            shared_aura = true
+        },
+        spirit_beast_blessing = {
+            id = 128997,
+            duration = 3600,
+            max_stack = 1,
+            shared = "target",
+            shared_aura = true
+        },
     })
 end
 
