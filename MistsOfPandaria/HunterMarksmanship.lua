@@ -53,8 +53,18 @@ end)
 local function RegisterMarksmanshipSpec()
     if not class or not state or not Hekili.NewSpecialization then return end
     
+
     local spec = Hekili:NewSpecialization( 254, false ) -- Marksmanship spec ID for MoP (ranged)
     if not spec then return end -- Not ready yet
+
+    spec:RegisterStateFunction( "apply_aspect", function( name )
+        removeBuff( "aspect_of_the_hawk" )
+        removeBuff( "aspect_of_the_iron_hawk" )
+        removeBuff( "aspect_of_the_cheetah" )
+        removeBuff( "aspect_of_the_pack" )
+
+        if name then applyBuff( name ) end
+    end )
 
 -- Enhanced Resource System for Marksmanship
 spec:RegisterResource( 2, { -- Focus = 2 in MoP

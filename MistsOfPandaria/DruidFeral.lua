@@ -1,72 +1,144 @@
 -- DruidFeral.lua
 --july 2025 by smufrik
+-- DruidFeral.lua loading
 
-if UnitClassBase( "player" ) ~= "DRUID" then return end
+-- MoP: Use UnitClass instead of UnitClassBase
+
+local _, playerClass = UnitClass('player')
+if playerClass ~= 'DRUID' then 
+    -- Not a druid, exiting DruidFeral.lua
+    return 
+end
+-- Druid detected, continuing DruidFeral.lua loading
 
 local addon, ns = ...
 local Hekili = _G[ addon ]
 local class, state = Hekili.Class, Hekili.State
 
-local FindUnitBuffByID = ns.FindUnitBuffByID
-local GetPlayerAuraBySpellID = C_UnitAuras.GetPlayerAuraBySpellID
-
+local floor = math.floor
 local strformat = string.format
 
-local spec = Hekili:NewSpecialization( 103 )
+local spec = Hekili:NewSpecialization(103, true)
 
-spec:RegisterResource( Enum.PowerType.Energy )
-spec:RegisterResource( Enum.PowerType.ComboPoints)
-spec:RegisterResource( Enum.PowerType.Rage )
-spec:RegisterResource( Enum.PowerType.LunarPower )
-spec:RegisterResource( Enum.PowerType.Mana )
+spec.name = "Feral"
+spec.role = "DAMAGER"
+spec.primaryStat = 2 -- Agility
 
--- Talents
+-- Use MoP power type numbers instead of Enum
+-- Energy = 3, ComboPoints = 4, Rage = 1, Mana = 0 in MoP Classic
+spec:RegisterResource( 3 ) -- Energy
+spec:RegisterResource( 4 ) -- ComboPoints 
+spec:RegisterResource( 1 ) -- Rage
+spec:RegisterResource( 0 ) -- Mana
+
+-- No longer need custom spec detection - WeakAuras system handles this in Constants.lua
+
+-- Add reset_precast hook for state management and form checking
+spec:RegisterHook( "reset_precast", function()
+    -- Set safe default values to avoid errors
+    local current_form = GetShapeshiftForm() or 0
+    local current_energy = -1
+    local current_cp = -1
+    
+    -- Safely access resource values using the correct state access pattern
+    if state.energy then
+        current_energy = state.energy.current or -1
+    end
+    if state.combo_points then
+        current_cp = state.combo_points.current or -1
+    end
+    
+    -- Fallback to direct API calls if state resources are not available
+    if current_energy == -1 then
+        current_energy = UnitPower("player", 3) or 0 -- Energy = power type 3
+    end
+    if current_cp == -1 then
+        current_cp = UnitPower("player", 4) or 0 -- ComboPoints = power type 4
+    end
+    
+    local cat_form_up = "nej"
+
+    -- Hantera form-buffen
+    if current_form == 3 then -- Cat Form
+        applyBuff( "cat_form" )
+        cat_form_up = "JA"
+    else
+        removeBuff( "cat_form" )
+    end
+end )
+
+-- Additional debugging hook for when recommendations are generated
+spec:RegisterHook( "runHandler", function( ability )
+    -- Only log critical issues
+    if not ability then
+        -- Nil ability passed to runHandler
+        return
+    end
+end )
+
+-- Debug hook to check state at the beginning of each update cycle
+spec:RegisterHook( "reset", function()
+    -- Minimal essential verification
+    if not state or not state.spec or state.spec.id ~= 103 then
+        return
+    end
+    
+    -- Basic state verification - level check
+    if level and level < 10 then
+        return
+    end
+end )
+
+-- Talents - MoP compatible talent structure
+-- Using tier/column system instead of retail IDs
 spec:RegisterTalents( {
-    -- Tier 1 (Level 15)
-    feline_swiftness = { 1, 131768, 1 }, -- Increases movement speed by 15%.
-    displacer_beast  = { 2, 102280, 1 }, -- Teleports forward, activates Cat Form, and increases movement speed.
-    wild_charge      = { 3, 102401, 1 }, -- Grants a movement ability that varies by shapeshift form.
+    -- Tier 1 (Level 15) - Mobility
+    feline_swiftness = { 1, 1, 1 }, -- Tier 1, Column 1
+    displacer_beast  = { 1, 2, 1 }, -- Tier 1, Column 2  
+    wild_charge      = { 1, 3, 1 }, -- Tier 1, Column 3
 
-    -- Tier 2 (Level 30)
-    yseras_gift      = { 4, 145108, 1 }, -- Heals you for 2% of max health every 5 sec.
-    renewal          = { 5, 108238, 1 }, -- Instantly heals you for 30% of max health.
-    cenarion_ward    = { 6, 102351, 1 }, -- Protects a friendly target, healing them when they take damage.
+    -- Tier 2 (Level 30) - Healing/Utility
+    yseras_gift      = { 2, 1, 1 }, -- Tier 2, Column 1
+    renewal          = { 2, 2, 1 }, -- Tier 2, Column 2
+    cenarion_ward    = { 2, 3, 1 }, -- Tier 2, Column 3
 
-    -- Tier 3 (Level 45)
-    faerie_swarm         = { 7, 102355, 1 }, -- Reduces target's movement speed and prevents stealth.
-    mass_entanglement    = { 8, 102359, 1 }, -- Roots the target and nearby enemies.
-    typhoon              = { 9, 132469, 1 }, -- Knocks back enemies and dazes them.
+    -- Tier 3 (Level 45) - Crowd Control
+    faerie_swarm         = { 3, 1, 1 }, -- Tier 3, Column 1
+    mass_entanglement    = { 3, 2, 1 }, -- Tier 3, Column 2
+    typhoon              = { 3, 3, 1 }, -- Tier 3, Column 3
 
-    -- Tier 4 (Level 60)
-    soul_of_the_forest   = { 10, 114107, 1 }, -- Finishing moves grant 4 energy per combo point spent.
-    incarnation_king_of_the_jungle = { 11, 102543, 1 }, -- Improved Cat Form for 30 sec.
-    force_of_nature      = { 12, 102703, 1 }, -- Summons treants to assist in combat.
+    -- Tier 4 (Level 60) - Specialization Enhancement
+    soul_of_the_forest   = { 4, 1, 1 }, -- Tier 4, Column 1
+    incarnation_king_of_the_jungle = { 4, 2, 1 }, -- Tier 4, Column 2
+    force_of_nature      = { 4, 3, 1 }, -- Tier 4, Column 3
 
-    -- Tier 5 (Level 75)
-    disorienting_roar    = { 13, 99, 1 }, -- Disorients all enemies within 10 yards.
-    ursols_vortex        = { 14, 102793, 1 }, -- Creates a vortex that pulls and roots enemies.
-    mighty_bash          = { 15, 5211, 1 }, -- Stuns the target for 5 sec.
+    -- Tier 5 (Level 75) - Disruption
+    disorienting_roar    = { 5, 1, 1 }, -- Tier 5, Column 1
+    ursols_vortex        = { 5, 2, 1 }, -- Tier 5, Column 2
+    mighty_bash          = { 5, 3, 1 }, -- Tier 5, Column 3
 
-    -- Tier 6 (Level 90)
-    heart_of_the_wild    = { 16, 108292, 1 }, -- Temporarily improves abilities not associated with your specialization.
-    dream_of_cenarius    = { 17, 108381, 1 }, -- Healing spells increase next damage, and vice versa.
-    natures_vigil        = { 18, 124974, 1 }, -- Increases all damage and healing, and causes single-target damage to also heal a nearby ally.
+    -- Tier 6 (Level 90) - Major Enhancement
+    heart_of_the_wild    = { 6, 1, 1 }, -- Tier 6, Column 1
+    dream_of_cenarius    = { 6, 2, 1 }, -- Tier 6, Column 2
+    natures_vigil        = { 6, 3, 1 }, -- Tier 6, Column 3
 } )
 
 
 
 -- Ticks gained on refresh (MoP version).
 local tick_calculator = setfenv( function( t, action, pmult )
+    local state = _G["Hekili"] and _G["Hekili"].State or {}
     local remaining_ticks = 0
     local potential_ticks = 0
     local remains = t.remains
     local tick_time = t.tick_time
-    local ttd = min( fight_remains, target.time_to_die )
+    local ttd = min( state.fight_remains or 300, state.target and state.target.time_to_die or 300 )
 
     local aura = action
     if action == "primal_wrath" then aura = "rip" end
 
-    local duration = class.auras[ aura ].duration
+    local class = _G["Hekili"] and _G["Hekili"].Class or {}
+    local duration = class.auras and class.auras[ aura ] and class.auras[ aura ].duration or 0
     local app_duration = min( ttd, duration )
     local app_ticks = app_duration / tick_time
 
@@ -77,10 +149,58 @@ local tick_calculator = setfenv( function( t, action, pmult )
     if action == "thrash" then aura = "thrash" end
 
     return max( 0, potential_ticks - remaining_ticks )
-end, state )
+end, {} )
 
 -- Auras
 spec:RegisterAuras( {
+    faerie_fire = {
+        id = 770, -- Faerie Fire (unified in MoP)
+        duration = 40,
+        max_stack = 1,
+        name = "Faerie Fire",
+    },
+    -- challenging_roar = {
+    --     id = 5209, -- Challenging Roar (not available to Feral in MoP)
+    --     duration = 6,
+    --     max_stack = 1,
+    --     name = "Challenging Roar",
+    -- },
+    jungle_stalker = {
+        id = 0, -- Dummy ID for Jungle Stalker tracking
+        duration = 15,
+        max_stack = 1,
+    },
+    bs_inc = {
+        id = 0, -- Dummy ID for Berserk/Incarnation tracking
+        duration = 15,
+        max_stack = 1,
+    },
+    omen_of_clarity = {
+        id = 16864,
+        duration = 15,
+        max_stack = 1,
+    },
+    savage_roar = {
+        id = 52610,
+        duration = function() return 12 + (combo_points.current * 6) end, -- MoP: 12s + 6s per combo point
+        max_stack = 1,
+    },
+    rejuvenation = {
+        id = 774,
+        duration = 12,
+        type = "Magic",
+        max_stack = 1,
+    },
+    armor = {
+        id = 0, -- Placeholder for armor debuff
+        duration = 0,
+        max_stack = 1,
+    },
+    mark_of_the_wild = {
+        id = 1126,
+        duration = 3600,
+        max_stack = 1,
+    },
     -- MoP/Classic aura IDs and durations
 
     aquatic_form = {
@@ -101,12 +221,7 @@ spec:RegisterAuras( {
         copy = { 106951, "berserk_cat" },
         multiplier = 1.5,
     },
-    bloodtalons = {
-        id = 145152, -- MoP: Bloodtalons
-        max_stack = 3,
-        duration = 30,
-        multiplier = 1.3,
-    },
+    -- Bloodtalons removed (not in MoP)
     cat_form = {
         id = 768,
         duration = 3600,
@@ -227,19 +342,22 @@ spec:RegisterAuras( {
     prowl_base = {
         id = 5215,
         duration = 3600,
+        max_stack = 1,
         multiplier = 1.6,
     },
     prowl = {
         alias = { "prowl_base" },
         aliasMode = "first",
         aliasType = "buff",
-        duration = 3600
+        duration = 3600,
+        max_stack = 1
     },
     rake = {
-        id = 155722,
+        id = 1822, -- Correct Rake ID for MoP
         duration = 15,
         tick_time = 3,
         mechanic = "bleed",
+        max_stack = 1,
     },
     regrowth = {
         id = 8936,
@@ -258,10 +376,12 @@ spec:RegisterAuras( {
         duration = function () return 4 + ( combo_points.current * 4 ) end,
         tick_time = 2,
         mechanic = "bleed",
+        max_stack = 1,
     },
     shadowmeld = {
         id = 58984,
-        duration = 3600,
+        duration = 10,
+        max_stack = 1,
     },
     sunfire = {
         id = 93402,
@@ -295,7 +415,7 @@ spec:RegisterAuras( {
     },
     tigers_fury = {
         id = 5217,
-        duration = 6,
+        duration = 8, -- MoP: 8s duration
         multiplier = 1.15,
     },
     travel_form = {
@@ -329,60 +449,9 @@ spec:RegisterAuras( {
     },
 } )
 
--- Snapshotting
-local tf_spells = { rake = true, rip = true, thrash = true, lunar_inspiration = true, primal_wrath = true }
-local bt_spells = { rip = true, primal_wrath = true }
-local mc_spells = { thrash = true }
-local pr_spells = { rake = true }
-local bs_spells = { rake = true }
 
-local stealth_dropped = 0
 
--- MoP version: update calculate_pmultiplier for MoP snapshotting rules.
-local function calculate_pmultiplier( spellID )
-    local a = class.auras
-    local tigers_fury = FindUnitBuffByID( "player", a.tigers_fury.id, "PLAYER" ) and a.tigers_fury.multiplier or 1
-    local bloodtalons = FindUnitBuffByID( "player", a.bloodtalons.id, "PLAYER" ) and a.bloodtalons.multiplier or 1
-    local prowling = ( FindUnitBuffByID( "player", a.prowl_base.id, "PLAYER" ) or GetTime() - stealth_dropped < 0.2 ) and a.prowl_base.multiplier or 1
-    local berserk = FindUnitBuffByID( "player", a.berserk.id, "PLAYER" ) and a.berserk.multiplier or 1
 
-    if spellID == a.rake.id then
-        return 1 * tigers_fury * prowling * berserk
-    elseif spellID == a.rip.id or spellID == a.primal_wrath.id then
-        return 1 * bloodtalons * tigers_fury
-    elseif spellID == a.thrash_cat.id then
-        return 1 * tigers_fury
-    elseif spellID == a.lunar_inspiration and a.lunar_inspiration.id then
-        return 1 * tigers_fury
-    end
-
-    return 1
-end
-
--- MoP version: persistent_multiplier for snapshotting.
-spec:RegisterStateExpr( "persistent_multiplier", function( act )
-    local mult = 1
-
-    act = act or this_action
-
-    if not act then return mult end
-
-    local a = class.auras
-    if tf_spells[ act ] and buff.tigers_fury.up then mult = mult * a.tigers_fury.multiplier end
-    if bt_spells[ act ] and buff.bloodtalons.up then mult = mult * a.bloodtalons.multiplier end
-    if pr_spells[ act ] and ( buff.prowl_base.up or GetTime() - stealth_dropped < 0.2 ) then mult = mult * a.prowl_base.multiplier end
-    if bs_spells[ act ] and buff.berserk.up then mult = mult * a.berserk.multiplier end
-
-    return mult
-end )
-
-local snapshots = {
-    [155722] = true, -- Rake
-    [1079]   = true, -- Rip
-    [285381] = true, -- Primal Wrath
-    [106830] = true, -- Thrash (Cat)
-    [155625] = true  -- Lunar Inspiration
-}
 
 -- Tweaking for new Feral APL.
 local rip_applied = false
@@ -391,48 +460,29 @@ spec:RegisterEvent( "PLAYER_REGEN_ENABLED", function ()
     rip_applied = false
 end )
 
---[[spec:RegisterStateExpr( "opener_done", function ()
-    return rip_applied
-end )--]]
-
--- MoP: Bloodtalons and stealth snapshot tracking.
-local last_bloodtalons_proc = 0
-local last_bloodtalons_stack = 0
-
-spec:RegisterCombatLogEvent( function( _, subtype, _,  sourceGUID, sourceName, _, _, destGUID, destName, destFlags, _, spellID, spellName )
-
-    if sourceGUID == state.GUID then
-        if subtype == "SPELL_AURA_REMOVED" then
-            -- Track Prowl and Shadowmeld and Sudden Ambush dropping, give a 0.2s window for the Rake snapshot.
-            if spellID == 58984 or spellID == 5215 or spellID == 102547 or spellID == 391974 or spellID == 340698 then
-                stealth_dropped = GetTime()
+-- Event handler to ensure Feral spec is enabled  
+spec:RegisterEvent( "PLAYER_ENTERING_WORLD", function ()
+    if state.spec.id == 103 then
+        -- Ensure the spec is enabled in the profile
+        if Hekili.DB and Hekili.DB.profile and Hekili.DB.profile.specs then
+            if not Hekili.DB.profile.specs[103] then
+                Hekili.DB.profile.specs[103] = {}
             end
-        elseif ( subtype == "SPELL_AURA_APPLIED" or subtype == "SPELL_AURA_REFRESH" or subtype == "SPELL_AURA_APPLIED_DOSE" ) then
-            if snapshots[ spellID ] then
-                local mult = calculate_pmultiplier( spellID )
-                ns.saveDebuffModifier( spellID, mult )
-                ns.trackDebuff( spellID, destGUID, GetTime(), true )
-            end
-        elseif subtype == "SPELL_CAST_SUCCESS" and ( spellID == class.auras.rip.id or spellID == class.auras.primal_wrath and class.auras.primal_wrath.id or 0 ) then
-            rip_applied = true
-        end
-
-        -- MoP: Bloodtalons is a buff, not a stacking aura in MoP, so just track application/removal.
-        if spellID == 145152 and ( subtype == "SPELL_AURA_APPLIED" or subtype == "SPELL_AURA_REFRESH" or subtype == "SPELL_AURA_REMOVED" ) then
-            if subtype == "SPELL_AURA_APPLIED" or subtype == "SPELL_AURA_REFRESH" then
-                last_bloodtalons_proc = GetTime()
-                last_bloodtalons_stack = 1
-            else
-                last_bloodtalons_proc = 0
-                last_bloodtalons_stack = 0
+            Hekili.DB.profile.specs[103].enabled = true
+            
+            -- Set default package if none exists
+            if not Hekili.DB.profile.specs[103].package then
+                Hekili.DB.profile.specs[103].package = "Feral"
             end
         end
     end
 end )
 
-spec:RegisterStateExpr( "last_bloodtalons", function ()
-    return last_bloodtalons_proc
-end )
+--[[spec:RegisterStateExpr( "opener_done", function ()
+    return rip_applied
+end )--]]
+
+-- Bloodtalons combat log and state tracking removed for MoP
 
 spec:RegisterStateFunction( "break_stealth", function ()
     removeBuff( "shadowmeld" )
@@ -486,102 +536,16 @@ spec:RegisterHook( "runHandler", function( ability )
     end
 end )
 
-spec:RegisterAuras( {
-    bt_rake = {
-        duration = 4,
-        max_stack = 1,
-        generate = bt_generator
-    },
-    bt_shred = {
-        duration = 4,
-        max_stack = 1,
-        generate = bt_generator
-    },
-    bt_swipe = {
-        duration = 4,
-        max_stack = 1,
-        generate = bt_generator
-    },
-    bt_thrash = {
-        duration = 4,
-        max_stack = 1,
-        generate = bt_generator
-    },
-    bt_triggers = {
-        alias = { "bt_rake", "bt_shred", "bt_swipe", "bt_thrash" },
-        aliasMode = "longest",
-        aliasType = "buff",
-        duration = 4,
-    },
-} )
-
--- MoP: Bloodtalons is a single-stack buff, not a stacking aura, and triggers on Regrowth cast after using 3 different abilities.
-local ComboPointPeriodic = setfenv( function()
-    gain( 1, "combo_points" )
-end, state )
-
-spec:RegisterHook( "reset_precast", function ()
-    if buff.cat_form.down then
-        energy.regen = 10 + ( stat.haste * 10 )
-    end
-    debuff.rip.pmultiplier = nil
-    debuff.rake.pmultiplier = nil
-    debuff.thrash_cat.pmultiplier = nil
-
-    -- MoP: No eclipse, no adaptive swarm.
-    -- Bloodtalons
-    if talent.bloodtalons.enabled then
-        -- MoP: Bloodtalons is not stacking, so just check if it should be up.
-        if buff.bloodtalons.up then
-            buff.bloodtalons.expires = last_bloodtalons_proc + 30
-        end
-    end
-
-    if prev_gcd[1].feral_frenzy and now - action.feral_frenzy.lastCast < gcd.execute and combo_points.current < 5 then
-        gain( 5, "combo_points", false )
-    end
-
-    last_bloodtalons = nil
-
-    if buff.jungle_stalker and buff.jungle_stalker.up then buff.jungle_stalker.expires = buff.bs_inc and buff.bs_inc.expires or buff.jungle_stalker.expires end
-
-    if buff.bs_inc and buff.bs_inc.up then
-        -- MoP: No Ashamane's Guidance.
-        -- Queue combo point gain events every 1.5 seconds while Incarnation/Berserk is active, starting 1.5 seconds after cast
-        local tick, expires = buff.bs_inc.applied, buff.bs_inc.expires
-        for i = 1.5, expires - query_time, 1.5 do
-            tick = query_time + i
-            if tick < expires then
-                state:QueueAuraEvent( "incarnation_combo_point_periodic", ComboPointPeriodic, tick, "AURA_TICK" )
-            end
-        end
-    end
-
-    -- MoP: No Sinful Hysteria, no Ravenous Frenzy.
-end )
-
 spec:RegisterHook( "gain", function( amt, resource, overflow )
     if overflow == nil then overflow = true end
     if amt > 0 and resource == "combo_points" then
-        -- MoP: No Overflowing Power, no Berserk Incarnation storage.
-        -- MoP: No Soul of the Forest energy refund on spend, only on finishers.
     end
-    -- MoP: No Untamed Ferocity azerite.
+
 end )
 
-local function comboSpender( a, r )
-    if r == "combo_points" and a > 0 then
-        if talent.soul_of_the_forest and talent.soul_of_the_forest.enabled then
-            gain( a * 2, "energy" )
-        end
 
-        if talent.predatory_swiftness and talent.predatory_swiftness.enabled and a >= 5 then
-            applyBuff( "predatory_swiftness" )
-        end
-    end
-end
 
-spec:RegisterHook( "spend", comboSpender )
+
 
 local combo_generators = {
     rake              = true,
@@ -590,22 +554,7 @@ local combo_generators = {
     thrash_cat        = true
 }
 
-spec:RegisterStateExpr( "active_bt_triggers", function ()
-    -- MoP: Bloodtalons is not stacking, so always 0 or 1.
-    if not talent.bloodtalons.enabled then return 0 end
-    return buff.bloodtalons.up and 1 or 0
-end )
 
-spec:RegisterStateFunction( "time_to_bt_triggers", function( n )
-    -- MoP: Bloodtalons is not stacking, so only 1 stack.
-    if not talent.bloodtalons.enabled or n > 1 then return 0 end
-    if buff.bloodtalons.up then return buff.bloodtalons.remains end
-    return 3600
-end )
-
-spec:RegisterStateFunction( "check_bloodtalons", function ()
-    -- MoP: Bloodtalons is not stacking, so nothing to check.
-end )
 
 spec:RegisterStateTable( "druid", setmetatable( {},{
     __index = function( t, k )
@@ -614,9 +563,10 @@ spec:RegisterStateTable( "druid", setmetatable( {},{
         elseif k == "owlweave_cat" then
             return false -- MoP: No Balance Affinity
         elseif k == "no_cds" then return not toggle.cooldowns
-        elseif k == "primal_wrath" then return class.abilities.primal_wrath
-        elseif k == "lunar_inspiration" then return debuff.lunar_inspiration
-        elseif k == "delay_berserking" then return settings.delay_berserking
+        -- MoP: No Primal Wrath or Lunar Inspiration
+        elseif k == "primal_wrath" then return false
+        elseif k == "lunar_inspiration" then return false
+        elseif k == "delay_berserking" then return state.settings.delay_berserking
         elseif debuff[ k ] ~= nil then return debuff[ k ]
         end
     end
@@ -632,8 +582,81 @@ spec:RegisterStateExpr( "effective_stealth", function ()
     return buff.prowl.up or ( buff.incarnation and buff.incarnation.up )
 end )
 
+-- Essential state expressions for APL functionality
+spec:RegisterStateExpr( "time_to_die", function ()
+    return target.time_to_die or 300
+end )
+
+spec:RegisterStateExpr( "spell_targets", function ()
+    return active_enemies or 1
+end )
 
 
+
+spec:RegisterStateExpr( "energy_deficit", function ()
+    return energy.max - energy.current
+end )
+
+spec:RegisterStateExpr( "energy_time_to_max", function ()
+    return energy.deficit / energy.regen
+end )
+
+spec:RegisterStateExpr( "cp_max_spend", function ()
+    return combo_points.current >= 5 or ( combo_points.current >= 4 and buff.savage_roar.remains < 2 )
+end )
+
+spec:RegisterStateExpr( "time_to_pool", function ()
+    local deficit = energy.max - energy.current
+    if deficit <= 0 then return 0 end
+    return deficit / energy.regen
+end )
+
+-- State expression to check if we can make recommendations
+spec:RegisterStateExpr( "can_recommend", function ()
+    return state.spec and state.spec.id == 103 and level >= 10
+end )
+
+-- Essential state expressions for APL functionality
+spec:RegisterStateExpr( "current_energy", function ()
+    return energy.current or 0
+end )
+
+spec:RegisterStateExpr( "current_combo_points", function ()
+    return combo_points.current or 0
+end )
+
+spec:RegisterStateExpr( "max_energy", function ()
+    return energy.max or 100
+end )
+
+spec:RegisterStateExpr( "energy_regen", function ()
+    return energy.regen or 10
+end )
+
+spec:RegisterStateExpr( "in_combat", function ()
+    return combat > 0
+end )
+
+spec:RegisterStateExpr( "player_level", function ()
+    return level or 85
+end )
+
+-- Additional essential state expressions for APL compatibility
+spec:RegisterStateExpr( "cat_form", function ()
+    return buff.cat_form.up
+end )
+
+spec:RegisterStateExpr( "bear_form", function ()
+    return buff.bear_form.up
+end )
+
+spec:RegisterStateExpr( "health_pct", function ()
+    return health.percent or 100
+end )
+
+spec:RegisterStateExpr( "target_health_pct", function ()
+    return target.health.percent or 100
+end )
 
 -- MoP Tier Sets
 
@@ -671,13 +694,18 @@ spec:RegisterAura( "t16_4pc", {
 
 -- MoP: Update calculate_damage for MoP snapshotting and stat scaling.
 local function calculate_damage( coefficient, masteryFlag, armorFlag, critChanceMult )
+    local hekili = _G["Hekili"]
+    local state = hekili and hekili.State or {}
+    local class = hekili and hekili.Class or {}
+    
     local feralAura = 1
     local armor = armorFlag and 0.7 or 1
-    local crit = 1 + ( state.stat.crit * 0.01 * ( critChanceMult or 1 ) )
-    local mastery = masteryFlag and ( 1 + state.stat.mastery_value * 0.01 ) or 1
-    local tf = state.buff.tigers_fury.up and class.auras.tigers_fury.multiplier or 1
+    local crit = 1 + ( (state.stat and state.stat.crit or 0) * 0.01 * ( critChanceMult or 1 ) )
+    local mastery = masteryFlag and ( 1 + ((state.stat and state.stat.mastery_value or 0) * 0.01) ) or 1
+    local tf = (state.buff and state.buff.tigers_fury and state.buff.tigers_fury.up) and 
+               ((class.auras and class.auras.tigers_fury and class.auras.tigers_fury.multiplier) or 1.15) or 1
 
-    return coefficient * state.stat.attack_power * crit * mastery * feralAura * armor * tf
+    return coefficient * (state.stat and state.stat.attack_power or 1000) * crit * mastery * feralAura * armor * tf
 end
 
 -- Force reset when Combo Points change, even if recommendations are in progress.
@@ -689,6 +717,86 @@ end )
 
 -- Abilities (MoP version, updated)
 spec:RegisterAbilities( {
+    -- Debug ability that should always be available for testing
+    savage_roar = {
+        id = 52610,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+        spend = 25,
+        spendType = "energy",
+        startsCombat = true,
+        form = "cat_form",
+        usable = function() return combo_points.current > 0 and buff.cat_form.up end,
+        handler = function()
+            applyBuff("savage_roar")
+            spend(combo_points.current, "combo_points")
+        end,
+    },
+    mangle_cat = {
+        id = 33876,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+        spend = 35,
+        spendType = "energy",
+        startsCombat = true,
+        form = "cat_form",
+        handler = function()
+            gain(1, "combo_points")
+        end,
+    },
+    faerie_fire_feral = {
+        id = 770,
+        cast = 0,
+        cooldown = 6,
+        gcd = "spell",
+        school = "physical",
+        startsCombat = true,
+        handler = function()
+            applyDebuff("target", "faerie_fire")
+        end,
+    },
+    mark_of_the_wild = {
+        id = 1126,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        school = "nature",
+        startsCombat = false,
+        handler = function()
+            applyBuff("mark_of_the_wild")
+        end,
+    },
+    healing_touch = {
+        id = 5185,
+        cast = 2.5,
+        cooldown = 0,
+        gcd = "spell",
+        school = "nature",
+        spend = 0.1,
+        spendType = "mana",
+        startsCombat = false,
+        handler = function()
+            applyBuff("regrowth") -- fallback, as healing_touch is not a HoT
+        end,
+    },
+    frenzied_regeneration = {
+        id = 22842,
+        cast = 0,
+        cooldown = 36,
+        gcd = "off",
+        school = "physical",
+        spend = 10,
+        spendType = "rage",
+        startsCombat = false,
+        form = "bear_form",
+        handler = function()
+            applyBuff("frenzied_regeneration")
+        end,
+    },
     -- Barkskin: Reduces all damage taken by 20% for 12 sec. Usable in all forms.
     barkskin = {
         id = 22812,
@@ -973,6 +1081,24 @@ spec:RegisterAbilities( {
         end,
     },
 
+    -- Rejuvenation: Heals the target over time.
+    rejuvenation = {
+        id = 774,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        school = "nature",
+        spend = 0.08,
+        spendType = "mana",
+        startsCombat = false,
+        handler = function ()
+            if buff.cat_form.up or buff.bear_form.up then
+                unshift()
+            end
+            applyBuff( "rejuvenation" )
+        end,
+    },
+
     -- Rip: Finishing move that causes Bleed damage over time.
     rip = {
         id = 1079,
@@ -1173,6 +1299,20 @@ spec:RegisterAbilities( {
             -- Summon handled by game
         end,
     },
+
+    -- Shadowmeld: Night Elf racial ability
+    shadowmeld = {
+        id = 58984,
+        cast = 0,
+        cooldown = 120,
+        gcd = "off",
+        school = "physical",
+        startsCombat = false,
+        usable = function () return race.night_elf end,
+        handler = function ()
+            applyBuff( "shadowmeld" )
+        end,
+    },
 } )
 
 spec:RegisterRanges( "rake", "shred", "skull_bash", "growl", "moonfire" )
@@ -1196,51 +1336,6 @@ spec:RegisterOptions( {
     package = "Feral"
 } )
 
---[[ TODO: Revisit due to removal of Relentless Predator.
-spec:RegisterSetting( "use_funnel", false, {
-    name = strformat( "%s Funnel", Hekili:GetSpellLinkWithTexture( spec.abilities.ferocious_bite.id ) ),
-    desc = function()
-        return strformat( "If checked, when %s and %s are talented and %s is |cFFFFD100not|r talented, %s will be recommended over %s unless |W%s|w needs to be "
-            .. "refreshed.\n\n"
-            .. "Requires %s\n"
-            .. "Requires %s\n"
-            .. "Requires |W|c%sno %s|r|w",
-            Hekili:GetSpellLinkWithTexture( spec.talents.taste_for_blood[2] ), Hekili:GetSpellLinkWithTexture( spec.talents.relentless_predator[2] ),
-            Hekili:GetSpellLinkWithTexture( spec.talents.tear_open_wounds[2] ), Hekili:GetSpellLinkWithTexture( spec.abilities.ferocious_bite.id ),
-            Hekili:GetSpellLinkWithTexture( spec.abilities.primal_wrath.id ), Hekili:GetSpellLinkWithTexture( spec.abilities.rip.id ),
-            Hekili:GetSpellLinkWithTexture( spec.talents.taste_for_blood[2], nil, state.talent.taste_for_blood.enabled ),
-            Hekili:GetSpellLinkWithTexture( spec.talents.relentless_predator[2], nil, state.talent.relentless_predator.enabled ),
-            ( not state.talent.tear_open_wounds.enabled and "FF00FF00" or "FFFF0000" ),
-            Hekili:GetSpellLinkWithTexture( spec.talents.tear_open_wounds[2], nil, not state.talent.tear_open_wounds.enabled ) )
-    end,
-    type = "toggle",
-    width = "full"
-} )  ]]
-
---[[ Currently handled by the APL
-spec:RegisterSetting( "zerk_biteweave", false, {
-    name = strformat( "%s Biteweave", Hekili:GetSpellLinkWithTexture( spec.abilities.berserk.id ) ),
-    desc = function()
-        return strformat( "If checked, the default priority will recommend %s more often when %s or %s is active.\n\n"
-            .. "This option may not be optimal for all situations; the default setting is unchecked.", Hekili:GetSpellLinkWithTexture( spec.abilities.ferocious_bite.id ),
-            Hekili:GetSpellLinkWithTexture( spec.abilities.berserk.id ), Hekili:GetSpellLinkWithTexture( spec.abilities.incarnation.id ) )
-    end,
-    type = "toggle",
-    width = "full"
-} )
-
-spec:RegisterVariable( "zerk_biteweave", function()
-    return settings.zerk_biteweave ~= false
-end )--]]
-
---[[ spec:RegisterSetting( "owlweave_cat", false, {
-    name = "|T136036:0|t Attempt Owlweaving (Experimental)",
-    desc = "If checked, the addon will swap to Moonkin Form based on the default priority.",
-    type = "toggle",
-    width = "full"
-} ) ]]
-
--- MoP/Classic relevant settings for Feral Druid
 
 spec:RegisterSetting( "rip_duration", 9, {
     name = strformat( "%s Duration", Hekili:GetSpellLinkWithTexture( spec.abilities.rip.id ) ),
@@ -1262,11 +1357,11 @@ spec:RegisterSetting( "regrowth", true, {
 } )
 
 spec:RegisterVariable( "regrowth", function()
-    return settings.regrowth ~= false
+    return state.settings.regrowth ~= false
 end )
 
 spec:RegisterStateExpr( "filler_regrowth", function()
-    return settings.regrowth ~= false
+    return state.settings.regrowth ~= false
 end )
 
 spec:RegisterSetting( "solo_prowl", false, {
@@ -1297,7 +1392,8 @@ spec:RegisterSetting( "lazy_swipe", false, {
 } )
 
 spec:RegisterVariable( "lazy_swipe", function()
-    return settings.lazy_swipe ~= false
+    return state.settings.lazy_swipe ~= false
 end )
 
-spec:RegisterPack( "Feral", 20250425.1, [[HHekili:fRXIUnUnYVLGdWRt3T(8Zn71ljaz31P1bBsweLUahoulPirhZgzjF6rsZcd9TFZqsjrrr9W(UEhkABmf5mdN3ZWz5OL3V0W1oMS8MXdhpB4jdpzWWrtgn7KLgXVULS0yRTZt2pc)HV9g4)Ejj02dx9vVaBx80rbjHoWxwA8qc1lEH)Yh0dYPWE3sCwEZOHtwASM66s47Le5S04(10Oul8FTtTein1kyf8BNyAGFQLhnkg(8QGWuRFH8e1JoaiKWGvupa9)LuRphMqDtTyKyQ1pMADDWxtTMny2GHPwFKeBNEfSRVDXDlU4JFzUrQ1f385uRpD7nFEX9lU9gJ0RsV6z7qQ9dEK3Hx3ZsIiMXRdTJw)UNT9siNbxappZy7WhjXrdIEHULy6yhF(zt1D0q7NiIdos97X0naSdm3ge4j2Zq19eToimMefBgh7k2dh1dYoTlLOEiVa)h33ZefAMSvS7hswTAqK9Za)3mmWoCqY2k0(kLThtFKegzUkj8vnBN67eSH6)OPR9gaQf3wM846eVy6pYPXuRihIpC4GivGyhqAtgmr9moEe7NB5yNnwqhZ9jHp(kOU5d6qab)qaOhgq9bIAJTpq3BiWFRGbu6zsyNuGg(poD2WEhXynbWXmdwz64bhmgzpIp8aWXiHpPHF5S1CJ9FyceSFMiKrpMmYj68ZMTBx)YRmTxfXwizJn1p60XhRc)q6wZqYQqsUATBq8ay18ZCYGX9kJGrcU09c5eCokyKZmmzCmWmHyxH)Wx1mIgNW2SSSNbVVE38pD71F8I7z)5xV4UlqtX0R4g9rd2gsqcXo(TN9x3yh(eYkJxtmFH65(o6QZ48s1VWyQ6abiWnbhiBkoA2k1EeWdZlEf7N9t2MZ0BIIafdk6YbHJGDaAlaJY3buOCwtCEkkh4Trf5Qh2Hfegdtl8JjHHjBJf4WLSI4hrFMid7ONsa18hqxwa0fM(o2rXGbyzAa2g)NMONvU8scKmuAetS9IxdoI3Ik2YaOg(sV(hXzD72TcDeBgf4bQr4xpwa0pfecU2ddI56pTsuoGrMBWl(rTV1vuFA0AWYQ9T(iEHSJd6YEHqmEmGkUbFE(LZVXyX3MdXq(Ki2rMUtolefgjHptbvEtWOceaoXridBnJNoyRt8Ptg2tX745IVcEa(HHdMPhUpa67rpr9vG2SwG2e9qd8e4)DkXfCkiykOLka6kkI9Kq20H1qBz7xH4g3cXnvWB)fyruxfu5Giw0VxwjPeQwZ3keulXzDobdgVUOC9vtWj)QyFsuKcPFsnKEi53tEgI)KD)lZA565Y7r2nW12)oMyYN)Qbg9itHfZcj6vFN1Hb(0VtaJ2KimXMC0NVvgNJfraXmpkc4xFyvh7OnMI3)D7Y8GhtDa9IhpUxgGlfBoZ)(KmV543EdqMxcFLrSeruq5qE6OvjOwqVNE2Kz1h2RgkY29vb1CPnjeYnX6sk6FGLNND4g8)5sqGQNswXoL5k4qMmpoi9WpWaPVna3FpX6mWYxPAYrNpAMGGUZ2H5x3(bizZykjQr5gW2Z1blNq0UDvI4RfoEbbU5S0UbhoJBXnlm(L53HXqxC7DlU)FKA1F2NGKFn(6Ci72B(5J5HQ(dItsm6712hZUgYuoWHgKakaFKIRdkaRPpUgsFeY9bYcdfDf0AUZvKRNDuZhGtI0Rskk9u0i1Qhly(YEjM1lt3FwwgIgSdbId4uOMjGbWa03HtWoarsDqXuzDezQvcTvj1r1N7eMhu)k5EvFQw72Lr8Fyyw0U7OBbnOTB9aIK5kJh8El8FjBOoGWGNkMEkh4G6yU9psH9czeQljo11QQTRZaaCi3Nh8gtv0nreridyzlC8XhRnhE2noAlAAlN0rL7LZRqc6zzKF2iD3t1RPoQvLS6H47zcMw(gWM90ZYISOtDpZFNBYMT)zQP3VqRUIvSyHQUmZyVZlsMSKTW)v01rVp5rXWCXVfCJC7IBGmY)553mhsi)27myF8IaiFhnPnnOynmYaREzS0ke9zLdmOOuAUqTyB58nzdFTGoVOTsqgQmm)OtlCD)erNzNS3d9iHv0oMwltSc)iN(kDxWVKJ2jZAby5WkpcCVklPX2Sjm2yKRYgKHmMHglYQ0QgBYQmIkgy1AwINk3UuMBXt)GPdic1hbq2diZmIgU2q(sDrhtrDQmlwZh0WOlu90DvEFU9XLl(YxW4S5z9l14aSxak(7yvna07l2043frCoB4GrL0DL6FqJzSD(K80m5CjgltUlfr6W7g2UZ4tYUcoTio7084SqX6GjYlRjG1YdK1uwD9cXbIVxOyPG3g8jD4kcpnIM(8JkuIQ35wVAPhi8MS19UDhXJg5z)Dws9BjhRWo40SJT)BIrxuX50)(YuoQeXxFYSvyEs(O5OQrEudIc05f5rOEzKxlaLva2xHNqRUqBTxQqXrqGlcDlwraCOuZCT4lUfCKF3T3Z71Iv)jVfSfV4UFE(9ghxaCGZxXuBFCDZp)H7v59ADVYHAPib1XmREQdk0OY95pVexur1(N5r5uN5r0)Y8l(wzX9yDsBEVs3lbMoXtoyoC9MCqSVIlPeF1DV(FHGlhBD2ZB1BDn(i6SB1YUMykb)69l(cRQq2lEC9TFB(1ZHe8YrEsmwG7RVDpRMwWAyvtF(WCepEMoiV)n9Skmo8EoEDWZ8UzORy(ce4k6B6gX2h4sJIXKfpFCwdGWTihbyYqDac7cTPZAKbPhEFOxL1Kl(DCwosxs9XABHkezVZM2oZ8266hZKmIUCFeoSE0uGm10zeyBwMkWawJepF0E8giTK9ZsdiYxeGEXJkoD84LgVyh6dwOr4Jhcmg6MTbHXIuJEtEJvEdY8(xjuwUnraPaQajXbBSJXfare(CzdsVIbJvbEEbVWA)OnyCdvk(cbBgfK)nSzQp(ohKYpjj23H4S95hWiGe)s721f3SRDS9d2rKFcKSyPN8EBDLaZLPErG9Us7FH6dF69)eyP7hLSfHeUHmY8nz5c8MbC8HpZQ4Lt5V56gAue7wloTGoyjDJ9OioK6)e(UzPwPwlI5hI9ijGO1LWE)hByzciMEvQ3ratWXlXfm2SiqYJKWSl))8xJiiKiBI(T3H5VrDwlVBB)xlWQGVs(dSAoASxbCLzZzi9VZswvGM75Gi1A0VjQaSyPXsygSx9KUrcqgNTvg3GTKFYgqRLjp8GWaPxTytg7E0qLhRg(6sdqGToiCPHXMKvH0NwAW(e(Y5Cx(WFDd7z4HQsHeEDx(r4mmOS0ad3c7toQfUzdSNxGGXEPXrGELsC5uREf9148ZsTMmJ)i7qiloyBoNGLXGrMcbvbHvJLxbTZgwCrk2oc9j1cD5yECOmIb36I1NADAQfeVVatsBcr1064S0TnJ3zm8MXElYhGTSMxu368ITMLxGgrhqsZ64T)0mIqMPovIPwKJbc23VVGTFwrsMz14TBNGtx1HDQ1XnslSSwwIeIr(lQ0KMD1xgtrhT6tSjFLk6ym7cbXGrIt59LyYKI3yk16hsTgoywZ63kqE2Ea5jfxVShORzT9Q58G4sHcK5YAFPoDQ51EFgVh3NPs3NmIuNcC2Mk9CCkItTVQxfEH(NUthx5KHnRZRxmEKq)w5r8KCli9bU2mukwt6Xso2kFHBQg7d2FQgnxLqfTgya3Frv2aZbG871gYqNVRU65wVVRzs2)zfW3S2BNJhGP6vBqG6uy))yqGU6TUGk0rc1fUTCNd4kYIuk1PmxsXvTfNQ93e4UeNLgqQ)f4dliq(oOR)MmcUPS8zCVjnPJlfWRmnxFxr3xv0H60YlhKRmQ7EttLjLdk2BNO)Sq7hHZOvrpu5iawuTtQaWBkpPwz51151oW4pQctqYfTo2GwHvDg36ewvAsBhOYQyu12Ti4bVklfK2s3CLjHYDUTe6zz5KNGLDIxCtHLYATI69VBZQMsCe1M1usojN(st2UfZLMcnv7uTjtfcFTI5yRjBu1b4IxVLjF6LlGDdQ8S(gPALxEo40XGYhmWcdqEtP4MEQnMsy3PQ9wUoTsdkxhVJ5n(Ojv1gHq(RjJq4KdbcfpwhcIpCiGilCfC()wD5Evedrngw9nntw0vY2QKwTYan3bht135m8kmAOYDO9yOseNi7v5MRXcwoAyxOScl18XgQZHIJrZbXSW2K)g1bWvTyUwNm)Mgl)Ahr8ooZ2To0Y1mfY6SY1mPXnxpPg)NACt3yQ1QEyuDvXetfM9niMeQavcLVhJUOovuPmpQKyEHdXQj2oL7ASsMTh3bf0tBjxX6Do0LHEuRHiRUOUyX1SVG6ICv5PxuDQ1Y4rktZ18In8cjuNbYMQMz0SMcvwm5JQ58Oo5Klvl1x1dBE(VfUP0fF8aGsb1MpFLzveLfNRbtgLsPuRvQ9bV8WM6Y6tmT5kcRZ(tiEv7gu1uCBUldYfwRKH0EmKMnF56whFR3RYmj1G6aWy(EKV4FyOiLS6SpzDlOSwEhhTZUim7RVpdiv2VyDDmbDFtN1C9g5Sw(1plh1qPz(SjJFE3tA4Tj(ZPFkS9I0GAxSMQgwRHHsTPchB2IVLziTl3)9XUTVQ1PwFCT1(GMkfOEt6Ag70dY6L1FoMxxPAdoK(Qw7eQQoEQl11pQIPqvwt8GB(QgmW61sVo24ZAD1WAMRse1whO1LDO9VvMO0ke7eTr8LsTiO8CRYtfRqXw9t14kQlesljMuMD1uFEp4NrvRFMw9wjp1R64Vn5NszwDBYYTwBK2NRwvbA1PKvrSwZgQr4Q6YQE(175ofedotJjI1s6X6NXPUMuS8OmXiSHvUiJB5Ld3RoL9FyjGsPm0wtMQuSyTb0DR2ConJnLmzvzeMySUXLBlHyGPQAiOT9TTb8pWGJMVPpD2XsUjKMjlMwh)Fw(Vp]] )
+
+spec:RegisterPack( "Feral", 20250710, [[Hekili:fRr)VTTn2)wcoaxN1oF(JO0E7scqARZMlAskIZkWHdZsks0XCrwYtFKSuyO)2V3JKsIIIIwo76D)W6COiFVhFF)bxmAXTlM77MswC14HJTg(2rdhm6DwJgF8I5PpVHSy(gxVhCVh(rO7A4FxsIDdYDsjjP43EoiY1hHrsuwSh89fZVlJgKolCXDAb8ilyVBiElUA0WjlMVI67t47LK4Ty(TROj5o4)5M7iqDUt0s4V9sPrH5ob0Ku4ZlJIZD(fYd0a6aGqIJwsda0)3YD(yCg1p35coH(J5oxg9LChRbwdgM78EsQB(NGD91ZVz25V)ZtNN7C(vFm35dxF1hND7SRVAE(NY)0JUXu37ciVbV0NMLqStxf7MS6np6gKrofUabb2PUX3tstgK8eDdX2Zn9Stps3rJDFGio4i1VNsxdWoYEtuuGypdv3tYQOyKFBNM6l2dh1dkoTpLOEOGOW733ZKeBNTrS77YwUCqI7Ja)3ooYnEq2Mg0(sLTNsVNeNyVml(znBNg6fTMgEVTV7AaQv3wM84YSGu6pYPXCNepsiC4OevG4gr2LmyI6z8ciUpUJJD6ybDmnKeF)ZG6wiOdbe8DrGEyeneiQ1UHaDVMa)wbdO0ZMWoPan8)4eRH9oGXAIGJzhT02laoykYEeF4oGJrIFqd)YBJ9A3)0gi4WcriJESzKtYzNATDB)6RCuVgITyYAxAyYjJpuf(X0n2XKLXKs1A)O0bWQLN5Tdg3Rocgj4s3kKtW5OGroZWKXXaZeIBd(dFv7eAAgBZYYEg8(Ynt)W1x((ZVL9ZVC(nNJMI5FIB0Nmytmbje30xF6FFTB8diRmDfX(jAG)BOlpLZlv)cJPQdeGa3gCGSU6OfR06rapmpfuTF2FY2CHEtscOyqrxoiCeSdqBbyuHEGcL3kI3djLaFxurP6HBCfHXW0SWusCC2Mubo8jljHj0hjYWo5Hmqn)o0LfaDHPVNBskyawNgGTX)tB0ZkxEjbsgkNNsCdsxboI3Gk2YaOf(sV(hWzDB3MqsrScgBrbGMeUHdfW9drXG394OuUk0oPlpWoZp6PWKDV1L0qAYkW4A3B9E8o5Mg1L9crzcyavCd(40lME18zFDkeg5dIWhfQpLCruEKf)if06Tb7kGB4LMG8Svm26GnEPNmzypfhKNj(k4e4hgoWspCVdu5tEGgQanRDaTj6Hg4mi8BuIp4xqWuqJva0n0f7jHSJg2cTvSFfIB8oiUJe82FbwevxbToiOf9B1vsQHQv8TcX1Y8wvsWG9RpkxF2g8ZVmnKKKOq6VTfspM87zpcHGkU)1zTCvD59i7j4s3FhZn5JFzogaPqHftej55qVvXrH0Vra72Sem3Ms0xUvgNJfuaXmpqc4AFytF7OzMsaGTBlCINs9a9I7pSxbGRfEUWf)Kch643EfqMxaFLrSerGq5OE6OvjOwrVNC6eR2J81cf56)SGAUWLedPN4Cbf9pWs1ZnEn()8jiq1tjlzNYEjCiBwAQi9WpWaPVna3FVMzdD2ilb6VX1J5i39oi7YukjXOucyYLAC1ZaA72gH41cNGOi)sgy3GdNnn7QzZ)LP3GbnND9nZU9FL7036dq2UZ)YuiD2R(5d5XM(tIxwk6P1netNgsnoYJgLbI73tX1bX9k69RG8fHKDG0UqbvfTw6kf5Xfh1(o4Ki9QKtspf9pTATcMVSpbREfA6wfPeoNDiqCaNc1dbmaMBHECc2disQhkMQRritTsOTjPoQ9KLWeF63izR2ZTA72cI)DdlITDdDdObTztaqKmhx8O1BG)LSM6bcdEUx6PCGdQJ52)af2lKcOUS2uxRP2UodGYi1yQH(zc3)fWQyHdp8qT5SZUWjBq7y5KmACT8EgsiVid8thP7AQEl1rSQKvpeFpsW0WxdMSNCAryeDA7fo38ZwV57PIE)kL6ggXIfA6FSG9oTk5XAMc)xrvhD(ugYcZ9(AWlY1ZUcYa)NNE1uib8RVzo7JNhbj3OjhPbvRHHby1hJLsHOVi9)bvLoZfQvBRKVjB3Rf0LfPvdYqLGLh9Okp3pq0z1j78qpsyfPJPXYeRWFusF1Ul4xkr7eRDaSsyvgUTxJL0yAAcJgdCv3GmMXm0yr2Kw1yt2Kr0WaRvZs8uL2LYClEUgmDarC9eaYbazwq0W1gsoQl6ykQt1zXA(GggDLQNURYXL2hxm7ZFgdZwMIVuJcWA)v83XkraO3NCPPVjH4D6WbJQP7k1VaJPND2KYCk5CjgltURej6W7A2Ul4tYUcoPkm7rIQVBE8eOADwv19BZbvVwHjeHs2cD72dkdQe4(nwI4BihQCREAfbmu9CdFvk6Pb1ciROH(79DR1moRFPR7BLdBJmcdSq0Pd5EOOwS8ybOCIW6)FaTwID1ElIfhbbEvuxXIc4dLewQaE(1Gp4BU(wEBrC6p51Gz0538ZtVD(HvWhy4nSs2hVU8Z)YDiCSwpJCOwZjEB8ZMN6ffvt5(89lNdvuT)jnupPxEW4pp98VwxCpwN0M3wZ9sGPt8ucMxUEtji2xXLukR6Ux)VqWvITo70S5TUf3eDZzetM)R3o7ZSY3yZI4YR)60lNcPIvIRSuSs0NF9lRixwTZNnSeXJT0b59VDKnHXFPUbEz0J8(mORW7kC4lAQ5AX2h4ttsXm7oBCrRzWTiZPNmuhGWweB7Tc5r6H3761yn5cvhxKqZf0qSouOAo2qW02ZKx3wNsMuq01R5)L19KkKPM7HaBwfAbdyT47Sr7Xak2rQklM)KBCikBXX4bCb66nrXPIKwEvz71EfYP(JmqjfsmpbWliVZsJw7MIlaYdCWvdY)0NPHWNo(NaRJWKSniSWnWVIaaL7)2RgGIc(WdfZcKpfX10KewpefqqqnS0kXIWtJPHpGtck3j3zwk)qS2(d8dFcBIgUWYeiu(ZsnhXHg6fK5dAOoeAkud2pbeawz5)(xtiiKiRt(T3GP2q9wjVB3WNRWAUtyec8)eRxHMgubxF8xiYjvi9FcjwexGMB5Gi3z0VjQXPAPXsyguYdKUrcqMwSvg3GTuy2AquZKjbG3Y8pnBDblF0qLXVcFDXC2VWr)YDec)6k20KbrcK9N)I3Vyo)qlMJbHG9j7lh38CShoGCWDX8dGAXvIwL70RQq9Zon3zIfFkXGJCoynhPCr6IRgRqqnqyZiCnqR1WQls12rOpPvOlhjGdLrm42weWCNtYDGOGvysAtiQoQnolDJz8AXWBb7TkkjBznJe25SQTweTuJOdijRoE7pPGiKzQhjXuRI8IG949fST4(YikzHSxG4BEPFjtkWnhFJIQyZ5ajt5vn6Kr3q4iK4ugccJ1xniKCNFi3z4alZQXkq2ApG8KQRxXuKmRu3mdaexkuGmxw74K0Pn369z8ECFos6(uqK60tl2uTzgPio1o6Pg8c9Zxshx5TdnRARxmEGq5wzstsw)sFGRnx1VetQZsUXu8O2wJav7cOmXRPzFYoD6MlwJA5YTuOPDTLKDArvM60KRhnQ29Ud9nSlrRA04oDXWmQ)R2EqU)cgy0(jDEW7iHykcWilf2Lb7OxEWDecv9paUpO0CNbMKBU4UZrWylr1zuUtBKD3(svbAZMrQiwBzdTiCRB5yIFDm3Pq5Wgn5tqKNVk7BFgMT89UEKx9j)i8v2x0sZA5Ta6bB3QjRLdzhXuLiCERohkLI2QdPkB7WyW1DlpPYI6aZzK0E1BMCz1OQFf6ExdmVMgP(MfSd3bgYbTAo4n8QQmh9grqvEXGmrUsvNMt1SZqPIAlN2Ez(FUGpctMgf9br561XN8LINq1oRutPro7ktAWvpVlfAQ1hhMmviKYINdMj9o1hbfVQpB(tbUc2guoyD4rHivEoz6yqLVVoHdId4(iWsXrPRMUibUg0PQup9MAV3SoEnR8EAiAHriuoNwecV9LabPeVaq8UxciedFap))yV9lAOdxADhwwJtH8u1e9VQJYrdvUdjeVfZhoyu1Tb7awleNiQPCNW4(5g2fk7GgEx6qmPZ4XKWhnFXRk1Klh1NYQA5M78nUB6bU36JTUJV(5D(8FB598QZqxZB21CTaACHQXtTXczvDYO6TIjMkSx0iKQBAOmBy1bd3fvtDdgU76uTgLqQXkQz1124KxS7(TO0tfJC6(gSKkYKRdirkkq9sbXybhifoOAgZy4GQWLI290AuQDYPABe1DGFTdVjnzNTvOf)wOKdI6CS7ab1eJTfvRyI0Q51zEG3YKqJHBxJcyXjkm3kIrAWRy95R2WqC3VgYx2tHSDEAvhw11E12k4rK)LAVUAkD03xKs9bPweRKG1E8YjnF56wBRBVmolPSXBdaJ57r(I)UHI05AThoyFVRRu2X3BzxeM913XCKk7xTUoMGUV1sz8TuRL2hH5HhAY7fJzyQbmFFglaBVin0Ohog7bt93jQjhEMn33XZ6Sl3)9XOTFZgVOPotPf1gZZK322TNB5LG(ImDX0j4UCHiOMC22AdWm9yKw0STFV4()wQEZBWOkC7u7epUbUWoeQBCwDDyE6dJ2wpOBVtV7NatRsIPMY()V5c21b4z2mur9OnFcmfzXt6WyMd7ObA6Faol2V2MjA5gWPg24omEhdYBV6m0FX6DKIX1HMQ0O4OwJd53SFuAEtpYuwJ3xdJ7nUEz4IxZttlzTzlVlG)ogC08n9PGnwYYw6bdXu8qFOzPRIahXZxNTmHT0I)Zd]])

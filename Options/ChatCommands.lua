@@ -91,7 +91,14 @@ function Hekili:CmdLine( input )
             print("Snapshot command handler called")
             self:MakeSnapshot() 
         end,
-        skeleton = function () self:HandleSkeletonCommand( input ) end
+        skeleton = function () self:HandleSkeletonCommand( input ) end,
+        spectest = function () 
+            if ns.TestSpecDetection then
+                ns.TestSpecDetection()
+            else
+                print("Spec test function not available")
+            end
+        end
     }
 
     -- Execute the corresponding command handler or show error message

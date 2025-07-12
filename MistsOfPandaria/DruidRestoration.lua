@@ -17,28 +17,18 @@ local function getReferences()
     return class, state
 end
 
-local spec = Hekili:NewSpecialization( 105 ) -- Restoration spec ID for MoP
-
-local strformat = string.format
-local FindUnitBuffByID = ns.FindUnitBuffByID
-local FindUnitDebuffByID = ns.FindUnitDebuffByID
-local function UA_GetPlayerAuraBySpellID(spellID)
-    for i = 1, 40 do
-        local name, _, count, _, duration, expires, caster, _, _, id = UnitBuff("player", i)
-        if not name then break end
-        if id == spellID then return name, _, count, _, duration, expires, caster end
-    end
-    for i = 1, 40 do
-        local name, _, count, _, duration, expires, caster, _, _, id = UnitDebuff("player", i)
-        if not name then break end
-        if id == spellID then return name, _, count, _, duration, expires, caster end
-    end
-    return nil
-end
+local spec = Hekili:NewSpecialization( 105, true ) -- Restoration spec ID for MoP
 
 -- Register resources
 spec:RegisterResource( 0 ) -- Mana = 0 in MoP
 spec:RegisterResource( 3 ) -- Energy = 3 in MoP
+
+-- Spec configuration for MoP
+spec.role = "HEALER"
+spec.primaryStat = "intellect"
+spec.name = "Restoration"
+
+-- No longer need custom spec detection - WeakAuras system handles this in Constants.lua
 
 -- Tier sets and combat log tracking
 spec:RegisterGear( "tier13", 78784, 78785, 78786, 78787, 78788, 78789, 78790, 78791, 78792, 78793 ) -- T13 Deep Earth

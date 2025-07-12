@@ -1,7 +1,9 @@
 -- RogueSubtlety.lua
 -- Mists of Pandaria (5.4.8)
 
-if UnitClassBase( "player" ) ~= "ROGUE" then return end
+-- MoP: Use UnitClass instead of UnitClassBase
+local _, playerClass = UnitClass('player')
+if playerClass ~= 'ROGUE' then return end
 
 local addon, ns = ...
 local Hekili = _G[ addon ]
@@ -13,7 +15,11 @@ local GetSpellInfo = ns.GetUnpackedSpellInfo
 
 local spec = Hekili:NewSpecialization( 261 )
 
-spec:RegisterResource( Enum.PowerType.Energy, {
+spec.name = "Subtlety"
+spec.role = "DAMAGER"
+spec.primaryStat = 2 -- Agility
+
+spec:RegisterResource( 3, { -- Energy
   shadow_techniques = {
     last = function () return state.query_time end,
     interval = function () return state.time_to_sht[5] end,
@@ -22,7 +28,7 @@ spec:RegisterResource( Enum.PowerType.Energy, {
   }
 } )
 
-spec:RegisterResource( Enum.PowerType.ComboPoints )
+spec:RegisterResource( 4 ) -- ComboPoints
 
 -- Talents
 spec:RegisterTalents( {
@@ -112,7 +118,7 @@ spec:RegisterAuras( {
   },
   kidney_shot = {
     id = 408,
-    duration = function() return 5 + ( effective_combo_points > 0 and min( 6, effective_combo_points ) - 1 or 0 ) end,
+    duration = function() return 1 + min(5, effective_combo_points) end, -- MoP: 1s base + 1s per combo point.
     max_stack = 1
   },
   preparation = {
@@ -142,7 +148,7 @@ spec:RegisterAuras( {
   },
   slice_and_dice = {
     id = 5171,
-    duration = function() return 12 + ( 6 * min( 5, effective_combo_points ) ) end,
+    duration = function() return 6 + (6 * min(5, effective_combo_points)) end, -- MoP: 6s base + 6s per combo point.
     max_stack = 1
   },
   sprint = {
@@ -169,7 +175,7 @@ spec:RegisterAuras( {
   },
   rupture = {
     id = 1943,
-    duration = function() return 8 + ( 4 * min( 5, effective_combo_points ) ) end,
+    duration = function() return 4 + (4 * min(5, effective_combo_points)) end, -- MoP: 4s base + 4s per combo point.
     max_stack = 1
   },
   deadly_poison = {
@@ -310,7 +316,7 @@ spec:RegisterAbilities( {
     usable = function () return combo_points.current > 0, "requires combo points" end,
 
     handler = function ()
-      applyDebuff( "target", "rupture", 8 + (4 * effective_combo_points) )
+      applyDebuff( "target", "rupture", 4 + (4 * effective_combo_points) )
       spend( combo_points.current, "combo_points" )
     end
   },
@@ -330,7 +336,7 @@ spec:RegisterAbilities( {
     usable = function () return combo_points.current > 0, "requires combo points" end,
 
     handler = function ()
-      applyBuff( "slice_and_dice", 12 + (6 * effective_combo_points) )
+      applyBuff( "slice_and_dice", 6 + (6 * effective_combo_points) )
       spend( combo_points.current, "combo_points" )
     end
   },
@@ -515,3 +521,7 @@ spec:RegisterOptions( {
 } )
 
 spec:RegisterPack( "Subtlety", 20250406, [[Hekili:TZv3Unom4FPB4dQDKQ(ovYLlr9QKCe4rnCvzUCBkQu8zJV3xRy3o2oKf1TojBwKC0AuXCTY)NUo8dZFcvz9Pih73(zAA94b7nzJn69Gzxi9Xh3FjGFAT)gU1Y0oF7n8XW)IbcEJEw8nC5PtEJd57w4G8CkUhF99I3Mx4u(BVN6LNMwbJ)fmolp3rj)YMZYj97X67mRZO8L7o(Z88Yy)xhxEhgpN(Cl4uGOWEZlxpJVCgDjwEgCXgqG92UqV4ooFJRmGR0MpFOTU)NsZm21z94Pco2f8UdcCrlUYXZhf76QKKYZtmUvxP6nrZwB1YEMTYFGtgYYYfGQK66yIwKEK8A51dT9Ys4HsPNKDPpGZyWEJpbMwLyBU3(yPG2Ev0NVl3aAUTJCUTPZ(UGxKG5W9)DdkGOMk4u4HZ)2bGEF6OFQ04g(NdzR9jgBf)M6vZ6JoswmQUPOmk1cMnjPeUjG7s9NKOMC)mjj9KuY1)Gu(OZ9FbWQIJf(gblB(sgpXmLW0vkwW03EsKbxlEYGhVdw98rTm)gKP(LLuEBjB(0gVs)4acUd)xbxvKfTm3LsGdUkygkxqyeQa0GqhZx9)uJHrwb(gMJyWVyXJBiIdTIVOl4FeN2YZAJJyGQ30ZKBu8MYHmcI3N(WGTfNcgTl2jy2Y28YUX65CjmMBZYlPiMmYlPdZS3WKSlYE)1Nck3SL0rqLkYc87gFIdPi1o0JKE9LsyWENzOBzILEXzMnBglZZR4G30Lh4r)YjMgwJEPz4cNbS7kMqZZZIKYoXqwFJspjRnzQ8h9kRHsv68iUPsQGiokI09Wj6vePRBzZsYm2)cKprgqoqaUEVkLyvPJuDLBXb8J5OXCVZSGZyWGbcMTrg9Qai4vDrE(CcK)P4uj3wFd27Ij5bfUG9HuqZdQ6vr1sbCfaFHLu4rL8d90yJxeNVHKSbUdPPNuoZEPsV9i3YyQFHFgCsB6h9wqwUZ7bCbeBJ4EXP9eDUvdvCFimVCYAZCFZVP1(iMpYtb1UfhcQVW16y1sJJN)bOBTwTJCc4Y4bYVhOGPeIjDUfFk(x)X0Gw3lFqvbw9Q0DWl7z5kNjSCszh2MwY9E1nUZIWZU(ByEFGK1qN4vwJVGX7Z5Tz9b28mPQFUTlm(3UD)qOsGgPZW2LrLAO1S9UPFqDgPo7qVvzixAHqcDd2sSvEuQaHBvJZTr6dCkr(lQpbq)SkOBHFQpZqkNWl0(h9MsDg0KCcYKjX7EqVVA9UFAvqZ9GXIBnP9(Q5J6kkFZkBbxHzXZgF(xFMbgIHyHMM(IfnW9oVtq5UEA0iOGcuaXNyYvXUQ2TpZOcuLJxJF6GQQFHEMklHhESRvmtGsQNMIxwgbQlGXSsjE)9zQWYErbmJpqK9sQOzDnxC5bLe0Lv5MxQK7sOEiEXI6lvb3bFw7fYSyI)yiPdFjHPIlFzIc8YMSXaFb01jrFzC4(hq10yNK21yiWdL0c7wK)7YW9I9(PjnF6WVrAZ2HdgYiKSA1kXIXOlIVAl2XuUonjlPB67yqp1gXA53DWBRCJAzDsUG7cwI87dDH(HdUXaAJ9wNbI8Vir4X6QfYgYVuQsGcjEXbgw)BO9Fh9fQGvS3JqEptLFwkwjwk(XpRvPFwSAX0NRFy(VCixF9PuDZZ89V5vbRK6I83GfDXkbV35Io0qfDGMZsCg83k07X3i1T1E2LLnVNn)FbKfYyMJj8uRZs6X7r3W9lzSa)y1WgmxrPMTmFZMVz)mGCEHxvwjG(hERUxTnR2lxiKlZgb29sBwQu1x53d8Vy7OQfr(dqupD6Wvx8GVyYcmIJ(pTtqKvnR91a3HoEZj)1LFaQyqpb5nz5ZZ4VtQI9gCUY9ztTY1s9fEUkRx8X1xVljZgpG4hL0VZMEKFLSk(t3I0VlnZVLt)2nKhE4U2kn09C35EpGlfP1HNVvlnm1)KORMmRcDVb5dQRVlGOblCXt9x3z1mWVS2uynKMdW1FJKr0Fo8OXWUKIFZlk90kvjLwVlkffN)XjPo2V0uAJnmDyf8kB3DpVh2Kju09Zs2GU1sBLuOIQFvT11klkjOVkd2H8N9Og5WtlpbFFxZ)2Xf3eMLaLPAuF7O2XVEJ9m0FU4Vo4Cf6pQi4xmOWQdLh24MFoxoW6S)5TFvxWVpR2lKGlZ33uSR1bCLFzvL)UVFQL)WL5MdRxlsGH)6q9D)XaH)hCEWap8v3QWrGHdaY)Wbm4z9)]] )
+
+
+
+

@@ -204,25 +204,6 @@ state.off_hand = {
 
 state.gcd = {}
 
--- MoP: Hero trees don't exist in MoP, disable this feature
-state.hero_tree = setmetatable( {}, {
-    __index = function( t, k )
-        -- Always return false for MoP compatibility
-        return false
-        --[[ Original retail code:
-        if state.level < 71 then
-            return false
-        end
-
-        if k == "current" then
-            return ns.getActiveHeroTreeName()
-        end
-
-        return ns.getActiveHeroTreeName() == k
-        ]]
-    end
-} )
-
 
 state.history = {
     casts = {},
@@ -267,6 +248,7 @@ state.predictionsOff = {}
 state.predictionsOn = {}
 state.purge = {}
 state.pvptalent = {}
+state.hero_tree = { current = "none" }  -- MoP: Add empty hero_tree for compatibility
 state.race = {}
 state.script = {}
 state.set_bonus = {}
@@ -1565,10 +1547,6 @@ do
                    ( not v.channel or state.buff.casting.up and state.buff.casting.v3 == 1 and state.buff.casting.v1 == class.abilities[ v.channel ].id ) then
 
                     local l = v.last()
-                    -- Ensure l is a valid number, default to now if nil
-                    if l == nil then
-                        l = now
-                    end
                     local i = type( v.interval ) == "number" and v.interval or
                               ( type( v.interval ) == "function" and v.interval( now, r.actual ) or
                               ( type( v.interval ) == "string" and state[ v.interval ] or 0 ) )
@@ -1983,9 +1961,6 @@ do
         resetting = 1,
         scriptID = 1,
         whitelist = 1,
-        
-        -- Player identification
-        GUID = 1,
 
         -- Timings.
         delay = 1,
@@ -2593,8 +2568,8 @@ do
             if k ~= "scriptID" and not ( logged_state_errors[ t.scriptID ] and logged_state_errors[ t.scriptID ][ k ] ) then
                 local key_str = type(k) == "function" and tostring(k) or k
                 Hekili:Error( "Unknown key '" .. key_str .. "' in emulated environment for [ " .. t.scriptID .. " : " .. t.this_action .. " ].\n\n" .. debugstack() )
-                logged_state_errors[ t.scriptID ] = logged_state_errors[ t.scriptID ] or {}
-                logged_state_errors[ t.scriptID ][ k ] = true
+                logged_state_errors[ t.script ] = logged_state_errors[ t.script ] or {}
+                logged_state_errors[ t.script ][ k ] = true
             end
         end,
         __newindex = function( t, k, v )
@@ -7392,7 +7367,7 @@ do
         local spec = rawget( profile.specs, state.spec.id )
         if not spec then return true end
 
-        local option = ability.item and spec.items[ spell ] or spec.abilities[ spell ]
+        local option = ability.item and (spec.items and spec.items[ spell ]) or spec.abilities[ spell ]
 
         if not strict then
             local toggle = option.toggle
@@ -7460,7 +7435,7 @@ do
         local spec = rawget( profile.specs, state.spec.id )
         if not spec then return true end
 
-        local option = ability.item and spec.items[ spell ] or spec.abilities[ spell ]
+        local option = ability.item and (spec.items and spec.items[ spell ]) or spec.abilities[ spell ]
         local toggle = option.toggle
         if not toggle or toggle == "default" then toggle = ability.toggle end
 

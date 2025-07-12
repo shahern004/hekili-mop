@@ -8465,7 +8465,6 @@ function Hekili:GenerateProfile()
     local s = state
 
     local spec = s.spec.key
-    local heroTree = state.hero_tree.current or "none"
 
     local talents = self:GetLoadoutExportString()
 
@@ -8473,13 +8472,6 @@ function Hekili:GenerateProfile()
         if v.enabled then
             if talents then talents = format( "%s\n    %s = %d/%d", talents, k, v.rank, v.max )
             else talents = format( "%s = %d/%d", k, v.rank, v.max ) end
-        end
-    end
-
-    local pvptalents
-    for k,v in orderedPairs( s.pvptalent ) do
-        if v.enabled then
-            if pvptalents then pvptalents = format( "%s\n   %s", pvptalents, k )            else pvptalents = k end
         end
     end
 
@@ -8572,13 +8564,10 @@ function Hekili:GenerateProfile()
     "build: %s\n" ..
     "level: %d (%d)\n" ..
     "class: %s\n" ..
-    "spec: %s\n" ..
-    "hero tree: %s\n\n" ..
+    "spec: %s\n\n" ..
 
     "### Talents ###\n\n" ..
-    "In-Game Import: %s\n" ..
-
-    "\nPvP Talents: %s\n\n" ..    "### Legacy Content ###\n\n" ..
+    "In-Game Import: %s\n\n" ..    "### Legacy Content ###\n\n" ..
     "legendaries: %s\n\n" ..
 
     "### Gear & Items ###\n\n" ..
@@ -8597,9 +8586,7 @@ function Hekili:GenerateProfile()
     self.Version or "no info",
     UnitLevel( 'player' ) or 0, UnitEffectiveLevel( 'player' ) or 0,
     class.file or "NONE",
-    spec or "none",
-    heroTree or "none",    talents or "none",
-    pvptalents or "none",
+    spec or "none",    talents or "none",
     legendaries or "none",
     sets or "none",
     gear or "none",

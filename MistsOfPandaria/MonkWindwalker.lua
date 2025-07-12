@@ -2,7 +2,9 @@
 -- July 2025 - By Smufrik
 -- Updated for Mists of Pandaria (MoP)
 
-if UnitClassBase( "player" ) ~= "MONK" then return end
+-- MoP: Use UnitClass instead of UnitClassBase
+local _, playerClass = UnitClass('player')
+if playerClass ~= 'MONK' then return end
 
 local addon, ns = ...
 local Hekili = _G[ addon ]
@@ -11,9 +13,10 @@ local class, state = Hekili.Class, Hekili.State
 local strformat = string.format
 
 local spec = Hekili:NewSpecialization( 269 )
-local GetSpellCount = C_Spell.GetSpellCastCount
+-- local GetSpellCount = C_Spell.GetSpellCastCount -- Retail API not available in MoP
+local GetSpellCount = function() return 0 end -- MoP fallback
 
-spec:RegisterResource( Enum.PowerType.Energy, {
+spec:RegisterResource( 3, { -- Energy
     crackling_jade_lightning = {
         aura = "crackling_jade_lightning",
         debuff = true,
@@ -33,8 +36,8 @@ spec:RegisterResource( Enum.PowerType.Energy, {
         value = function () return class.abilities.crackling_jade_lightning.spendPerSec end,
     }
 } )
-spec:RegisterResource( Enum.PowerType.Chi )
-spec:RegisterResource( Enum.PowerType.Mana )
+spec:RegisterResource( 12 ) -- Chi
+spec:RegisterResource( 0 ) -- Mana
 
 -- Talents
 spec:RegisterTalents( {
@@ -929,7 +932,7 @@ spec:RegisterTotems( {
 
 spec:RegisterUnitEvent( "UNIT_POWER_UPDATE", "player", nil, function( event, unit, resource )
     if resource == "CHI" then
-        if UnitPower( "player", Enum.PowerType.Chi ) < 2 and ns.castsOn[ 1 ] == "tiger_palm" then table.remove( ns.castsOn, 1 ) end
+        if UnitPower( "player", 12 ) < 2 and ns.castsOn[ 1 ] == "tiger_palm" then table.remove( ns.castsOn, 1 ) end
         Hekili:ForceUpdate( event, true )
     end
 end )

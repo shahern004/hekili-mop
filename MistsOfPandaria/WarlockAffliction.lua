@@ -103,189 +103,10 @@ RegisterAfflictionCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subev
 end)
 
 -- Enhanced Mana resource system for Affliction Warlock
-spec:RegisterResource( 0, { -- Mana = 0 in MoP
-    -- Life Tap mana restoration
-    life_tap = {
-        aura = "life_tap",
-        last = function ()
-            local app = state.buff.life_tap.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 1 ) * 1
-        end,
-        interval = 1,
-        value = function()
-            return state.max_mana * 0.15 -- 15% max mana instantly when used
-        end,
-    },
-    
-    -- Dark Soul mana efficiency
-    dark_soul = {
-        aura = "dark_soul_knowledge",
-        last = function ()
-            local app = state.buff.dark_soul_knowledge.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 1 ) * 1
-        end,
-        interval = 1,
-        value = function()
-            return state.buff.dark_soul_knowledge.up and state.max_mana * 0.01 or 0 -- 1% mana efficiency per second
-        end,
-    },
-    
-    -- Harvest Life mana restoration
-    harvest_life = {
-        aura = "harvest_life",
-        last = function ()
-            local app = state.buff.harvest_life.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 1 ) * 1
-        end,
-        interval = 1,
-        value = function()
-            local enemies_affected = 3 -- Maximum 3 enemies
-            return state.max_mana * (0.02 * enemies_affected) -- 2% per enemy affected
-        end,
-    },
-    
-    -- Soul Link mana efficiency
-    soul_link = {
-        aura = "soul_link",
-        last = function ()
-            local app = state.buff.soul_link.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 1 ) * 1
-        end,
-        interval = 1,
-        value = function()
-            return state.buff.soul_link.up and state.max_mana * 0.005 or 0 -- 0.5% mana efficiency
-        end,
-    },
-}, {
-    -- Enhanced base mana regeneration with various bonuses
-    base_regen = function ()
-        local base = state.max_mana * 0.02 -- 2% of max mana per 5 seconds
-        local spirit_bonus = state.stat.spirit * 0.56 -- Spirit to mana conversion
-        local intellect_bonus = state.stat.intellect * 0.15 -- Intellect-based bonus
-        
-        -- Combat penalty (50% reduction)
-        if state.combat then
-            base = base * 0.50
-            spirit_bonus = spirit_bonus * 0.50
-        end
-        
-        -- Fel Armor mana bonus
-        if state.buff.fel_armor.up then
-            spirit_bonus = spirit_bonus * 1.30 -- 30% increase from Fel Armor
-        end
-        
-        -- Dark Soul: Knowledge bonus
-        if state.buff.dark_soul_knowledge.up then
-            base = base * 1.25
-            spirit_bonus = spirit_bonus * 1.25
-        end
-        
-        return (base + spirit_bonus + intellect_bonus) / 5 -- Convert to per-second
-    end,
-    
-    -- Demon Armor mana efficiency
-    demon_armor = function ()
-        return state.buff.demon_armor.up and state.max_mana * 0.005 or 0 -- 0.5% mana bonus
-    end,
-    
-    -- Glyph of Life Tap mana efficiency
-    glyph_life_tap = function ()
-        return state.glyph.life_tap.enabled and state.max_mana * 0.005 or 0 -- 0.5% mana efficiency
-    end,
-} )
+spec:RegisterResource( 0 ) -- Mana = 0 in MoP
 
--- Soul Shards resource system
-spec:RegisterResource( 7, { -- SoulShards = 7 in MoP
-    max = 4, -- MoP had 4 maximum Soul Shards for Affliction
-    
-    regen = 0,
-    regenRate = function( state )
-        return 0
-    end,
-    
-    -- Enhanced Soul Shard generation sources
-    corruption_tick = {
-        last = function ()
-            local app = state.debuff.corruption.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 3 ) * 3
-        end,
-        interval = 3,
-        value = function()
-            return state.debuff.corruption.up and 0.15 or 0 -- 15% chance per tick
-        end,
-    },
-    
-    agony_tick = {
-        last = function ()
-            local app = state.debuff.agony.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 2 ) * 2
-        end,
-        interval = 2,
-        value = function()
-            local stacks = state.debuff.agony.stack
-            return state.debuff.agony.up and (0.15 + stacks * 0.05) or 0 -- 15% + 5% per stack
-        end,
-    },
-    
-    unstable_affliction_tick = {
-        last = function ()
-            local app = state.debuff.unstable_affliction.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 3 ) * 3
-        end,
-        interval = 3,
-        value = function()
-            return state.debuff.unstable_affliction.up and 0.20 or 0 -- 20% chance per tick
-        end,
-    },
-    
-    haunt_fade = {
-        last = function ()
-            local app = state.debuff.haunt.applied
-            local t = state.query_time
-            return app + state.debuff.haunt.duration
-        end,
-        interval = 8, -- Haunt duration
-        value = function()
-            return state.debuff.haunt.up and 1 or 0 -- Guaranteed Soul Shard when Haunt fades
-        end,
-    },
-    
-    generate = function( amount, overcap )
-        local cur = state.soul_shards.current
-        local max = state.soul_shards.max
-        
-        amount = amount or 1
-        
-        if overcap then
-            state.soul_shards.current = cur + amount
-        else
-            state.soul_shards.current = math.min( max, cur + amount )
-        end
-        
-        if state.soul_shards.current > cur then
-            state.gain( amount, "soul_shards" )
-        end
-    end,
-    
-    spend = function( amount )
-        local cur = state.soul_shards.current
-        
-        if cur >= amount then
-            state.soul_shards.current = cur - amount
-            state.spend( amount, "soul_shards" )
-            return true
-        end
-        
-        return false
-    end,
-} )
+-- Soul Shards resource system  
+spec:RegisterResource( 7 ) -- SoulShards = 7 in MoP
 
 -- Comprehensive Tier Sets with all difficulty levels
 spec:RegisterGear( "tier14", { -- Tier 14 (Heart of Fear) - Sha-Skin Regalia
@@ -1155,6 +976,171 @@ spec:RegisterAuras( {
             t.caster = "nobody"
         end,
     },
+    
+    -- Missing auras referenced in action lists
+    dark_soul = {
+        id = 113860,
+        duration = 20,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 113860 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    soulburn = {
+        id = 74434,
+        duration = 30,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 74434 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    haunting_spirits = {
+        id = 157698, -- Custom tracking ID
+        duration = 8,
+        max_stack = 1,
+        generate = function( t )
+            -- This is typically generated from Haunt expiration
+            local haunt_expired = state.debuff.haunt.remains == 0 and state.debuff.haunt.applied > 0
+            
+            if haunt_expired then
+                t.name = "Haunting Spirits"
+                t.count = 1
+                t.expires = state.query_time + 8
+                t.applied = state.query_time
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    dark_intent = {
+        id = 80398,
+        duration = 30,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 80398 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    drain_life = {
+        id = 689,
+        duration = 5,
+        tick_time = 1,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetTargetDebuffByID( 689 )
+            
+            if name and caster == "player" then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                t.duration = duration
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.duration = 5
+        end,
+    },
+    
+    soul_swap = {
+        id = 86211,
+        duration = 20,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 86211 )
+            
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    soul_swap_exhale = {
+        id = 86213,
+        duration = 0.1, -- Very short duration, just for state tracking
+        max_stack = 1,
+        generate = function( t )
+            -- This is a state tracker for when Soul Swap has been exhaled
+            if state.prev_gcd[1] and state.prev_gcd[1].soul_swap_exhale then
+                t.name = "Soul Swap Exhale"
+                t.count = 1
+                t.expires = state.query_time + 0.1
+                t.applied = state.query_time
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
 } )
 
 -- Affliction Warlock abilities
@@ -1575,6 +1561,117 @@ spec:RegisterAbilities( {
             applyBuff( "grimoire_of_sacrifice" )
         end,
     },
+    
+    -- Missing abilities referenced in action lists
+    fel_flame = {
+        id = 77799,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0.05,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 651447,
+        
+        handler = function()
+            -- Instant damage spell
+        end,
+    },
+    
+    dark_intent = {
+        id = 80398,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0.06,
+        spendType = "mana",
+        
+        startsCombat = false,
+        texture = 463286,
+        
+        handler = function()
+            applyBuff( "dark_intent" )
+        end,
+    },
+    
+    summon_pet = {
+        id = 688, -- Imp
+        cast = function() return 6 * haste end,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0.64,
+        spendType = "mana",
+        
+        startsCombat = false,
+        texture = 136218,
+        
+        handler = function()
+            -- Summon demon pet
+        end,
+    },
+    
+    summon_infernal = {
+        id = 1122,
+        cast = 0,
+        cooldown = 600,
+        gcd = "spell",
+        
+        toggle = "cooldowns",
+        
+        spend = 1,
+        spendType = "soul_shards",
+        
+        startsCombat = false,
+        texture = 136219,
+        
+        handler = function()
+            -- Summon infernal
+        end,
+    },
+    
+    drain_life = {
+        id = 689,
+        cast = function() return 5 * haste end,
+        cooldown = 0,
+        gcd = "spell",
+        
+        channeled = true,
+        
+        spend = 0.04, -- Per tick
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 136169,
+        
+        handler = function()
+            applyDebuff( "target", "drain_life" )
+        end,
+        
+        finish = function()
+            removeDebuff( "target", "drain_life" )
+        end,
+    },
+    
+    soulburn = {
+        id = 74434,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 1,
+        spendType = "soul_shards",
+        
+        startsCombat = false,
+        texture = 460957,
+        
+        handler = function()
+            applyBuff( "soul_burn" )
+        end,
+    },
 } )
 
 -- State Expressions for Affliction
@@ -1605,6 +1702,6 @@ spec:RegisterOptions( {
 } )
 
 -- Default pack for MoP Affliction Warlock
-spec:RegisterPack( "Affliction", 20250515, [[Hekili:T3vBVTTn04FldjHr9LSgR2e75XVc1cbKzKRlvnTo01OEckA2IgxVSbP5cFcqifitljsBPIYPKQbbXQPaX0YCRwRNFAxBtwR37pZUWZB3SZ0Zbnu(ndREWP)8dyNF3BhER85x(jym5nymTYnv0drHbpz5IW1vZgbo1P)MM]] )
+spec:RegisterPack( "Affliction", 20250710, [[Hekili:nNvBpoUTr4FllcGVljBCS2D9D5sxVaxrlqVfPbf1xq)qrKeTeLnRLevPKUTgWq)27musK6fszL92EPF4U1sA4ZqoZZmC4qxh3p6UnKuqD)5BwDZ6vV1z1YvooRU7DUBloLrD3Mrcos2d)iLKa))7JIIzbfmEk(PtXCsicroVueaF2D7UswCXhsD3za3v35ChiBgnaE9Bw7U9almKwllnpWD7hpWYR8X)rQ8B0CLppcEwQZk)ywEb85iUOY)VqpYIzlD3kFPCLqJiLXfWp)z5kJMs2ftdD)JUBjnt6cbl9iTWXDBGGvqfmc8lopoK)u6YqI4OhSwIxkOjewkOP7R8x3U4vJTaM)dWxJ2UYOOoivMPvEgx(xy43(Cg(oQiNkoYs3JqC3ZcIyop0lQuCcHyTviUQYVGettlwsebhyj8uWd59jA6EkjnGUSzqv(Npx5RSFMLvzlFOY3zTEUOMH4u5nwNkj8prtWzsxCwPHruM6v)BpKiuth8Q9y4yr0FRv0Xr(jQhnLMWOi2BKo85aoHlX(hMn23pBOHhbKFhImSeqhoqOBuIxZB6qQJOXErXYrQNiieBZe0aEYoIXycmOtWYQX4FqeX8GJ)yLF3y8E(kwAb4huS)mAHxDscq)hkHpk0diVmbicEGm9Ntdz(tsKBOG7faPIjOE8iVCc85iMMcQvPrXMMMVp(u2HLih0l)js2ymvFsXrhelp0GJKcdM6o0zskzzwqHKoCxhECmlI6vuRPHzxALHSNNEQVfsSNwSSmLbaE1gmZyqjq1wu53nfwbl4OxblHk)IzEzWPGyCcGaMJRadPPANhbCHOSH48fBYmKNO8ruAi6ZnpPUQwHqeJr1b5sU1S6Mo5yhiR5ihiIW60ho6P2bszDaJ90BnCCeKDLIuVXRgDYwqzGULP3BLVx292xoDkVjg)yl5Kj4c5O3oVqMwIOsBSSR1bLrsBh92oRWMpPNjjGvbcF92li5zQCHQ55bcSFJ3oECXOaWCJP6m78WnV6YmdiqgyKzAWdAFdF9ELtMOAc2(GKMHCEY(sGpnDLcFo6DW2CnkMLgrfPK4PZkBmwEyoQjdGUacgOuthdDb86tNThyOQJrfC0f4BxzP0f7XhJYmi9fVUjewsTaEOxEgdgsE)IoRzNMfempbhLIDtL)xBGS(UpVTFCwnr6kzo(dusCXbfq3SsUYqZUxb3lKrLzw7KP)BK5zv2pbSqRnGBXQkK(h3TY8Uo2JD)cMVXXE8(ZAwmLQUDU52KLZ(YxDXSdKuH22tk9Bku8Iv(bhW7FrOWzeZ9ckttb7yVSAQawdY1DFnD9XtMw6IkDibgnQJkm0AX4Gd8jIaXlhpQleuWsY4IIMJZ(QMtV(kCpP)DjKopeRTadEiLf8e400WlcoqGZvLVS6XFILcFAnuW(VKMxMHiHcupnq4AZr9kLWVZQWQjnkSCUfXJJ5pj5ZKsGQw5)evaVVmhhidgubkwlc4HxW0vfTYLYLlSY0EshgIchsGGhso9hRESY)7WNBMQWZpAWYOofZVnBJZ02M6JZOTo3yvC9Hz0sFNvPnUB8RMHhtDyduyJgc40fVuMG2ecZz9lJ71cERvb1H3ZXqnUCZ5yLKBYPf8ntAoXDX1Y(2N1u5hSoQEPYNtywNK7)UeO1AsSqVYFXcWg4KUyOLQK35WYguT6COAdyW2zxg2yFoCnt8g7SndPMTtYgykTtUghr7SY(uqvbwhXT7pTW0DS7yTnIjCR)ohCmSmBlbjyryVuHj)Fqs4E78FPOdDzpZjOOh0OTe7SFMGhXIP1T5pHLNlDUndVXgVhoNQGfaUR6oUdMs)k)puupizXaj00quzfhiWRPFIkoHyZ4GN7e6RdIldXt6szGpx06J)N)sofrIMK)RxdKKdSGdDLMKEsR1g6d9)KbzcyfXAC7YMAv6FOYhM7nQ5J1qa((FfbnS7RUPJMFIfh3zf1azrROsRH8vPLj7O10Ty4Sfvp(HKw796(8FK3Hn(vAMD3(vv(MATB1JFf8L)wBHvvpwdr(svTwF7MVVtzsMfqxy01TDdEJQzWwgskjl)aVWdYZIXyMKXyfuxZI2mR(DywTT1wHWyPTVMhzDJErcmAX(t1fPReDdKjYdoarY1yN730EfrOwSFTs3VwnELcWrm6IB6kM(2FUSOQB55IIQEpk5vZ5oFoFEE33Zdo9wLdUUJAZfMlfv8W745HvxCOqPW4iX3RBS1dBUSoH)oAC9DiQ8wxxFvlBCA9(BHNWCxFu2fKk))ohiXs2rlZjVyJCFKAZz9z)pFU1VRAWy3bOJJuvb11zmjzFH11rpGBlv65IBx7AnWYDJq4AxA6E90xqdfunNHP3eBos3JfBTnE3F7QbJt5Q0DQ7HnolE9K9N7(1NpprF5U)MVEGwA3LxY0BAqZ93nCUORi7AvlX24uN1Bqp3U)Mvl60RThuMLV52bG2RkmeRl08QfJAC1cZTo7fxpdjU6IbBd(Ep)p3jIZ)1R)wSb4YRSPJfhYlmhtETy1S4E3(txt(vBK3G1Ir0Vjc7QbUd99)bOp(0QM0sB6NHXY3oeUrjSw0lCyK2BcR6SH8mU9Qfxn8ENMXQQD3Rjg1NpZ7Im8MP3yg5FTzBltBeGBPnhIyJCZjFAJOZo1yJ86TZ0om794CX0nvDe66Jeml4Tp7C3chH6ax4U9NGIvHAMPPYMM6(F)]] )
 
 -- Register pack selector for Affliction

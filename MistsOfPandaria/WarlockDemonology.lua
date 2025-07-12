@@ -4,21 +4,16 @@
 
 -- MoP: Use UnitClass instead of UnitClassBase
 local _, playerClass = UnitClass('player')
-if playerClass ~= 'WARLOCK' then return end
-
-local addon, ns = ...
-local Hekili = _G[ "Hekili" ]
-local class = Hekili.Class
-local state = Hekili.State
-
-local function getReferences()
-    -- Legacy function for compatibility
-    return class, state
+if playerClass ~= 'WARLOCK' then 
+    return 
 end
 
-local strformat = string.format
-local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
+local addon, ns = ...
+local Hekili = _G[ addon ]
+local class, state = Hekili.Class, Hekili.State
 
+local floor = math.floor
+local strformat = string.format
 -- Enhanced helper functions for Demonology Warlock
 local function UA_GetPlayerAuraBySpellID(spellID)
     return FindUnitBuffByID("player", spellID)
@@ -35,7 +30,214 @@ local function GetTargetDebuffByID(spellID)
     return FindUnitDebuffByID("target", spellID, "PLAYER")
 end
 
-local spec = Hekili:NewSpecialization( 266 ) -- Demonology spec ID for MoP
+local spec = Hekili:NewSpecialization( 266, false ) -- Demonology spec ID for MoP
+
+-- Local state tracking tables
+local demonicFuryHistory = {}
+local metamorphosisUptime = 0
+local lastMetaToggle = 0
+local wildImpCount = 0
+local moltenCoreStacks = 0
+local lastCombatLogUpdate = 0
+
+-- Local functions for state management and tracking
+local function ResetDemonicFuryHistory()
+    demonicFuryHistory = {}
+end
+
+local function UpdateDemonicFuryHistory(amount, source)
+    local timestamp = GetTime()
+    table.insert(demonicFuryHistory, {
+        time = timestamp,
+        amount = amount,
+        source = source,
+        total = UnitPower("player", 11) -- Demonic Fury power type
+    })
+    
+    -- Keep only last 10 seconds of history
+    local cutoff = timestamp - 10
+    for i = #demonicFuryHistory, 1, -1 do
+        if demonicFuryHistory[i].time < cutoff then
+            table.remove(demonicFuryHistory, i)
+        end
+    end
+end
+
+local function GetDemonicFuryIncomeRate()
+    if #demonicFuryHistory < 2 then return 8.5 end -- Default regen rate
+    
+    local now = GetTime()
+    local recent = {}
+    
+    -- Get fury gains from last 5 seconds
+    for _, entry in ipairs(demonicFuryHistory) do
+        if now - entry.time <= 5 and entry.amount > 0 then
+            table.insert(recent, entry)
+        end
+    end
+    
+    if #recent < 2 then return 8.5 end
+    
+    local totalGain = 0
+    local timeSpan = recent[#recent].time - recent[1].time
+    
+    for _, entry in ipairs(recent) do
+        totalGain = totalGain + entry.amount
+    end
+    
+    return timeSpan > 0 and (totalGain / timeSpan) or 8.5
+end
+
+local function UpdateMetamorphosisTracking(isActive)
+    local now = GetTime()
+    
+    if isActive and lastMetaToggle > 0 then
+        -- We're entering meta
+        lastMetaToggle = now
+    elseif not isActive and lastMetaToggle > 0 then
+        -- We're leaving meta, update uptime
+        metamorphosisUptime = metamorphosisUptime + (now - lastMetaToggle)
+        lastMetaToggle = 0
+    end
+end
+
+local function GetMetamorphosisUptimePercent()
+    local combatTime = state.combat_time or 1
+    if combatTime <= 0 then return 0 end
+    
+    local totalUptime = metamorphosisUptime
+    if lastMetaToggle > 0 then
+        -- Currently in meta, add current session
+        totalUptime = totalUptime + (GetTime() - lastMetaToggle)
+    end
+    
+    return (totalUptime / combatTime) * 100
+end
+
+local function UpdateWildImpTracking()
+    -- Count active wild imps from combat log or pet tracking
+    local count = 0
+    
+    -- This would need proper implementation based on MoP's wild imp mechanics
+    -- For now, we'll track via buffs/state
+    if state.buff and state.buff.wild_imps and state.buff.wild_imps.up then
+        count = state.buff.wild_imps.stack or 0
+    end
+    
+    wildImpCount = count
+    return count
+end
+
+local function ShouldUseTrinket(slot)
+    -- Advanced trinket usage logic
+    local darkSoulUp = state.buff.dark_soul.up or state.buff.dark_soul_knowledge.up
+    local metaReady = state.demonic_fury.current >= 750
+    local heroUp = state.buff.bloodlust.up or state.buff.time_warp.up
+    local executePhase = state.target.health.pct <= 25
+    
+    -- Perfect sync: Dark Soul + Meta ready
+    if darkSoulUp and metaReady then return true end
+    
+    -- Hero timing
+    if heroUp and state.demonic_fury.current >= 500 then return true end
+    
+    -- Execute phase
+    if executePhase and state.demonic_fury.current >= 400 then return true end
+    
+    -- Don't waste on low fury
+    if state.demonic_fury.current < 300 then return false end
+    
+    return false
+end
+
+local function CalculateHandOfGuldanValue(targets)
+    targets = targets or state.active_enemies
+    
+    local furyGain = math.min(targets, 6) * 5 -- 5 fury per target, max 6 targets
+    local impChance = targets >= 3 and 0.8 or 0.3 -- Higher imp chance with more targets
+    local currentFury = state.demonic_fury.current
+    
+    -- Base value from damage
+    local baseValue = targets * 15
+    
+    -- Fury value (higher when we need fury)
+    local furyValue = 0
+    if currentFury < 600 then
+        furyValue = furyGain * 2 -- Double value when low on fury
+    elseif currentFury < 800 then
+        furyValue = furyGain
+    end
+    
+    -- Imp generation value
+    local impValue = impChance * 20
+    
+    return baseValue + furyValue + impValue
+end
+
+local function OptimalSoulFireTiming()
+    local mcStacks = state.buff.molten_core.stack or 0
+    local mcRemains = state.buff.molten_core.remains or 0
+    local manaPercent = state.mana.pct or 0
+    local inMeta = state.buff.metamorphosis.up
+    
+    -- Don't use in meta form
+    if inMeta then return 0 end
+    
+    -- No stacks = no value
+    if mcStacks == 0 then return 0 end
+    
+    -- High priority when about to expire
+    if mcRemains <= 3 and mcStacks >= 1 then return 95 end
+    
+    -- Medium priority with multiple stacks
+    if mcStacks >= 2 and manaPercent >= 30 then return 75 end
+    
+    -- Low priority with single stack and good mana
+    if mcStacks >= 1 and manaPercent >= 50 then return 50 end
+    
+    -- Don't use with low mana unless critical
+    if manaPercent < 25 and mcRemains > 5 then return 0 end
+    
+    return 25 -- Default low priority
+end
+
+local function ResetCombatTracking()
+    -- Reset all tracking when combat ends
+    ResetDemonicFuryHistory()
+    metamorphosisUptime = 0
+    lastMetaToggle = 0
+    wildImpCount = 0
+    moltenCoreStacks = 0
+end
+
+-- Combat state tracking
+local function OnCombatStart()
+    ResetCombatTracking()
+end
+
+local function OnCombatEnd()
+    ResetCombatTracking()
+end
+
+-- Event registration for tracking
+local trackingFrame = CreateFrame("Frame")
+trackingFrame:RegisterEvent("PLAYER_REGEN_DISABLED") -- Combat start
+trackingFrame:RegisterEvent("PLAYER_REGEN_ENABLED")  -- Combat end
+trackingFrame:RegisterEvent("UNIT_POWER_UPDATE")     -- Resource changes
+
+trackingFrame:SetScript("OnEvent", function(self, event, ...)
+    if event == "PLAYER_REGEN_DISABLED" then
+        OnCombatStart()
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        OnCombatEnd()
+    elseif event == "UNIT_POWER_UPDATE" then
+        local unit, powerType = ...
+        if unit == "player" and powerType == "DEMONIC_FURY" then
+            -- Update fury tracking
+            UpdateDemonicFuryHistory(0, "regen") -- This would need proper amount calculation
+        end
+    end
+end)
 
 -- Demonology-specific combat log event tracking
 local demoCombatLogFrame = CreateFrame("Frame")
@@ -100,112 +302,182 @@ RegisterDemoCombatLogEvent("UNIT_DIED", function(timestamp, subevent, sourceGUID
 end)
 
 -- Enhanced Mana and Demonic Fury resource system for Demonology Warlock
-spec:RegisterResource( 0, { -- Mana = 0 in MoP
-    -- Life Tap mana generation
-    life_tap = {
-        aura = "life_tap",
-        last = function ()
-            local app = state.buff.life_tap.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 1.5 ) * 1.5
-        end,
-        interval = 1.5,
-        value = function()
-            return state.health.current * 0.15 -- 15% of current health as mana
-        end,
-    },
-    
-    -- Dark Soul mana regeneration bonus
-    dark_soul = {
-        aura = "dark_soul",
-        last = function ()
-            local app = state.buff.dark_soul.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 1 ) * 1
-        end,
-        interval = 1,
-        value = function()
-            return state.buff.dark_soul.up and state.max_mana * 0.02 or 0 -- 2% max mana per second
-        end,
-    },
-    
-    -- Harvest Life mana return
-    harvest_life = {
-        aura = "harvest_life",
-        last = function ()
-            local app = state.buff.harvest_life.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 1 ) * 1
-        end,
-        interval = 1,
-        value = function()
-            return state.buff.harvest_life.up and 800 or 0 -- Fixed mana per second
-        end,
-    },
-}, {
-    -- Enhanced base mana regeneration with various bonuses
-    base_regen = function ()
-        local base = state.max_mana * 0.02 -- 2% of max mana per 5 seconds
-        local spirit_bonus = base * (state.stat.spirit / 100)
-        local talent_bonus = 0
-        
-        -- Talent bonuses
-        if state.talent.drain_life.enabled and state.channeling and state.channeling.spell == "drain_life" then
-            talent_bonus = talent_bonus + state.stat.spirit * 0.10 -- 10% spirit bonus while channeling Drain Life
-        end
-        
-        return (base + spirit_bonus + talent_bonus) / 5 -- Convert to per-second
-    end,
-    
-    -- Demonic Pact mana bonus
-    demonic_pact = function ()
-        return state.buff.demonic_pact.up and state.max_mana * 0.10 or 0 -- 10% mana bonus
-    end,
-} )
+spec:RegisterResource( 0 ) -- Mana = 0 in MoP
 
-spec:RegisterResource( 11, { -- DemonicFury = 11 in MoP
-    max = 1000,
+spec:RegisterResource( 11 ) -- DemonicFury = 11 in MoP
+
+-- State Expressions for Demonology using local functions (High Priority - Load Early)
+spec:RegisterStateExpr( "demonic_fury", function()
+    return demonic_fury.current
+end )
+
+-- Meta auras for import compatibility
+spec:RegisterStateExpr( "focus_deficit", function()
+    return demonic_fury.max - demonic_fury.current
+end )
+
+spec:RegisterStateExpr( "current_focus", function()
+    return demonic_fury.current
+end )
+
+spec:RegisterStateExpr( "focus_time_to_max", function()
+    local deficit = demonic_fury.max - demonic_fury.current
+    if deficit <= 0 then return 0 end
+    -- Use tracked income rate instead of static value
+    local incomeRate = GetDemonicFuryIncomeRate()
+    return deficit / incomeRate
+end )
+
+spec:RegisterStateExpr( "mana_deficit", function()
+    return mana.max - mana.current
+end )
+
+spec:RegisterStateExpr( "pet_alive", function()
+    return pet.alive or false
+end )
+
+spec:RegisterStateExpr( "pet_exists", function()
+    return pet.exists or false
+end )
+
+spec:RegisterStateExpr( "in_combat", function()
+    return combat
+end )
+
+-- Advanced rotation logic state expressions using local functions
+spec:RegisterStateExpr( "should_metamorphosis", function()
+    -- Complex logic for when to enter Metamorphosis
+    local min_fury = 400
+    local optimal_fury = buff.dark_soul.up and 750 or 1000
+    local target_time = target.time_to_die
     
-    regen = 0,
-    regenRate = function( state )
-        return 0 -- Demonic Fury generates from abilities, not passively
-    end,
-    
-    -- Enhanced Demonic Fury generation from various sources
-    generate = function( amount, overcap )
-        local cur = state.demonic_fury.current
-        local max = state.demonic_fury.max
-        
-        amount = amount or 0
-        
-        -- Apply Metamorphosis bonuses
-        if state.buff.metamorphosis.up then
-            amount = amount * 1.25 -- 25% more fury generation in Metamorphosis
-        end
-        
-        if overcap then
-            state.demonic_fury.current = cur + amount
-        else
-            state.demonic_fury.current = math.min( max, cur + amount )
-        end
-        
-        if state.demonic_fury.current > cur then
-            state.gain( amount, "demonic_fury" )
-        end
-    end,
-    
-    spend = function( amount )
-        local cur = state.demonic_fury.current
-        
-        if cur >= amount then
-            state.demonic_fury.current = cur - amount
-            state.spend( amount, "demonic_fury" )
-            return true
-        end
-        
+    -- Don't enter if already in meta or not enough fury
+    if buff.metamorphosis.up or demonic_fury.current < min_fury then
         return false
-    end,
-} )
+    end
+    
+    -- Priority 1: Dark Soul is up and we have enough fury
+    if buff.dark_soul.up and demonic_fury.current >= 750 and target_time >= 30 then
+        return true
+    end
+    
+    -- Priority 2: No Dark Soul but high fury and long fight
+    if not buff.dark_soul.up and demonic_fury.current >= optimal_fury and target_time >= 45 then
+        return true
+    end
+    
+    -- Priority 3: Burst phase (bloodlust/hero)
+    if (buff.bloodlust.up or buff.time_warp.up) and demonic_fury.current >= 600 then
+        return true
+    end
+    
+    return false
+end )
+
+spec:RegisterStateExpr( "should_cancel_metamorphosis", function()
+    -- Logic for when to cancel Metamorphosis early
+    if not buff.metamorphosis.up then return false end
+    
+    -- Cancel if very low on fury and no Dark Soul
+    if demonic_fury.current <= 200 and not buff.dark_soul.up then
+        return true
+    end
+    
+    -- Cancel if Dark Soul ended and we're below threshold
+    if not buff.dark_soul.up and demonic_fury.current <= 400 and target.time_to_die <= 20 then
+        return true
+    end
+    
+    return false
+end )
+
+spec:RegisterStateExpr( "hand_of_guldan_targets", function()
+    -- Calculate optimal number of targets for Hand of Gul'dan
+    local base_targets = active_enemies >= 3 and 3 or 1
+    local fury_consideration = demonic_fury.current < 200 and 2 or base_targets
+    return math.min(fury_consideration, active_enemies)
+end )
+
+spec:RegisterStateExpr( "optimal_dark_soul_timing", function()
+    -- Advanced timing for Dark Soul usage
+    local cd_ready = cooldown.dark_soul.ready
+    local has_meta_fury = demonic_fury.current >= 750
+    local long_fight = target.time_to_die >= 60
+    local hero_soon = cooldown.bloodlust.remains <= 15 or cooldown.time_warp.remains <= 15
+    
+    if not cd_ready then return false end
+    
+    -- Use immediately if we have meta fury and long fight
+    if has_meta_fury and long_fight then return true end
+    
+    -- Use if hero is coming soon
+    if hero_soon and demonic_fury.current >= 400 then return true end
+    
+    -- Use in execute phase
+    if target.health.pct <= 25 and demonic_fury.current >= 500 then return true end
+    
+    return false
+end )
+
+spec:RegisterStateExpr( "molten_core_priority", function()
+    -- Use local function for optimal timing
+    return OptimalSoulFireTiming()
+end )
+
+spec:RegisterStateExpr( "demonic_fury_income_rate", function()
+    -- Use tracked income rate
+    return GetDemonicFuryIncomeRate()
+end )
+
+spec:RegisterStateExpr( "fury_time_to_threshold", function()
+    -- Time to reach specific Demonic Fury thresholds
+    local target_fury = 750 -- Metamorphosis threshold
+    local current = demonic_fury.current
+    local income = GetDemonicFuryIncomeRate()
+    
+    if current >= target_fury then return 0 end
+    
+    local deficit = target_fury - current
+    return deficit / income
+end )
+
+spec:RegisterStateExpr( "aoe_hand_value", function()
+    -- Use local function for calculation
+    return CalculateHandOfGuldanValue(active_enemies)
+end )
+
+spec:RegisterStateExpr( "trinket_sync_window", function()
+    -- Use local function for trinket logic
+    if ShouldUseTrinket(1) then return 100 end
+    
+    local dark_soul_soon = cooldown.dark_soul.remains <= 5
+    local meta_ready = demonic_fury.current >= 750
+    local hero_up = buff.bloodlust.up or buff.time_warp.up
+    
+    if dark_soul_soon and meta_ready then return 80 end
+    if hero_up and demonic_fury.current >= 500 then return 60 end
+    
+    return 0
+end )
+
+spec:RegisterStateExpr( "execute_phase_active", function()
+    -- Determine if we're in execute phase
+    local low_health = target.health.pct <= 25
+    local burn_phase = target.time_to_die <= 45
+    local hero_up = buff.bloodlust.up or buff.time_warp.up
+    
+    return low_health or burn_phase or hero_up
+end )
+
+spec:RegisterStateExpr( "metamorphosis_uptime_percent", function()
+    -- Track metamorphosis uptime using local function
+    return GetMetamorphosisUptimePercent()
+end )
+
+spec:RegisterStateExpr( "wild_imp_count", function()
+    -- Get current wild imp count
+    return UpdateWildImpTracking()
+end )
 
 -- Enhanced Tier Sets with comprehensive bonuses
 spec:RegisterGear( 13, 8, { -- Tier 14 (Heart of Fear)
@@ -782,6 +1054,38 @@ spec:RegisterAuras( {
         duration = 15,
         max_stack = 1,
     },
+    
+    -- Missing auras for import compatibility
+    bloodlust = {
+        id = 2825, -- Bloodlust/Heroism
+        duration = 40,
+        max_stack = 1,
+        copy = { 2825, 32182, 80353, 90355, 178207 }, -- Various bloodlust effects
+    },
+    
+    time_warp = {
+        id = 80353, -- Time Warp
+        duration = 40,
+        max_stack = 1,
+        copy = { 80353 },
+    },
+    
+    -- Focus-related meta auras for import compatibility (maps to demonic fury)
+    focus = {
+        duration = 3600,
+        max_stack = 1,
+        meta = {
+            actual = function() return demonic_fury.current end,
+            max = function() return demonic_fury.max end,
+            deficit = function() return demonic_fury.max - demonic_fury.current end,
+            pct = function() return demonic_fury.current / demonic_fury.max * 100 end,
+            time_to_max = function() 
+                local deficit = demonic_fury.max - demonic_fury.current
+                if deficit <= 0 then return 0 end
+                return deficit / 8.5 -- Demonic Fury regen rate
+            end,
+        }
+    },
 } )
 
 -- Demonology Warlock abilities
@@ -1328,12 +1632,201 @@ spec:RegisterAbilities( {
             applyBuff( "grimoire_of_sacrifice" )
         end,
     },
-} )
+    
+    -- Missing abilities that were causing import errors
+    dark_intent = {
+        id = 109773,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0.06,
+        spendType = "mana",
+        
+        startsCombat = false,
+        texture = 538993,
+        
+        handler = function()
+            -- Apply Dark Intent buff to party member
+        end,
+    },
+    
+    summon_pet = {
+        id = 30146, -- Felguard ID as default
+        cast = 6,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0.1,
+        spendType = "mana",
+        
+        startsCombat = false,
+        texture = 136216,
+        
+        handler = function()
+            -- Summon active pet
+        end,
+    },
+    
+    felstorm = {
+        id = 89751,
+        cast = 0,
+        cooldown = 30,
+        gcd = "off",
+        
+        startsCombat = true,
+        texture = 236305,
+        
+        usable = function()
+            return pet.active and pet.felguard.alive, "requires active felguard"
+        end,
+        
+        handler = function()
+            -- Felguard's Felstorm ability
+        end,
+    },
+    
+    hand_of_gul_dan = {
+        -- Alternative spelling for hand_of_guldan
+        id = 105174,
+        cast = function() return 1.5 * haste end,
+        cooldown = 15,
+        gcd = "spell",
+        
+        spend = 0.01,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 537432,
+        
+        handler = function()
+            applyDebuff( "target", "hand_of_guldan" )
+            gain( 15, "demonic_fury" )
+            if not buff.wild_imps.up then
+                applyBuff( "wild_imps" )
+                buff.wild_imps.stack = 1
+            else
+                addStack( "wild_imps", nil, 1 )
+            end
+        end,
+    },
 
--- State Expressions for Demonology
-spec:RegisterStateExpr( "demonic_fury", function()
-    return demonic_fury.current
-end )
+    -- Missing abilities for import compatibility
+    imp_swarm = {
+        id = 119915,  -- Imp Swarm spell ID
+        cast = 0,
+        cooldown = 60,
+        gcd = "spell",
+        
+        spend = 0.1,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 134413,
+        
+        usable = function()
+            return buff.demonic_calling.up, "requires demonic calling"
+        end,
+        
+        handler = function()
+            removeBuff( "demonic_calling" )
+            -- Summon multiple imps
+            gain( 5, "wild_imps" )
+        end,
+    },
+
+    life_tap = {
+        id = 1454,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0.15,
+        spendType = "health",
+        
+        startsCombat = false,
+        texture = 136126,
+        
+        handler = function()
+            gain( 0.15, "mana" )
+        end,
+    },
+
+    hellfire = {
+        id = 1949,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        channeled = true,
+        
+        spend = 0.05,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 135818,
+        
+        handler = function()
+            -- AoE damage channel
+        end,
+    },
+
+    immolation_aura = {
+        id = 104025,  -- Metamorphosis: Immolation Aura
+        cast = 0,
+        cooldown = 30,
+        gcd = "spell",
+        
+        spend = 60,
+        spendType = "demonic_fury",
+        
+        startsCombat = true,
+        texture = 135826,
+        
+        usable = function()
+            return buff.metamorphosis.up, "requires metamorphosis"
+        end,
+        
+        handler = function()
+            -- AoE damage aura in meta form
+        end,
+    },
+
+    felstorm = {
+        id = 89751,  -- Felguard's Felstorm
+        cast = 0,
+        cooldown = 45,
+        gcd = "off",
+        
+        startsCombat = true,
+        texture = 136221,
+        
+        usable = function()
+            return UnitExists("pet") and UnitCreatureFamily("pet") == "Felguard", "requires felguard pet"
+        end,
+        
+        handler = function()
+            -- Pet AoE whirlwind attack
+        end,
+    },
+
+    command_demon = {
+        id = 119898,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        
+        startsCombat = false,
+        texture = 136194,
+        
+        usable = function()
+            return UnitExists("pet"), "requires active pet"
+        end,
+        
+        handler = function()
+            -- Commands current demon to use their special ability
+        end,
+    },
+} )
 
 -- Range
 spec:RegisterRanges( "shadow_bolt", "corruption", "hand_of_guldan" )
@@ -1357,339 +1850,84 @@ spec:RegisterOptions( {
     package = "Demonology",
 } )
 
--- Default pack for MoP Demonology Warlock
-spec:RegisterPack( "Demonology", 20250515, [[Hekili:T3vBVTTn04FldjHr9LSgR2e75XVc1cbKzKRlvnTo01OEckA2IgxVSbP5cFcqifitljsBPIYPKQbbXQPaX0YCRwRNFAxBtwR37pZUWZB3SZ0Zbnu(ndREWP)8dyNF3BhER85x(jym5nymTYnv0drHbpz5IW1vZgbo1P)MM]] )
-
--- Register pack selector for Demonology
-
--- Tier Set Bonus Auras (Enhanced)
-spec:RegisterAuras( {
-    tier14_2pc_demo = {
-        id = 105770,
-        duration = 8,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 105770 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    tier14_4pc_demo = {
-        id = 105788,
-        duration = 30,
-        max_stack = 3,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 105788 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    tier15_2pc_demo = {
-        id = 138483,
-        duration = 10,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 138483 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    tier15_4pc_demo = {
-        id = 138486,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 138486 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    tier16_2pc_demo = {
-        id = 144583,
-        duration = 15,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 144583 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    tier16_4pc_demo = {
-        id = 144584,
-        duration = 8,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 144584 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Legendary and Trinket Auras
-    legendary_cloak_proc = {
-        id = 148008,
-        duration = 4,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 148008 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Pet Auras
-    felguard_pursuit = {
-        id = 30153,
-        duration = 8,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = GetPetBuffByID( 30153 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Defensive Auras
-    dark_bargain = {
-        id = 110913,
-        duration = 8,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 110913 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    unbound_will = {
-        id = 108482,
-        duration = 6,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = UA_GetPlayerAuraBySpellID( 108482 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Crowd Control Auras
-    fear = {
-        id = 5782,
-        duration = 8,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = GetTargetDebuffByID( 5782 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    shadowfury = {
-        id = 30283,
-        duration = 3,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = GetTargetDebuffByID( 30283 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    -- Additional DoT Auras
-    agony = {
-        id = 980,
-        duration = 24,
-        tick_time = 2,
-        max_stack = 10,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = GetTargetDebuffByID( 980 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
-    unstable_affliction = {
-        id = 30108,
-        duration = 14,
-        tick_time = 2,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = GetTargetDebuffByID( 30108 )
-            
-            if name then
-                t.name = name
-                t.count = count > 0 and count or 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
+-- Settings for Demonology Warlock
+spec:RegisterSetting( "dark_soul_usage", "cooldowns", {
+    name = strformat( "%s Usage Toggle", Hekili:GetSpellLinkWithTexture( 113858 ) ), -- Dark Soul
+    desc = strformat( "Dark Soul will only be recommended when the selected toggle is active." ),
+    type = "select",
+    width = 2,
+    values = function ()
+        local toggles = {
+            none       = "Do Not Override",
+            default    = "Default",
+            cooldowns  = "Cooldowns",
+            essences   = "Minor CDs",
+            defensives = "Defensives",
+            interrupts = "Interrupts",
+            potions    = "Potions",
+            custom1    = spec.custom1Name or "Custom 1",
+            custom2    = spec.custom2Name or "Custom 2",
+        }
+        return toggles
+    end
 } )
+
+spec:RegisterSetting( "auto_metamorphosis", true, {
+    name = strformat( "Auto %s Management", Hekili:GetSpellLinkWithTexture( 103958 ) ), -- Metamorphosis
+    desc = strformat( "If checked, %s will be automatically recommended when conditions are optimal.", Hekili:GetSpellLinkWithTexture( 103958 ) ),
+    type = "toggle",
+    width = "full"
+} )
+
+spec:RegisterSetting( "grimoire_type", "none", {
+    name = strformat( "Grimoire Preference" ),
+    desc = strformat( "Select your preferred Grimoire talent for rotation optimization." ),
+    type = "select",
+    width = 2,
+    values = function ()
+        local grimoires = {
+            none = "No Override",
+            supremacy = "Grimoire of Supremacy",
+            service = "Grimoire of Service",
+            sacrifice = "Grimoire of Sacrifice",
+        }
+        return grimoires
+    end
+} )
+
+spec:RegisterPack( "Demonology", 20250712, [[ Hekili:fNv4oUnUr4NLfhG3E42Z12zT3K0vlqBVw0S4AqrDo0FuCsIwI2MyLeDLO2ngiqp7DgsjrkzsjTibibijwud)4Wz(MHdh5V0)t(BJjcQ)hxTy16f3TC18vWFw)g)TIZNO(BprIEICa(rgjf(3FHMYZ4j8dNf0cb(6ZjCsmctbVmpceXF7UswI4dz(7SG9YBxSeK9encgEZg)ThzXXuLS0Ii)TF6iROke)lPkSE1Rc57HNJemEwvycRqaVEppVk8FqFILWM7VvoOunebPubb(5hL7oAgzxcn2)V4VnkNjO5mI)2CAkHLbGCFvOGf9uGGH7o1kaAcNN6lafebOzqbVm6yaFFq0rcVWeyqY34CPI5I5iEZX1HLDOkCwv4UY97NhtYFkaSAjW7FjtoEmAEzrb7lZpdkNxv4DRxiFZjQy(lSK4aw6P5Ok9myvG3REBeNNGGmVRsoVDFIsQ3krKSiAI0oLYZpDKxWkWDXTU3fxOy3UWaW(ijWzSNuMiS5hATO5SSNOILMlu7orBDmDwRBiITZTXnzvT7zNlpPx8tC5)pOVBGPVJMxqZrh6WgUHGiHZJLwueI1oH4kGJssOzI5K8OJmWrarkbptZoqr)486jvf(LVuZS64oG1SlhXokTw5hQcxU2iwOr3rLCJtLurjdOz0ugfrbOiB0OKxMfO(DagPQIxduUscNIyF3W2W(7PPHDt2aa)3oKb(RAjq0FhIEk)zKqae(6fkOEeds)EiWBFICMMzqWCP50iE6oI1ygm5yo7KcJ)djpHh907Rc15J75XyzcGX0gDaPpcuj0H1)qjjpwlFrzkasaiYWj1gKNxZqpKdmlwoftbvqGxVNPzO6L0QyTrb9cr7QcBmLqto7BmrsvJz0W0l36Vh(rHGNN2dA35r6M(d52MJmpL85QWFgZjQxSJKSyC7DOm56yYijAsjzK5NIeYCCMOKW2tdeKt2m(TzZ555L1mdths(b4mJYmgG6vE45LrLfYmbwp9t(M(rXQmUrNJsqTabSaTPdMUYDgiDImy)MXZ5IJfkd4feKJ0KK9abz4KoUxQPUomG6NqKb2KYCYW5Hgv)TCgoYvGIFSVZCNs6Rq)F3uzXJCg(hxUWm4P4ibo9iyhprCrWwH1uw2mCtm)qDkjSUjvYQ(fJnwOS7qT2JbBMz3t(mRsINMIbXsZ2Wz)gPEsJi0bdDGtaEgSmqsJO4U8ADvJDP74oXUpA8ahZQsSXCRcF7G8d3bkJwokGn9Z0OsbvN7PxjMosXUz4uSUJOMukw3XokBpyyPzbG7K2yZUy8EvR26Aa7CqtCVkYAkXOEiLC4Ou3HDw0nagx60QjgTdd8cjpdkRPaVTg48GRKWZf13i766sUUgpN5)vcOdPfl4OtMuk4PWfcHba(au4zX8Qh)vwg8QLqTm)wwr5jejuaLIaWH5aUUvUvoLRlvtpJ34Cg2UfKEE36CExmbPryppjH)I8cEyMyGa8cnhgVSaNmdMOafRbfSasK9iAKlJlTGLzDKoogfgUfnzhPG((QhLbbTrUWZpAXfuF3RxNlyTBxqZYPToVZPWT13(D3YGp3njQDRvBD3Vo71auwDb4tH5QR)EkSpRNGQN4MP5fTAiGAM)wzcU485Pyi6LpFkXWnjVNILtFk81tG03uN2umT9QctpL7EfW)2xp8UJcDKuB5c3SqDg)VlrUtjsT4BwiA)cmNc9Cao9ahYywez3j8x5zptvIFn2EVg8N7Sevy3l4sqDlWFy5N)XV5bd9ihJfp4G9nq0GRiF3bfxg57oAOTqNjfj4k2za2Kf8hiF)35iTXoJuoMUQrvSiEfKt589SeQQ78PSIcP(wVfRJrpqZGIpJanq1GwiymSk8dc1KKN0MsZIXDL4ibgMcXaNrSzCOW1ZO6hLugJDFGYGTrEJA)F)TckIenT43Vb23hzrhnLMKDwVQ1we6NpLWIyIenUMgOMf9pvfc6E9Y8jfeGl83rqJnhALXk)cljXyhvdPOruP1qouwz6oQkHvcxaE8pK2Wjw31LIzUGAWlfh55(B)vE0tW6tXoHPS8(B)HQqBn)R6XFaEZ)QPqMQhvOwmVT2MFY7pAuwIDb0fICtt)c9Ask5ygzKtfh5IGcbbm6wLXAbl3W27nLwcyhsvJbhyx2uBmAv(fvXWTsdYarvbWLKsVb7GRxZNsa1j3F(H7xBIGsdWzC5vPnet)vcgx02VgWOI2ook5vt5Bd8LVyTvzZM23e4HLD279AgUYic1oIAdoUUbIp4Tz0jwFDX2n9fTZBCaKMHrNC7ftUr1uEVLnmKTWtyATpj7Wzv4hHtujqS9Fh(FnjRWiePTUbtpWejYsCUOwIEVVtzd4ImTceEy5IlaQ5CEeLgUSURV92E6JMKlQZ(rnZrVO6HxhbSYRNz2WJhE7I(6FVkd6eJAV7spy2zPoWFF)ok9ZB6VCnvvGRtthJU)2(s1EEVM12PZqZC1viJKiomqDmhEyVFEvRTSdpUDQUy8)tqnUKVldmX8naBFu2tJWDDk2KWwFxKB9EFP8zw(k5D9NE3TEXmlFzCVfZgHK4TWMMnO34EVBrNHYa(N5)TQW)nxiVvgu09MFcBXT8dK8JAKHKIdhRReWchVln4cERjJuHXOexLygPd68vD8wQorgF4kp5NkA2fU7zDZUBsMR3i1xQ1zY8zxnYhqPhG9U5RBCFDWAQNJOrDZp5TA9fMul64RtBgohWTlUyf72MFHV))p ]] )
+
+-- Register ability aliases for import compatibility
+do
+    local aliases = {
+        ["hand_of_gul'dan"] = "hand_of_guldan",
+        ["hand_of_gul_dan"] = "hand_of_guldan", 
+        ["felguard:felstorm"] = "felstorm",
+        ["dark_soul"] = "dark_soul_knowledge",
+        ["cancel_metamorphosis"] = "metamorphosis", -- Same spell, different usage
+    }
+    
+    for alias, real in pairs(aliases) do
+        if spec.abilities[real] then
+            spec.abilities[alias] = spec.abilities[real]
+        end
+    end
+end
+
+-- Register aura aliases for import compatibility  
+do
+    local aura_aliases = {
+        ["dark_soul"] = "dark_soul_knowledge",
+        ["metamorphosis"] = "metamorphosis",
+        ["molten_core"] = "molten_core", 
+        ["demonic_calling"] = "demonic_calling",
+        ["bloodlust"] = "bloodlust",
+        ["time_warp"] = "time_warp",
+    }
+    
+    for alias, real in pairs(aura_aliases) do
+        if spec.auras[real] then
+            spec.auras[alias] = spec.auras[real]
+        end
+    end
+end

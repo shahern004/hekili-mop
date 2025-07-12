@@ -12,7 +12,7 @@ local Hekili = _G[ addon ]
 local class, state = Hekili.Class, Hekili.State
 local strformat = string.format
 
-local spec = Hekili:NewSpecialization( 104 )
+local spec = Hekili:NewSpecialization( 104, true )
 
 -- Register Resources
 spec:RegisterResource( 1, { -- Rage = 1 in MoP
@@ -20,6 +20,13 @@ spec:RegisterResource( 1, { -- Rage = 1 in MoP
 } )
 spec:RegisterResource( 3 ) -- Energy = 3 in MoP
 spec:RegisterResource( 0 ) -- Mana = 0 in MoP
+
+-- Spec configuration for MoP
+spec.role = "TANK"
+spec.primaryStat = "stamina"
+spec.name = "Guardian"
+
+-- No longer need custom spec detection - WeakAuras system handles this in Constants.lua
 
 -- Talents (MoP system - different from retail)
 spec:RegisterTalents( {
@@ -499,7 +506,7 @@ spec:RegisterAbilities( {
 
     -- Utility
     faerie_fire = {
-        id = 16857,
+        id = 770, -- Faerie Fire (unified in MoP)
         cast = 0,
         cooldown = 0,
         gcd = "spell",
@@ -548,7 +555,7 @@ spec:RegisterAbilities( {
     },
 
     challenging_roar = {
-        id = 5209,
+        id = 5209, -- Challenging Roar (Guardian ability in MoP)
         cast = 0,
         cooldown = 180,
         gcd = "spell",

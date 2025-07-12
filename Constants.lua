@@ -1,9 +1,72 @@
 -- Constants.lua
--- June 2014
+-- july
 
 local addon, ns = ...
 local Hekili = _G[ addon ]
 
+-- MoP Classic API Compatibility Laye
+-- Handle API changes between Classic/MoP and modern versions
+
+-- Function to detect if we're running MoP Classic
+local function IsMoP()
+    return select(4, GetBuildInfo()) == 50500 or select(4, GetBuildInfo()) == 50400
+end
+
+-- Set up specialization APIs with MoP compatibility
+if C_SpecializationInfo and C_SpecializationInfo.GetSpecialization then
+    GetSpecialization = C_SpecializationInfo.GetSpecialization
+else
+    GetSpecialization = _G.GetSpecialization
+end
+
+if C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfo then
+    GetSpecializationInfo = C_SpecializationInfo.GetSpecializationInfo
+else
+    GetSpecializationInfo = _G.GetSpecializationInfo
+end
+
+if C_SpecializationInfo and C_SpecializationInfo.GetNumSpecializationsForClassID then
+    GetNumSpecializationsForClassID = C_SpecializationInfo.GetNumSpecializationsForClassID
+else
+    GetNumSpecializationsForClassID = _G.GetNumSpecializationsForClassID
+end
+
+-- MoP Classic specialization mappings
+if IsMoP() then
+    local specsByClassID = {
+        [1] = { 71, 72, 73 },        -- Warrior: Arms, Fury, Protection
+        [2] = { 65, 66, 70 },        -- Paladin: Holy, Protection, Retribution
+        [3] = { 253, 254, 255 },     -- Hunter: Beast Mastery, Marksmanship, Survival
+        [4] = { 259, 260, 261 },     -- Rogue: Assassination, Combat, Subtlety
+        [5] = { 256, 257, 258 },     -- Priest: Discipline, Holy, Shadow
+        [6] = { 250, 251, 252 },     -- Death Knight: Blood, Frost, Unholy
+        [7] = { 262, 263, 264 },     -- Shaman: Elemental, Enhancement, Restoration
+        [8] = { 62, 63, 64 },        -- Mage: Arcane, Fire, Frost
+        [9] = { 265, 266, 267 },     -- Warlock: Affliction, Demonology, Destruction
+        [10] = { 268, 270, 269 },    -- Monk: Brewmaster, Mistweaver, Windwalker
+        [11] = { 102, 103, 104, 105 }, -- Druid: Balance, Feral, Guardian, Restoration
+    }
+    
+    GetSpecializationInfoForClassID = function(classID, specIndex)
+        local specs = specsByClassID[classID]
+        if not specs or not specs[specIndex] then
+            return nil
+        end
+        local specID = specs[specIndex]
+        if GetSpecializationInfoByID then
+            return GetSpecializationInfoByID(specID)
+        end
+        return nil
+    end
+else
+    GetSpecializationInfoForClassID = _G.GetSpecializationInfoForClassID
+end
+
+-- Store these globally for spec files to use
+ns.GetSpecialization = GetSpecialization
+ns.GetSpecializationInfo = GetSpecializationInfo
+ns.GetSpecializationInfoForClassID = GetSpecializationInfoForClassID
+ns.GetNumSpecializationsForClassID = GetNumSpecializationsForClassID
 
 -- Class Localization
 ns.getLocalClass = function ( class )
@@ -28,42 +91,117 @@ end
 
 local ClassIDs = {}
 
-for i = 1, GetNumClasses() do
-    local _, classTag = GetClassInfo( i )
-    if classTag then ClassIDs[ classTag ] = i end
+local function InitializeClassIDs()
+    if GetNumClasses and GetClassInfo then
+        for i = 1, GetNumClasses() do
+            local _, classTag = GetClassInfo( i )
+            if classTag then ClassIDs[ classTag ] = i end
+        end
+    else
+        -- Fallback to manual class IDs for MoP Classic
+        ClassIDs = {
+            WARRIOR = 1,
+            PALADIN = 2,
+            HUNTER = 3,
+            ROGUE = 4,
+            PRIEST = 5,
+            DEATHKNIGHT = 6,
+            SHAMAN = 7,
+            MAGE = 8,
+            WARLOCK = 9,
+            MONK = 10,
+            DRUID = 11,
+            DEMONHUNTER = 12
+        }
+    end
 end
 
+-- Initialize class IDs
+InitializeClassIDs()
+
 ns.getClassID = function( class )
+    -- Ensure ClassIDs is initialized
+    if not next(ClassIDs) then
+        -- Try to initialize, but gracefully handle if not ready
+        if GetNumClasses and GetClassInfo then
+            InitializeClassIDs()
+        else
+            -- If APIs not available yet, return fallback values
+            local fallbackClassIDs = {
+                WARRIOR = 1,
+                PALADIN = 2,
+                HUNTER = 3,
+                ROGUE = 4,
+                PRIEST = 5,
+                DEATHKNIGHT = 6,
+                SHAMAN = 7,
+                MAGE = 8,
+                WARLOCK = 9,
+                MONK = 10,
+                DRUID = 11,
+                DEMONHUNTER = 12
+            }
+            return fallbackClassIDs[class] or -1
+        end
+    end
     return ClassIDs[ class ] or -1
 end
 
 
+-- MoP Classic Power Type numbers (Enum.PowerType doesn't exist in Classic)
+local MoPPowerTypes = {
+    None = -1,
+    Mana = 0,
+    Rage = 1,
+    Focus = 2,
+    Energy = 3,
+    ComboPoints = 4,
+    Runes = 5,
+    RunicPower = 6,
+    SoulShards = 7,
+    LunarPower = 8,
+    HolyPower = 9,
+    Alternate = 10,
+    Maelstrom = 11,
+    Chi = 12,
+    Insanity = 13,
+    Obsolete = 14,
+    Obsolete2 = 15,
+    ArcaneCharges = 16,
+    Fury = 17,
+    Pain = 18,
+    Essence = 19,
+    RuneBlood = 20,
+    RuneFrost = 21,
+    RuneUnholy = 22,
+}
+
 local ResourceInfo = {
-    -- health       = Enum.PowerType.HealthCost,
-    none            = Enum.PowerType.None,
-    mana            = Enum.PowerType.Mana,
-    rage            = Enum.PowerType.Rage,
-    focus           = Enum.PowerType.Focus,
-    energy          = Enum.PowerType.Energy,
-    combo_points    = Enum.PowerType.ComboPoints,
-    runes           = Enum.PowerType.Runes,
-    runic_power     = Enum.PowerType.RunicPower,
-    soul_shards     = Enum.PowerType.SoulShards,
-    astral_power    = Enum.PowerType.LunarPower,
-    holy_power      = Enum.PowerType.HolyPower,
-    alternate       = Enum.PowerType.Alternate,
-    maelstrom       = Enum.PowerType.Maelstrom,
-    chi             = Enum.PowerType.Chi,
-    insanity        = Enum.PowerType.Insanity,
-    obsolete        = Enum.PowerType.Obsolete,
-    obsolete2       = Enum.PowerType.Obsolete2,
-    arcane_charges  = Enum.PowerType.ArcaneCharges,
-    fury            = Enum.PowerType.Fury,
-    pain            = Enum.PowerType.Pain,
-    essence         = Enum.PowerType.Essence,
-    blood_runes     = Enum.PowerType.RuneBlood,
-    frost_runes     = Enum.PowerType.RuneFrost,
-    unholy_runes    = Enum.PowerType.RuneUnholy,
+    -- health       = (Enum and Enum.PowerType and Enum.PowerType.HealthCost) or -1,
+    none            = (Enum and Enum.PowerType and Enum.PowerType.None) or MoPPowerTypes.None,
+    mana            = (Enum and Enum.PowerType and Enum.PowerType.Mana) or MoPPowerTypes.Mana,
+    rage            = (Enum and Enum.PowerType and Enum.PowerType.Rage) or MoPPowerTypes.Rage,
+    focus           = (Enum and Enum.PowerType and Enum.PowerType.Focus) or MoPPowerTypes.Focus,
+    energy          = (Enum and Enum.PowerType and Enum.PowerType.Energy) or MoPPowerTypes.Energy,
+    combo_points    = (Enum and Enum.PowerType and Enum.PowerType.ComboPoints) or MoPPowerTypes.ComboPoints,
+    runes           = (Enum and Enum.PowerType and Enum.PowerType.Runes) or MoPPowerTypes.Runes,
+    runic_power     = (Enum and Enum.PowerType and Enum.PowerType.RunicPower) or MoPPowerTypes.RunicPower,
+    soul_shards     = (Enum and Enum.PowerType and Enum.PowerType.SoulShards) or MoPPowerTypes.SoulShards,
+    astral_power    = (Enum and Enum.PowerType and Enum.PowerType.LunarPower) or MoPPowerTypes.LunarPower,
+    holy_power      = (Enum and Enum.PowerType and Enum.PowerType.HolyPower) or MoPPowerTypes.HolyPower,
+    alternate       = (Enum and Enum.PowerType and Enum.PowerType.Alternate) or MoPPowerTypes.Alternate,
+    maelstrom       = (Enum and Enum.PowerType and Enum.PowerType.Maelstrom) or MoPPowerTypes.Maelstrom,
+    chi             = (Enum and Enum.PowerType and Enum.PowerType.Chi) or MoPPowerTypes.Chi,
+    insanity        = (Enum and Enum.PowerType and Enum.PowerType.Insanity) or MoPPowerTypes.Insanity,
+    obsolete        = (Enum and Enum.PowerType and Enum.PowerType.Obsolete) or MoPPowerTypes.Obsolete,
+    obsolete2       = (Enum and Enum.PowerType and Enum.PowerType.Obsolete2) or MoPPowerTypes.Obsolete2,
+    arcane_charges  = (Enum and Enum.PowerType and Enum.PowerType.ArcaneCharges) or MoPPowerTypes.ArcaneCharges,
+    fury            = (Enum and Enum.PowerType and Enum.PowerType.Fury) or MoPPowerTypes.Fury,
+    pain            = (Enum and Enum.PowerType and Enum.PowerType.Pain) or MoPPowerTypes.Pain,
+    essence         = (Enum and Enum.PowerType and Enum.PowerType.Essence) or MoPPowerTypes.Essence,
+    blood_runes     = (Enum and Enum.PowerType and Enum.PowerType.RuneBlood) or MoPPowerTypes.RuneBlood,
+    frost_runes     = (Enum and Enum.PowerType and Enum.PowerType.RuneFrost) or MoPPowerTypes.RuneFrost,
+    unholy_runes    = (Enum and Enum.PowerType and Enum.PowerType.RuneUnholy) or MoPPowerTypes.RuneUnholy,
 }
 
 local ResourceByID = {}
@@ -276,166 +414,204 @@ ns.Specializations = {
 
 }
 
-ns.getSpecializationKey = function ( id )
-    local spec = ns.Specializations[ id ]
-    return spec and spec.key or "none"
-end
+-- ns.getSpecializationKey = function ( id )
+--     local spec = ns.Specializations[ id ]
+--     return spec and spec.key or "none"
+-- end
 
-ns.getSpecializationID = function ( index )
-    -- MoP Classic version using spell-based detection for all classes
-    -- This is much more reliable than spec index mapping
-    local playerClass = select(2, UnitClass("player"))
+-- ns.getSpecializationID = function ( index )
+--     -- LibClassicSpecs integration with proper API usage
+--     local LibClassicSpecs = LibStub and LibStub("LibClassicSpecs-1.0", true)
     
-    -- Get current active spec group (dual spec support)
-    local activeSpecGroup = GetActiveSpecGroup and GetActiveSpecGroup() or 1
-    local selectedSpec = index or (GetSpecialization and GetSpecialization(false, false, activeSpecGroup)) or 1
+--     if LibClassicSpecs then
+--         -- Use LibClassicSpecs API functions
+--         local GetSpecialization = _G.GetSpecialization or LibClassicSpecs.GetSpecialization
+--         local GetSpecializationInfo = _G.GetSpecializationInfo or LibClassicSpecs.GetSpecializationInfo
+        
+--         local currentSpec = GetSpecialization()
+--         if currentSpec then
+--             local specID, specName = GetSpecializationInfo(currentSpec)
+--             if specID and specID > 0 then
+--                 return specID
+--             end
+--         end
+--     end
     
-    print("DEBUG: Spell-based detection - Active Spec Group=" .. activeSpecGroup .. ", Selected Spec=" .. selectedSpec .. ", Class=" .. playerClass)
+--     -- Fallback to MoP Classic version using spell-based detection for all classes
+--     -- This is much more reliable than spec index mapping
+--     local playerClass = select(2, UnitClass("player"))
     
-    -- Spell-based detection for all classes
-    -- This checks signature spells that are unique to each specialization
+--     -- Get current active spec group (dual spec support)
+--     local activeSpecGroup = GetActiveSpecGroup and GetActiveSpecGroup() or 1
+--     local selectedSpec = index or (GetSpecialization and GetSpecialization(false, false, activeSpecGroup)) or 1
     
-    if playerClass == "HUNTER" then
-        -- Hunter specializations based on signature spells
-        if IsSpellKnown(53301) then -- Explosive Shot = Survival
-            print("DEBUG: Detected Hunter Survival via Explosive Shot")
-            return 255
-        elseif IsSpellKnown(34026) then -- Kill Command = Beast Mastery
-            print("DEBUG: Detected Hunter Beast Mastery via Kill Command")
-            return 253
-        elseif IsSpellKnown(19434) then -- Aimed Shot = Marksmanship (fallback)
-            print("DEBUG: Detected Hunter Marksmanship via Aimed Shot")
-            return 254
-        end
-        
-    elseif playerClass == "DEATHKNIGHT" then
-        -- Death Knight specializations
-        if IsSpellKnown(45462) then -- Plague Strike (Blood)
-            return 250
-        elseif IsSpellKnown(49020) then -- Obliterate (Frost)
-            return 251
-        elseif IsSpellKnown(85948) then -- Festering Strike (Unholy)
-            return 252
-        end
-        
-    elseif playerClass == "DRUID" then
-        -- Druid specializations
-        if IsSpellKnown(78674) then -- Starsurge (Balance)
-            return 102
-        elseif IsSpellKnown(22568) then -- Ferocious Bite (Feral)
-            return 103
-        elseif IsSpellKnown(33745) then -- Lacerate (Guardian/Feral Tank)
-            return 104
-        elseif IsSpellKnown(18562) then -- Swiftmend (Restoration)
-            return 105
-        end
-        
-    elseif playerClass == "MAGE" then
-        -- Mage specializations
-        if IsSpellKnown(44425) then -- Arcane Orb (Arcane)
-            return 62
-        elseif IsSpellKnown(11366) then -- Pyroblast (Fire)
-            return 63
-        elseif IsSpellKnown(30455) then -- Ice Lance (Frost)
-            return 64
-        end
-        
-    elseif playerClass == "MONK" then
-        -- Monk specializations
-        if IsSpellKnown(115295) then -- Guard (Brewmaster)
-            return 268
-        elseif IsSpellKnown(101546) then -- Spinning Crane Kick (Windwalker)
-            return 269
-        elseif IsSpellKnown(115151) then -- Renewing Mist (Mistweaver)
-            return 270
-        end
-        
-    elseif playerClass == "PALADIN" then
-        -- Paladin specializations
-        if IsSpellKnown(20473) then -- Holy Shock (Holy)
-            return 65
-        elseif IsSpellKnown(31935) then -- Avenger's Shield (Protection)
-            return 66
-        elseif IsSpellKnown(85256) then -- Templar's Verdict (Retribution)
-            return 70
-        end
-        
-    elseif playerClass == "PRIEST" then
-        -- Priest specializations
-        if IsSpellKnown(47540) then -- Penance (Discipline)
-            return 256
-        elseif IsSpellKnown(88625) then -- Holy Word: Chastise (Holy)
-            return 257
-        elseif IsSpellKnown(8092) then -- Mind Blast (Shadow)
-            return 258
-        end
-        
-    elseif playerClass == "ROGUE" then
-        -- Rogue specializations
-        if IsSpellKnown(79140) then -- Vendetta (Assassination)
-            return 259
-        elseif IsSpellKnown(13750) then -- Adrenaline Rush (Combat)
-            return 260
-        elseif IsSpellKnown(36554) then -- Shadowstep (Subtlety)
-            return 261
-        end
-        
-    elseif playerClass == "SHAMAN" then
-        -- Shaman specializations
-        if IsSpellKnown(51505) then -- Lava Burst (Elemental)
-            return 262
-        elseif IsSpellKnown(17364) then -- Stormstrike (Enhancement)
-            return 263
-        elseif IsSpellKnown(61295) then -- Riptide (Restoration)
-            return 264
-        end
-        
-    elseif playerClass == "WARLOCK" then
-        -- Warlock specializations
-        if IsSpellKnown(30108) then -- Unstable Affliction (Affliction)
-            return 265
-        elseif IsSpellKnown(30146) then -- Summon Felguard (Demonology)
-            return 266
-        elseif IsSpellKnown(17962) then -- Conflagrate (Destruction)
-            return 267
-        end
-        
-    elseif playerClass == "WARRIOR" then
-        -- Warrior specializations
-        if IsSpellKnown(12294) then -- Mortal Strike (Arms)
-            return 71
-        elseif IsSpellKnown(23881) then -- Bloodthirst (Fury)
-            return 72
-        elseif IsSpellKnown(23922) then -- Shield Slam (Protection)
-            return 73
-        end
-    end
+--     -- Spell-based detection for all classes
+--     -- This checks signature spells that are unique to each specialization
     
-    -- Fallback: Try basic spec index mapping if spell detection fails
-    print("DEBUG: Spell detection failed for " .. playerClass .. ", using fallback")
+--     if playerClass == "HUNTER" then
+--         -- Hunter specializations based on signature spells - enhanced detection
+--         if IsSpellKnown(53301) then -- Explosive Shot = Survival
+--             return 255
+--         elseif IsSpellKnown(3674) then -- Black Arrow = Survival (fallback)
+--             return 255
+--         elseif IsSpellKnown(34026) then -- Kill Command = Beast Mastery
+--             return 253
+--         elseif IsSpellKnown(19574) then -- Bestial Wrath = Beast Mastery (fallback)
+--             return 253
+--         elseif IsSpellKnown(19434) then -- Aimed Shot = Marksmanship 
+--             return 254
+--         elseif IsSpellKnown(82928) then -- Aimed Shot (different ID) = Marksmanship (fallback)
+--             return 254
+--         end
+        
+--     elseif playerClass == "DEATHKNIGHT" then
+--         -- Death Knight specializations
+--         if IsSpellKnown(45462) then -- Plague Strike (Blood)
+--             return 250
+--         elseif IsSpellKnown(49020) then -- Obliterate (Frost)
+--             return 251
+--         elseif IsSpellKnown(85948) then -- Festering Strike (Unholy)
+--             return 252
+--         end
+        
+--     elseif playerClass == "DRUID" then
+--         -- Druid specializations - enhanced detection with multiple fallbacks
+--         if IsSpellKnown(78674) then -- Starsurge (Balance)
+--             return 102
+--         elseif IsSpellKnown(52610) then -- Savage Roar (Feral)
+--             return 103
+--         elseif IsSpellKnown(1822) then -- Rake (Feral fallback)
+--             return 103
+--         elseif IsSpellKnown(5221) then -- Shred (Feral fallback)
+--             return 103
+--         elseif IsSpellKnown(33745) then -- Lacerate (Guardian/Feral Tank)
+--             return 104
+--         elseif IsSpellKnown(6807) then -- Maul (Guardian fallback)
+--             return 104
+--         elseif IsSpellKnown(18562) then -- Swiftmend (Restoration)
+--             return 105
+--         elseif IsSpellKnown(2908) then -- Soothe (Restoration fallback)
+--             return 105
+--         end
+        
+--     elseif playerClass == "MAGE" then
+--         -- Mage specializations
+--         if IsSpellKnown(44425) then -- Arcane Orb (Arcane)
+--             return 62
+--         elseif IsSpellKnown(11366) then -- Pyroblast (Fire)
+--             return 63
+--         elseif IsSpellKnown(30455) then -- Ice Lance (Frost)
+--             return 64
+--         end
+        
+--     elseif playerClass == "MONK" then
+--         -- Monk specializations
+--         if IsSpellKnown(115295) then -- Guard (Brewmaster)
+--             return 268
+--         elseif IsSpellKnown(101546) then -- Spinning Crane Kick (Windwalker)
+--             return 269
+--         elseif IsSpellKnown(115151) then -- Renewing Mist (Mistweaver)
+--             return 270
+--         end
+        
+--     elseif playerClass == "PALADIN" then
+--         -- Paladin specializations
+--         if IsSpellKnown(20473) then -- Holy Shock (Holy)
+--             return 65
+--         elseif IsSpellKnown(31935) then -- Avenger's Shield (Protection)
+--             return 66
+--         elseif IsSpellKnown(85256) then -- Templar's Verdict (Retribution)
+--             return 70
+--         end
+        
+--     elseif playerClass == "PRIEST" then
+--         -- Priest specializations
+--         if IsSpellKnown(47540) then -- Penance (Discipline)
+--             return 256
+--         elseif IsSpellKnown(88625) then -- Holy Word: Chastise (Holy)
+--             return 257
+--         elseif IsSpellKnown(8092) then -- Mind Blast (Shadow)
+--             return 258
+--         end
+        
+--     elseif playerClass == "ROGUE" then
+--         -- Rogue specializations - check Combat first, then Assassination, then Subtlety
+--         if IsSpellKnown(13750) then -- Adrenaline Rush (Combat-specific)
+--             return 260
+--         elseif IsSpellKnown(13877) then -- Blade Flurry (Combat-specific)
+--             return 260
+--         elseif IsSpellKnown(84617) then -- Revealing Strike (Combat-specific)
+--             return 260
+--         elseif IsSpellKnown(79140) then -- Vendetta (Assassination-specific)
+--             return 259
+--         elseif IsSpellKnown(32645) then -- Envenom (Assassination-specific)
+--             return 259
+--         elseif IsSpellKnown(2823) then -- Deadly Poison (Assassination-specific)
+--             return 259
+--         elseif IsSpellKnown(36554) then -- Shadowstep (Subtlety-specific)
+--             return 261
+--         elseif IsSpellKnown(14183) then -- Premeditation (Subtlety-specific)
+--             return 261
+--         elseif IsSpellKnown(32645) then -- Envenom (Assassination-specific)
+--             return 259
+--         end
+        
+--     elseif playerClass == "SHAMAN" then
+--         -- Shaman specializations
+--         if IsSpellKnown(51505) then -- Lava Burst (Elemental)
+--             return 262
+--         elseif IsSpellKnown(17364) then -- Stormstrike (Enhancement)
+--             return 263
+--         elseif IsSpellKnown(61295) then -- Riptide (Restoration)
+--             return 264
+--         end
+        
+--     elseif playerClass == "WARLOCK" then
+--         -- Warlock specializations
+--         if IsSpellKnown(30108) then -- Unstable Affliction (Affliction)
+--             return 265
+--         elseif IsSpellKnown(30146) then -- Summon Felguard (Demonology)
+--             return 266
+--         elseif IsSpellKnown(17962) then -- Conflagrate (Destruction)
+--             return 267
+--         end
+        
+--     elseif playerClass == "WARRIOR" then
+--         -- Warrior specializations
+--         if IsSpellKnown(12294) then -- Mortal Strike (Arms)
+--             return 71
+--         elseif IsSpellKnown(23881) then -- Bloodthirst (Fury)
+--             return 72
+--         elseif IsSpellKnown(23922) then -- Shield Slam (Protection)
+--             return 73
+--         end
+--     end
     
-    -- Basic fallback mapping for MoP Classic
-    local fallbackMapping = {
-        HUNTER = { [1] = 253, [2] = 254, [3] = 255 },       -- Beast Mastery, Marksmanship, Survival
-        DEATHKNIGHT = { [1] = 250, [2] = 251, [3] = 252 },  -- Blood, Frost, Unholy
-        DRUID = { [1] = 102, [2] = 103, [3] = 104, [4] = 105 }, -- Balance, Feral, Guardian, Restoration
-        MAGE = { [1] = 62, [2] = 63, [3] = 64 },            -- Arcane, Fire, Frost
-        MONK = { [1] = 268, [2] = 269, [3] = 270 },         -- Brewmaster, Windwalker, Mistweaver
-        PALADIN = { [1] = 65, [2] = 66, [3] = 70 },         -- Holy, Protection, Retribution
-        PRIEST = { [1] = 256, [2] = 257, [3] = 258 },       -- Discipline, Holy, Shadow
-        ROGUE = { [1] = 259, [2] = 260, [3] = 261 },        -- Assassination, Combat, Subtlety
-        SHAMAN = { [1] = 262, [2] = 263, [3] = 264 },       -- Elemental, Enhancement, Restoration
-        WARLOCK = { [1] = 265, [2] = 266, [3] = 267 },      -- Affliction, Demonology, Destruction
-        WARRIOR = { [1] = 71, [2] = 72, [3] = 73 }          -- Arms, Fury, Protection
-    }
+--     -- Fallback: Try basic spec index mapping if spell detection fails
+
     
-    if fallbackMapping[playerClass] and fallbackMapping[playerClass][selectedSpec] then
-        print("DEBUG: Using fallback mapping for " .. playerClass .. " spec " .. selectedSpec)
-        return fallbackMapping[playerClass][selectedSpec]
-    end
+--     -- Basic fallback mapping for MoP Classic
+--     local fallbackMapping = {
+--         HUNTER = { [1] = 253, [2] = 254, [3] = 255 },       -- Beast Mastery, Marksmanship, Survival
+--         DEATHKNIGHT = { [1] = 250, [2] = 251, [3] = 252 },  -- Blood, Frost, Unholy
+--         DRUID = { [1] = 102, [2] = 103, [3] = 104, [4] = 105 }, -- Balance, Feral, Guardian, Restoration
+--         MAGE = { [1] = 62, [2] = 63, [3] = 64 },            -- Arcane, Fire, Frost
+--         MONK = { [1] = 268, [2] = 269, [3] = 270 },         -- Brewmaster, Windwalker, Mistweaver
+--         PALADIN = { [1] = 65, [2] = 66, [3] = 70 },         -- Holy, Protection, Retribution
+--         PRIEST = { [1] = 256, [2] = 257, [3] = 258 },       -- Discipline, Holy, Shadow
+--         ROGUE = { [1] = 259, [2] = 260, [3] = 261 },        -- Assassination, Combat, Subtlety
+--         SHAMAN = { [1] = 262, [2] = 263, [3] = 264 },       -- Elemental, Enhancement, Restoration
+--         WARLOCK = { [1] = 265, [2] = 266, [3] = 267 },      -- Affliction, Demonology, Destruction
+--         WARRIOR = { [1] = 71, [2] = 72, [3] = 73 }          -- Arms, Fury, Protection
+--     }
     
-    return 0  -- Complete fallback
-end
+--     if fallbackMapping[playerClass] and fallbackMapping[playerClass][selectedSpec] then
+
+--         return fallbackMapping[playerClass][selectedSpec]
+--     end
+    
+--     return 0  -- Complete fallback
+-- end
 
 
 

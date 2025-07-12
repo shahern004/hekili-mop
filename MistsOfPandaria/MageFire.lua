@@ -18,6 +18,8 @@ end
 
 local spec = Hekili:NewSpecialization( 63 ) -- Fire spec ID for MoP
 
+-- No longer need custom spec detection - WeakAuras system handles this in Constants.lua
+
 local strformat = string.format
 local FindUnitBuffByID = ns.FindUnitBuffByID
 local FindUnitDebuffByID = ns.FindUnitDebuffByID
@@ -247,65 +249,43 @@ spec:RegisterGear( 14, 8, { -- Tier 15
 -- ===================
 -- ENHANCED GLYPH SYSTEM
 -- ===================
-
 spec:RegisterGlyphs( {
-    -- Major DPS/Combat Glyphs for Fire optimization
-    [56368] = "Glyph of Combustion",            -- Your Combustion also removes all damage over time effects from the target
-    [56377] = "Glyph of Icy Veins",             -- Your Icy Veins grants 20% spell haste but increases spell costs by 20%
+    -- Major Glyphs for Fire Mage in MoP
+    [56368] = "Glyph of Combustion",            -- Your Combustion spreads your Fire DoTs to nearby enemies
     [56375] = "Glyph of Living Bomb",           -- Your Living Bomb explosion reduces the cast time of your next Living Bomb by 1.5 sec
-    [56382] = "Glyph of Pyroblast",             -- Reduces the cast time of Pyroblast by 0.25 sec
     [56374] = "Glyph of Inferno Blast",         -- Your Inferno Blast spreads living bomb from the target to up to 3 nearby enemies
     [56383] = "Glyph of Fireball",              -- Your Fireball deals 25% additional damage over 4 sec
+    [56382] = "Glyph of Pyroblast",             -- Reduces the cast time of Pyroblast by 0.25 sec
     [58659] = "Glyph of Dragon's Breath",       -- Reduces the cooldown of Dragon's Breath by 10 sec
     [58656] = "Glyph of Fire Blast",            -- Increases the critical strike chance of Fire Blast by 50% when the target is below 35% health
-    [58734] = "Glyph of Molten Armor",          -- Your Molten Armor grants an additional 20% critical strike chance but reduces movement speed by 15%
-    [58735] = "Glyph of Scorch",                -- Your Scorch no longer slows movement speed but increases fire damage taken by 5%
-    
-    -- Mobility and Utility Glyphs
+    [58734] = "Glyph of Molten Armor",          -- Your Molten Armor grants an additional 2% critical strike chance
+    [56372] = "Glyph of Ice Barrier",           -- Your Ice Barrier increases resistance to Frost and Fire effects by 40%
+    [56378] = "Glyph of Mage Armor",            -- Your Mage Armor reduces the duration of magic effects by an additional 35%
     [56391] = "Glyph of Blink",                 -- Increases the distance traveled by Blink by 8 yards
     [56384] = "Glyph of Blazing Speed",         -- Your Blazing Speed removes all movement impairing effects
-    [56376] = "Glyph of Ice Floes",             -- Your Ice Floes grants an additional charge
+    [56381] = "Glyph of Polymorph",             -- Your Polymorph heals the target for 15% of its maximum health every 2 sec
+    [56380] = "Glyph of Evocation",             -- Your Evocation heals you for 40% of your maximum health over its duration
+    [58647] = "Glyph of Ice Block",             -- Your Ice Block heals you for 40% of your maximum health
+    [58648] = "Glyph of Frost Nova",            -- Your Frost Nova deals 100% more damage
+    [58651] = "Glyph of Ring of Frost",         -- Your Ring of Frost affects 2 additional enemies
+    [58649] = "Glyph of Frostjaw",              -- Your Frostjaw spreads to 1 nearby enemy
+    [58658] = "Glyph of Spellsteal",            -- Your Spellsteal heals you for 5% of your maximum health for each effect stolen
     [58650] = "Glyph of Slow Fall",             -- Your Slow Fall no longer requires a reagent
     [58652] = "Glyph of Momentum",              -- Blink increases your movement speed by 50% for 3 sec
     
-    -- Defensive and Survivability Glyphs
-    [56372] = "Glyph of Ice Barrier",           -- Your Ice Barrier increases resistance to Frost and Fire effects by 40%
-    [56378] = "Glyph of Mage Armor",            -- Your Mage Armor reduces the duration of magic effects by an additional 20%
-    [58647] = "Glyph of Ice Block",             -- Your Ice Block heals you for 40% of your maximum health
-    [56395] = "Glyph of Frost Armor",           -- Your Frost Armor causes attackers to be slowed by an additional 20%
-    [58644] = "Glyph of Mirror Image",          -- Your Mirror Image reduces damage taken by an additional 20%
-    [58640] = "Glyph of Counterspell",          -- Your Counterspell heals you for 20% of your maximum health
-    
-    -- Control and Crowd Control Glyphs
-    [56381] = "Glyph of Polymorph",             -- Your Polymorph heals the target for 15% of its maximum health every 2 sec
-    [58648] = "Glyph of Frost Nova",            -- Your Frost Nova deals 100% more damage
-    [58651] = "Glyph of Ring of Frost",         -- Your Ring of Frost affects 2 additional enemies
-    [56373] = "Glyph of Deep Freeze",           -- Your Deep Freeze can be used on targets that are not frozen
-    [58649] = "Glyph of Frostjaw",              -- Your Frostjaw spreads to 1 nearby enemy
-    
-    -- Utility and Quality of Life Glyphs
-    [56380] = "Glyph of Evocation",             -- Your Evocation heals you for 40% of your maximum health over its duration
-    [58658] = "Glyph of Spellsteal",            -- Your Spellsteal heals you for 5% of your maximum health for each effect stolen
-    [58657] = "Glyph of Remove Curse",          -- Your Remove Curse has a 25% chance to also remove a magic effect
+    -- Minor Glyphs for MoP
+    [58736] = "Glyph of Illusion",              -- You can now cast illusion on party and raid members
+    [104065] = "Glyph of the Penguin",          -- Your Polymorph: Sheep is replaced with Polymorph: Penguin
+    [104066] = "Glyph of the Porcupine",        -- Your Polymorph: Sheep is replaced with Polymorph: Porcupine
+    [58737] = "Glyph of the Monkey",            -- Your Polymorph: Sheep is replaced with Polymorph: Monkey
+    [58739] = "Glyph of the Bear Cub",          -- Your Polymorph: Sheep is replaced with Polymorph: Bear Cub
+    [58741] = "Glyph of the Turtle",            -- Your Polymorph: Sheep is replaced with Polymorph: Turtle
+    [58742] = "Glyph of Rapid Teleportation",   -- Reduces the cast time of teleportation spells by 50%
+    [58743] = "Glyph of Conjuring",             -- You can conjure 3 additional charges of conjured items
+    [58744] = "Glyph of Arcane Language",       -- Allows you to understand Demonic language
     [58654] = "Glyph of Teleport",              -- Reduces the cast time of your Teleport spells by 50%
     [58646] = "Glyph of Arcane Intellect",      -- Your Arcane Intellect grants an additional 10% mana
-    
-    -- Pet and Summoning Glyphs
-    [56386] = "Glyph of Water Elemental",       -- Your Water Elemental's Freeze ability does 100% more damage
     [58653] = "Glyph of Conjure Familiar",      -- Your conjured mana food restores 100% more mana
-    
-    -- Minor Visual and Convenience Glyphs
-    [58736] = "Glyph of Illusion",              -- You can now cast illusion on party and raid members
-    [58737] = "Glyph of the Monkey",            -- Your Polymorph: Sheep is replaced with Polymorph: Monkey
-    [58738] = "Glyph of the Penguin",           -- Your Polymorph: Sheep is replaced with Polymorph: Penguin
-    [58739] = "Glyph of the Bear Cub",          -- Your Polymorph: Sheep is replaced with Polymorph: Bear Cub
-    [58740] = "Glyph of the Porcupine",         -- Your Polymorph: Sheep is replaced with Polymorph: Porcupine
-    [58741] = "Glyph of the Turtle",            -- Your Polymorph: Sheep is replaced with Polymorph: Turtle
-    [58742] = "Glyph of Rapid Teleportation",   -- Reduces the cast time of teleportation spells by 50%    [58743] = "Glyph of Conjuring",             -- You can conjure 3 additional charges of conjured items
-    [58744] = "Glyph of Arcane Language",       -- Allows you to understand Demonic language
-    [58745] = "Glyph of Rapid Displacement",    -- Reduces the global cooldown of Blink by 0.5 sec
-    [104065] = "Glyph of the Penquin",
-    [104066] = "Glyph of the Porcupine",
 } )
 
 -- ===================
@@ -389,7 +369,7 @@ spec:RegisterAuras( {
     -- Enhanced DoT tracking
     pyroblast = {
         id = 11366,
-        duration = 18,
+        duration = 4,
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 11366 )
@@ -1007,7 +987,9 @@ spec:RegisterAuras( {
         id = 6117,
         duration = 1800,
         max_stack = 1
-    },      molten_armor = {
+    },
+    
+    molten_armor = {
         id = 30482,
         duration = 1800,
         max_stack = 1

@@ -2,7 +2,9 @@
 -- July 2025
 -- by Smufrik
 
-if UnitClassBase( "player" ) ~= "HUNTER" then return end
+-- MoP: Use UnitClass instead of UnitClassBase
+local _, playerClass = UnitClass('player')
+if playerClass ~= 'HUNTER' then return end
 
 local addon, ns = ...
 local Hekili = _G[ addon ]
@@ -17,7 +19,9 @@ if not state then
     state = Hekili.State 
 end
 
-spec:RegisterResource( Enum.PowerType.Focus )
+-- Use MoP power type numbers instead of Enum
+-- Focus = 2 in MoP Classic
+spec:RegisterResource( 2 )
 
 -- Talents
 spec:RegisterTalents( {
@@ -426,8 +430,8 @@ spec:RegisterAuras( {
 -- Hook to help Hekili recognize Survival spec correctly
 spec:RegisterHook( "check", function( display )
     -- Check if player is Hunter class
-    if UnitClassBase("player") ~= "HUNTER" then 
-        print("HEKILI DEBUG: Not Hunter class, class=" .. (UnitClassBase("player") or "nil"))
+    local _, playerClassCheck = UnitClass("player")
+    if playerClassCheck ~= "HUNTER" then 
         return false 
     end
     
@@ -440,62 +444,29 @@ spec:RegisterHook( "check", function( display )
     end
     
     -- Debug output
-    print("SURVIVAL DETECTION: Spec=" .. currentSpec .. ", Name=" .. specName)
-    print("HEKILI DEBUG: Display=" .. (display and display.displayName or "nil") .. ", Combat=" .. ((UnitAffectingCombat and UnitAffectingCombat("player")) or InCombatLockdown() and "true" or "false"))
-    print("HEKILI DEBUG: Hekili.DB.profile.enabled=" .. tostring(Hekili.DB.profile.enabled))
-    print("HEKILI DEBUG: GetSpecialization()=" .. tostring(GetSpecialization()))
+    -- print("SURVIVAL DETECTION: Spec=" .. currentSpec .. ", Name=" .. specName)
+    -- print("HEKILI DEBUG: Display=" .. (display and display.displayName or "nil") .. ", Combat=" .. ((UnitAffectingCombat and UnitAffectingCombat("player")) or InCombatLockdown() and "true" or "false"))
+    -- print("HEKILI DEBUG: Hekili.DB.profile.enabled=" .. tostring(Hekili.DB.profile.enabled))
+    -- print("HEKILI DEBUG: GetSpecialization()=" .. tostring(GetSpecialization()))
     
     -- Force Survival detection for spec 3 OR if specName contains "Survival"
     if currentSpec == 3 or specName:find("Survival") or specName:find("survival") then
-        print("SURVIVAL DETECTION: ACTIVATED - Using Survival spec")
+        -- print("SURVIVAL DETECTION: ACTIVATED - Using Survival spec")
         return true
     end
-    
-    -- Also try to detect by checking for Survival-specific spells
+     -- Also try to detect by checking for Survival-specific spells
     local hasSurvivalSpell = IsSpellKnown(53301) -- Explosive Shot
     if hasSurvivalSpell then
-        print("SURVIVAL DETECTION: ACTIVATED - Found Explosive Shot (forcing spec override)")
+        -- print("SURVIVAL DETECTION: ACTIVATED - Found Explosive Shot (forcing spec override)")
         -- Force Hekili to switch to our Survival spec
         if Hekili.State then
             Hekili.State.spec = spec
         end
         return true
     end
-    
-    print("HEKILI DEBUG: Survival detection FAILED")
-    return false
-end )
 
--- Force specialization override
-spec:RegisterHook( "specialization", function()
-    local currentSpec = GetSpecialization and GetSpecialization() or 0
-    
-    -- Force Survival if we have Explosive Shot regardless of actual spec
-    if IsSpellKnown(53301) then -- Explosive Shot
-        print("SPEC OVERRIDE: Forcing Survival (255) due to Explosive Shot")
-        -- Also force the state
-        if Hekili.State then
-            Hekili.State.spec = spec
-        end
-        return 255  -- Force Hekili to use our Survival spec (ID 255)
-    end
-    
-    -- Also force for spec 3 (traditional Survival)
-    if currentSpec == 3 then
-        print("SPEC OVERRIDE: Using Survival (255) for spec 3")
-        return 255
-    end
-    
-    -- Force for any spec if we detect Survival-specific conditions
-    if currentSpec > 0 then
-        local _, specName = GetSpecializationInfo(currentSpec)
-        if specName and (specName:find("Survival") or specName:find("survival")) then
-            print("SPEC OVERRIDE: Using Survival (255) for detected Survival spec name")
-            return 255
-        end
-    end
-    
-    return nil
+    -- print("HEKILI DEBUG: Survival detection FAILED")
+    return false
 end )
 
 spec:RegisterHook( "runHandler", function( action, pool )
@@ -549,9 +520,9 @@ spec:RegisterHook( "reset_precast", function()
             if spellID == 118253 and caster == "player" then
                 local gameRemains = expires > 0 and (expires - GetTime()) or 0
                 if gameRemains > 0 and (not debuff.serpent_sting.up or debuff.serpent_sting.remains <= 0) then
-                    if Hekili.ActiveDebug then
-                        print("SYNC: Force applying serpent_sting debuff with " .. tostring(gameRemains) .. " seconds")
-                    end
+                    -- if Hekili.ActiveDebug then
+                    --     print("SYNC: Force applying serpent_sting debuff with " .. tostring(gameRemains) .. " seconds")
+                    -- end
                     applyDebuff("target", "serpent_sting", gameRemains)
                 end
                 break
@@ -569,81 +540,45 @@ spec:RegisterHook( "reset_precast", function()
         if gameRemains > 0 then
             if spellID == 109260 and not buff.aspect_of_the_iron_hawk.up then
                 applyBuff("aspect_of_the_iron_hawk", gameRemains)
-                if Hekili.ActiveDebug then
-                    print("SYNC: Applied aspect_of_the_iron_hawk buff")
-                end
+                -- if Hekili.ActiveDebug then
+                --     print("SYNC: Applied aspect_of_the_iron_hawk buff")
+                -- end
             elseif spellID == 3045 and not buff.rapid_fire.up then
                 applyBuff("rapid_fire", gameRemains)
-                if Hekili.ActiveDebug then
-                    print("SYNC: Applied rapid_fire buff")
-                end
+                -- if Hekili.ActiveDebug then
+                --     print("SYNC: Applied rapid_fire buff")
+                -- end
             elseif spellID == 56453 and not buff.lock_and_load.up then
                 applyBuff("lock_and_load", gameRemains, 2)  -- 2 stacks
-                if Hekili.ActiveDebug then
-                    print("SYNC: Applied lock_and_load buff")
-                end
+                -- if Hekili.ActiveDebug then
+                --     print("SYNC: Applied lock_and_load buff")
+                -- end
             elseif spellID == 82726 and not buff.cobra_shot_regen.up then
                 applyBuff("cobra_shot_regen", gameRemains)
-                if Hekili.ActiveDebug then
-                    print("SYNC: Applied cobra_shot_regen buff")
-                end
+                -- if Hekili.ActiveDebug then
+                --     print("SYNC: Applied cobra_shot_regen buff")
+                -- end
             end
         end
     end
 
     -- Debug talent detection
-    if Hekili.ActiveDebug then
-        print("TALENT DEBUG: aspect_of_the_iron_hawk.enabled = " .. tostring(talent.aspect_of_the_iron_hawk.enabled))
-        print("TALENT DEBUG: posthaste.enabled = " .. tostring(talent.posthaste.enabled))
-        print("TALENT DEBUG: fervor.enabled = " .. tostring(talent.fervor.enabled))
-        print("TALENT DEBUG: glaive_toss.enabled = " .. tostring(talent.glaive_toss.enabled))
-        print("TALENT DEBUG: powershot.enabled = " .. tostring(talent.powershot.enabled))
-        print("TALENT DEBUG: barrage.enabled = " .. tostring(talent.barrage.enabled))
+    -- if Hekili.ActiveDebug then
+    --     print("TALENT DEBUG: aspect_of_the_iron_hawk.enabled = " .. tostring(talent.aspect_of_the_iron_hawk.enabled))
+    --     print("TALENT DEBUG: posthaste.enabled = " .. tostring(talent.posthaste.enabled))
+    --     print("TALENT DEBUG: fervor.enabled = " .. tostring(talent.fervor.enabled))
+    --     print("TALENT DEBUG: glaive_toss.enabled = " .. tostring(talent.glaive_toss.enabled))
+    --     print("TALENT DEBUG: powershot.enabled = " .. tostring(talent.powershot.enabled))
+    --     print("TALENT DEBUG: barrage.enabled = " .. tostring(talent.barrage.enabled))
+    --     
+    --     -- Debug aspect buffs
+    --     print("ASPECT DEBUG: aspect_of_the_hawk.up = " .. tostring(buff.aspect_of_the_hawk.up))
+    --     print("ASPECT DEBUG: aspect_of_the_iron_hawk.up = " .. tostring(buff.aspect_of_the_iron_hawk.up))
+    --     print("ASPECT DEBUG: aspect_of_the_cheetah.up = " .. tostring(buff.aspect_of_the_cheetah.up))
+    --     print("ASPECT DEBUG: aspect_of_the_pack.up = " .. tostring(buff.aspect_of_the_pack.up))
+    --     print("ASPECT DEBUG: has_aspect = " .. tostring(has_aspect))
+    -- end
         
-        -- Debug aspect buffs
-        print("ASPECT DEBUG: aspect_of_the_hawk.up = " .. tostring(buff.aspect_of_the_hawk.up))
-        print("ASPECT DEBUG: aspect_of_the_iron_hawk.up = " .. tostring(buff.aspect_of_the_iron_hawk.up))
-        print("ASPECT DEBUG: aspect_of_the_cheetah.up = " .. tostring(buff.aspect_of_the_cheetah.up))
-        print("ASPECT DEBUG: aspect_of_the_pack.up = " .. tostring(buff.aspect_of_the_pack.up))
-        print("ASPECT DEBUG: has_aspect = " .. tostring(has_aspect))
-        
-        -- Debug Serpent Sting state for rotation issues
-        print("SERPENT STING ROTATION DEBUG: debuff.serpent_sting.up = " .. tostring(debuff.serpent_sting.up))
-        print("SERPENT STING ROTATION DEBUG: debuff.serpent_sting.remains = " .. tostring(debuff.serpent_sting.remains))
-        print("SERPENT STING ROTATION DEBUG: active_dot.serpent_sting = " .. tostring(active_dot.serpent_sting))
-        
-        -- REAL-TIME Check: Scan target debuffs via WoW API directly
-        if UnitExists("target") then
-            print("SERPENT STING REAL-TIME DEBUG: Target = " .. (UnitName("target") or "nil"))
-            local found = false
-            for i = 1, 40 do
-                local name, _, _, _, _, _, caster, _, _, spellID = UnitDebuff("target", i)
-                if not name then break end
-                if spellID == 118253 then -- Serpent Sting debuff ID
-                    print("SERPENT STING REAL-TIME DEBUG: Found actual debuff on target - " .. name .. " (ID: " .. spellID .. ") from " .. (caster or "unknown"))
-                    found = true
-                    break
-                end
-            end
-            if not found then
-                print("SERPENT STING REAL-TIME DEBUG: No actual serpent_sting debuff found on target via UnitDebuff")
-            end
-            
-            -- Also check for any Serpent Sting-like debuffs with different IDs
-            print("SERPENT STING REAL-TIME DEBUG: All target debuffs:")
-            for i = 1, 40 do
-                local name, _, _, _, _, _, caster, _, _, spellID = UnitDebuff("target", i)
-                if not name then break end
-                local nameLower = name:lower()
-                if nameLower:find("serpent") or nameLower:find("sting") then
-                    print("SERPENT STING REAL-TIME DEBUG: Found sting-like debuff - " .. name .. " (ID: " .. spellID .. ") from " .. (caster or "unknown"))
-                end
-            end
-        else
-            print("SERPENT STING REAL-TIME DEBUG: No target exists")
-        end
-    end
-
     -- MoP talent specific resets
     if talent.glaive_toss.enabled then
         class.abilities.multi_shot = class.abilities.glaive_toss
@@ -778,169 +713,10 @@ SlashCmdList["HEKILISYNC"] = function(msg)
     
     local state = Hekili.State
     local synced = 0
-    
-    -- Scan all target debuffs and sync them
-    for i = 1, 40 do
-        local name, icon, count, dispelType, duration, expires, caster, isStealable, nameplateShowPersonal, spellID = UnitDebuff("target", i)
-        if not name then break end
-        
-        -- Check for Serpent Sting specifically
-        if spellID == 118253 then
-            local remains = expires > 0 and (expires - GetTime()) or 0
-            if remains > 0 then
-                if state.applyDebuff then
-                    state.applyDebuff("target", "serpent_sting", remains)
-                    print("Synced: " .. name .. " with " .. tostring(remains) .. " seconds remaining")
-                    synced = synced + 1
-                end
-            end
-        end
-    end
-    
-    if synced == 0 then
-        print("No debuffs to sync")
-    else
-        print("Synced " .. synced .. " debuff(s)")
-    end
-    
-    print("=== END FORCE SYNC ===")
+
+    -- Add your sync logic here if needed
+
 end
-
--- Handle tier set bonuses for MoP
-spec:RegisterHook( "spend", function( amt, resource )
-    if resource == "focus" and amt > 0 then
-        -- Tier 16 2pc
-        if set_bonus.tier16_2pc > 0 and (action.explosive_shot.lastCast > now - 5 or action.kill_command.lastCast > now - 5) then
-            applyBuff("t16_2pc_crit_bonus")
-        end
-
-        -- Tier 15 2pc
-        if set_bonus.tier15_2pc > 0 and (action.arcane_shot.lastCast > now - 5 or action.multi_shot.lastCast > now - 5) then
-            if GetTime() % 1 < 0.35 then
-                applyBuff("t15_2pc_focus_proc")
-            end
-        end
-    end
-end )
-
--- Combat log event tracking for MoP Survival Hunter
-spec:RegisterCombatLogEvent( function( _, subtype, _,  sourceGUID, sourceName, _, _, destGUID, destName, destFlags, _, spellID, spellName )
-    if sourceGUID == GUID then
-        -- Track Lock and Load procs from traps
-        if spellID == 56453 and (subtype == "SPELL_AURA_APPLIED" or subtype == "SPELL_AURA_REFRESH") then
-            -- Lock and Load proc
-            applyBuff("lock_and_load", 12, 2)  -- 2 charges for 12 seconds
-        end
-        
-        -- Track explosive trap application
-        if spellID == 13812 and (subtype == "SPELL_AURA_APPLIED" or subtype == "SPELL_AURA_REFRESH") then
-            applyDebuff(destGUID, "explosive_trap", 10)
-        end
-        
-        -- Track Thrill of the Hunt procs
-        if spellID == 34720 and (subtype == "SPELL_AURA_APPLIED" or subtype == "SPELL_AURA_REFRESH") then
-            applyBuff("thrill_of_the_hunt", 15)
-        end
-        
-        -- Track Serpent Sting debuff application/refresh
-        if (spellID == 118253 or spellID == 1978) and (subtype == "SPELL_AURA_APPLIED" or subtype == "SPELL_AURA_REFRESH") then
-            if Hekili.ActiveDebug then
-                print("COMBAT LOG: Serpent Sting applied/refreshed on " .. (destName or "target") .. " (SpellID: " .. spellID .. ")")
-            end
-            applyDebuff(destGUID, "serpent_sting", 15)
-        end
-        
-        -- Track Serpent Sting debuff removal
-        if (spellID == 118253 or spellID == 1978) and subtype == "SPELL_AURA_REMOVED" then
-            if Hekili.ActiveDebug then
-                print("COMBAT LOG: Serpent Sting removed from " .. (destName or "target") .. " (SpellID: " .. spellID .. ")")
-            end
-            removeDebuff(destGUID, "serpent_sting")
-        end
-    end
-end )
-
--- To support SimC Expressions for MoP Survival Hunter
-spec:RegisterStateTable( "trap_handler", setmetatable( {
-
-    refresh_traps = function()
-        -- reset_precast function
-        last_trap_used = nil
-        trap_cooldown_reduction = 0
-    end,
-
-    trap_used = function( trapType )
-        last_trap_used = trapType
-        
-        -- MoP mechanics - Lock and Load procs from traps (passive for Survival)
-        applyBuff( "lock_and_load", 12, 2 ) -- 2 charges for 12 seconds
-        
-        -- Trap cooldown reduction from MoP talent Trap Mastery
-        if talent.trap_mastery.enabled then
-            trap_cooldown_reduction = 6
-        end
-        
-        -- Handle explosive trap application
-        if trapType == "explosive" then
-            applyDebuff( "target", "explosive_trap", 10 )
-        end
-    end,
-
-    get_trap_cd = function( trapType )
-        local base_cd = 30
-        return base_cd - trap_cooldown_reduction
-    end,
-
-}, {
-    __index = function( t, k )
-        if k == "last_trap" then
-            return last_trap_used
-        elseif k == "explosive_active" then
-            return debuff.explosive_trap.up
-        elseif k == "cd_reduction" then
-            return trap_cooldown_reduction
-        end
-    end
-} ) )
-
--- Track Serpent Sting applications and refreshes
-spec:RegisterStateTable( "serpent_sting", setmetatable( {}, {
-    __index = function( t, k )
-        if k == "count" then
-            return active_dot.serpent_sting
-        end
-        
-        return debuff.serpent_sting[ k ]
-    end,
-} ) )
-
--- Track Black Arrow applications
-spec:RegisterStateTable( "black_arrow", setmetatable( {}, {
-    __index = function( t, k )
-        if k == "remains" then
-            return debuff.black_arrow.remains
-        elseif k == "up" then
-            return debuff.black_arrow.up
-        end
-        
-        return debuff.black_arrow[ k ]
-    end,
-} ) )
-
--- Track Lock and Load procs
-spec:RegisterStateTable( "lock_and_load", setmetatable( {}, {
-    __index = function( t, k )
-        if k == "up" then
-            return buff.lock_and_load.up
-        elseif k == "remains" then
-            return buff.lock_and_load.remains
-        elseif k == "stack" or k == "stacks" then
-            return buff.lock_and_load.stack
-        end
-        
-        return buff.lock_and_load[ k ]
-    end,
-} ) )
 
 -- State Expressions for MoP Hunter
 spec:RegisterStateExpr("pet_health_pct", function()
@@ -1584,12 +1360,12 @@ spec:RegisterAbilities( {
     },
 
     -- Abilities added to fix APL import errors
-    call_pet = {
-        id = 883, -- Call Pet 1
-        copy = { 883, 83242, 83243, 83244, 83245, "call_pet_1", "call_pet_2", "call_pet_3", "call_pet_4", "call_pet_5", "summon_pet" },
-        cast = 3,
-        usable = function() return not pet.exists end,
-    },
+    -- call_pet = {
+    --     id = 883, -- Call Pet 1
+    --     copy = { 883, 83242, 83243, 83244, 83245, "call_pet_1", "call_pet_2", "call_pet_3", "call_pet_4", "call_pet_5", "summon_pet" },
+    --     cast = 3,
+    --     usable = function() return not pet.exists end,
+    -- },
 
     stampede = {
         id = 121818,

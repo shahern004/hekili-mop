@@ -21,7 +21,14 @@ local function getReferences()
     return class, state
 end
 
-local spec = Hekili:NewSpecialization( 102 ) -- Balance spec ID for MoP
+local spec = Hekili:NewSpecialization( 102, true ) -- Balance spec ID for MoP
+
+-- Spec configuration for MoP
+spec.role = "DAMAGER"
+spec.primaryStat = "intellect"
+spec.name = "Balance"
+
+-- No longer need custom spec detection - WeakAuras system handles this in Constants.lua
 
 local strformat = string.format
 local FindUnitBuffByID = ns.FindUnitBuffByID

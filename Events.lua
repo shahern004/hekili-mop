@@ -122,19 +122,52 @@ local GetSpecializationInfo = GetSpecializationInfo or function(specIndex)
             else specID = 255; specName = "Survival" end -- Default to Survival
         end
     elseif class == "DRUID" then
-        -- Druid spec detection for MoP Classic
-        if IsPlayerSpell(78674) then specID = 102; specName = "Balance"  -- Starsurge
-        elseif IsPlayerSpell(33876) then specID = 103; specName = "Feral"  -- Mangle (Cat)
-        elseif IsPlayerSpell(33878) then specID = 104; specName = "Guardian"  -- Mangle (Bear)
-        elseif IsPlayerSpell(18562) then specID = 105; specName = "Restoration"  -- Swiftmend
+        -- Druid spec detection for MoP Classic - Better prioritization
+        -- Check for Restoration-specific spells FIRST (highest priority for healers)
+        if IsPlayerSpell(18562) then specID = 105; specName = "Restoration"  -- Swiftmend - Restoration specific
+        elseif IsPlayerSpell(33763) then specID = 105; specName = "Restoration"  -- Lifebloom - Restoration specific
+        
+        -- Check for Feral-specific spells (higher priority than shared spells)
+        elseif IsPlayerSpell(52610) then specID = 103; specName = "Feral"  -- Savage Roar - Feral specific  
+        elseif IsPlayerSpell(22568) then specID = 103; specName = "Feral"  -- Ferocious Bite - Feral specific
+        elseif IsPlayerSpell(33876) then specID = 103; specName = "Feral"  -- Mangle (Cat) - Feral specific
+        elseif IsPlayerSpell(5221) then specID = 103; specName = "Feral"  -- Shred - Core Feral ability
+        elseif IsPlayerSpell(1822) then specID = 103; specName = "Feral"  -- Rake - Core Feral ability
+        
+        -- Check for Guardian-specific spells
+        elseif IsPlayerSpell(33878) then specID = 104; specName = "Guardian"  -- Mangle (Bear) - Guardian specific
+        elseif IsPlayerSpell(6807) then specID = 104; specName = "Guardian"  -- Maul - Guardian specific
+        
+        -- Check for Balance-specific spells (lower priority since some are shared)
+        elseif IsPlayerSpell(78674) then specID = 102; specName = "Balance"  -- Starsurge - Balance specific
+        elseif IsPlayerSpell(8921) then specID = 102; specName = "Balance"  -- Moonfire - Available to all but assume Balance
+        
         else 
-            -- Additional fallback detection
-            if IsPlayerSpell(5221) then specID = 103; specName = "Feral"  -- Shred
-            elseif IsPlayerSpell(6807) then specID = 104; specName = "Guardian"  -- Maul
-            elseif IsPlayerSpell(2908) then specID = 105; specName = "Restoration"  -- Soothe
-            elseif IsPlayerSpell(8921) then specID = 102; specName = "Balance"  -- Moonfire
+            -- Last resort fallback based on form or default to Feral
+            if GetShapeshiftForm and (GetShapeshiftForm() == 1 or IsPlayerSpell(768)) then -- Cat Form
+                specID = 103; specName = "Feral"
+            elseif GetShapeshiftForm and (GetShapeshiftForm() == 2 or IsPlayerSpell(5487)) then -- Bear Form  
+                specID = 104; specName = "Guardian"
             else specID = 103; specName = "Feral" end -- Default to Feral
         end
+    elseif class == "ROGUE" then
+        -- Rogue spec detection for MoP Classic - prioritize Combat over Assassination  
+        if IsPlayerSpell(13750) then specID = 260; specName = "Combat"  -- Adrenaline Rush - Combat specific
+        elseif IsPlayerSpell(13877) then specID = 260; specName = "Combat"  -- Blade Flurry - Combat specific
+        elseif IsPlayerSpell(84617) then specID = 260; specName = "Combat"  -- Revealing Strike - Combat specific
+        elseif IsPlayerSpell(51690) then specID = 260; specName = "Combat"  -- Killing Spree - Combat specific
+        
+        -- Check for Assassination-specific spells
+        elseif IsPlayerSpell(2823) then specID = 259; specName = "Assassination"  -- Deadly Poison - Assassination
+        elseif IsPlayerSpell(32645) then specID = 259; specName = "Assassination"  -- Envenom - Assassination specific
+        elseif IsPlayerSpell(79140) then specID = 259; specName = "Assassination"  -- Vendetta - Assassination specific
+        
+        -- Check for Subtlety-specific spells  
+        elseif IsPlayerSpell(36554) then specID = 261; specName = "Subtlety"  -- Shadowstep - Subtlety specific
+        elseif IsPlayerSpell(14183) then specID = 261; specName = "Subtlety"  -- Premeditation - Subtlety specific
+        elseif IsPlayerSpell(51713) then specID = 261; specName = "Subtlety"  -- Shadow Dance - Subtlety specific
+        
+        else specID = 260; specName = "Combat" end -- Default to Combat
     -- Add more classes as needed
     else
         specID = 1
@@ -494,8 +527,27 @@ do    if Hekili.IsWrath() then
         }        local function CheckForTalentUpdate( event )
             local specialization = GetSpecialization()
             local specID = specialization and GetSpecializationInfo( specialization )
+            
+            -- MoP Classic: Use our enhanced spec detection if needed
+            if not specID then
+                specID = ns.getSpecializationID(specialization)
+            end
 
-            if specID and specID ~= state.spec.id then
+            -- Don't trigger spec change if we already have a valid detection
+            -- or if our fallback would produce the same result
+            if specID and state.spec.id then
+                -- Try our enhanced detection to see what it would return
+                local enhancedSpecID = Hekili and Hekili.GetMoPSpecialization and Hekili:GetMoPSpecialization()
+                
+                -- Only trigger change if both basic detection and enhanced detection disagree with current state
+                if enhancedSpecID and enhancedSpecID ~= state.spec.id and specID ~= state.spec.id then
+                    Hekili.PendingSpecializationChange = true
+                elseif not enhancedSpecID and specID ~= state.spec.id then
+                    -- Fallback case if enhanced detection isn't available
+                    Hekili.PendingSpecializationChange = true
+                end
+            elseif specID and not state.spec.id then
+                -- No current spec, so trigger detection
                 Hekili.PendingSpecializationChange = true
             end
         end
@@ -743,7 +795,7 @@ do
         for set, items in pairs( class.gear ) do
             state.set_bonus[ set ] = 0
             for item, _ in pairs( items ) do
-                if item > maxItemSlot and IsEquippedItem( item ) then
+                if type(item) == "number" and item > maxItemSlot and IsEquippedItem( item ) then
                     state.set_bonus[ set ] = state.set_bonus[ set ] + 1
                 end
             end

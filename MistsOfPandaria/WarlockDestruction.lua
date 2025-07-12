@@ -42,30 +42,37 @@ local destructionCombatLogEvents = {}
 local function RegisterDestructionCombatLogEvent(event, handler)
     if not destructionCombatLogEvents[event] then
         destructionCombatLogEvents[event] = {}
-        destructionCombatLogFrame:RegisterEvent(event)
+        -- Don't register sub-events, only COMBAT_LOG_EVENT_UNFILTERED
     end
     table.insert(destructionCombatLogEvents[event], handler)
 end
 
 -- Combat log event handlers for Destruction mechanics
 local function HandleDestructionCombatLogEvent(self, event, ...)
-    local handlers = destructionCombatLogEvents[event]
-    if handlers then
-        for _, handler in ipairs(handlers) do
-            handler(...)
+    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        local timestamp, subevent, _, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags = CombatLogGetCurrentEventInfo()
+        
+        if sourceGUID == UnitGUID("player") or sourceGUID == UnitGUID("pet") then
+            local handlers = destructionCombatLogEvents[subevent]
+            if handlers then
+                for _, handler in ipairs(handlers) do
+                    handler(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, select(12, CombatLogGetCurrentEventInfo()))
+                end
+            end
         end
     end
 end
 
 destructionCombatLogFrame:SetScript("OnEvent", HandleDestructionCombatLogEvent)
+destructionCombatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
 -- Burning Ember generation from Immolate/Conflagrate ticks
-RegisterDestructionCombatLogEvent("SPELL_PERIODIC_DAMAGE", function(timestamp, eventType, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing)
+RegisterDestructionCombatLogEvent("SPELL_PERIODIC_DAMAGE", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
     if sourceGUID == UnitGUID("player") then
-        if spellId == 348 then -- Immolate DoT tick
+        if spellID == 348 then -- Immolate DoT tick
             -- Generate 0.1 Burning Ember per tick with chance for bonus
             local emberGenerated = 0.1
-            if critical then emberGenerated = emberGenerated + 0.1 end -- Critical ticks generate more
+            -- Note: critical info would need to be extracted from combat log data
             
             if state and state.burning_embers then
                 state.burning_embers.generate(emberGenerated)
@@ -75,8 +82,8 @@ RegisterDestructionCombatLogEvent("SPELL_PERIODIC_DAMAGE", function(timestamp, e
 end)
 
 -- Backlash proc tracking from damage taken
-RegisterDestructionCombatLogEvent("SPELL_DAMAGE", function(timestamp, eventType, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing)
-    if destGUID == UnitGUID("player") and amount > 0 then
+RegisterDestructionCombatLogEvent("SPELL_DAMAGE", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
+    if destGUID == UnitGUID("player") then
         -- 25% chance for Backlash proc when taking damage
         if math.random(100) <= 25 then
             -- Set Backlash buff (reduces cast time of next Incinerate/Chaos Bolt by 30%)
@@ -90,9 +97,9 @@ RegisterDestructionCombatLogEvent("SPELL_DAMAGE", function(timestamp, eventType,
 end)
 
 -- Conflagrate usage and Backdraft proc tracking
-RegisterDestructionCombatLogEvent("SPELL_CAST_SUCCESS", function(timestamp, eventType, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool)
+RegisterDestructionCombatLogEvent("SPELL_CAST_SUCCESS", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
     if sourceGUID == UnitGUID("player") then
-        if spellId == 17962 then -- Conflagrate
+        if spellID == 17962 then -- Conflagrate
             -- Generate 2 Backdraft charges (reduces Incinerate cast time by 30%)
             if state and state.buff then
                 state.buff.backdraft.applied = GetTime()
@@ -104,7 +111,7 @@ RegisterDestructionCombatLogEvent("SPELL_CAST_SUCCESS", function(timestamp, even
             if state and state.burning_embers then
                 state.burning_embers.generate(0.2)
             end
-        elseif spellId == 116858 then -- Chaos Bolt
+        elseif spellID == 116858 then -- Chaos Bolt
             -- Generate 0.1-0.2 Burning Ember based on target's burning effects
             local emberGenerated = 0.1
             if state.debuff.immolate.up then emberGenerated = emberGenerated + 0.05 end
@@ -118,9 +125,9 @@ RegisterDestructionCombatLogEvent("SPELL_CAST_SUCCESS", function(timestamp, even
 end)
 
 -- Dark Soul: Instability usage tracking
-RegisterDestructionCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, eventType, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool, auraType)
+RegisterDestructionCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
     if destGUID == UnitGUID("player") then
-        if spellId == 113858 then -- Dark Soul: Instability
+        if spellID == 113858 then -- Dark Soul: Instability
             -- Enhance Burning Ember generation by 100% for 20 seconds
             if state and state.buff then
                 state.buff.dark_soul_instability.applied = GetTime()
@@ -132,155 +139,9 @@ RegisterDestructionCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, even
 end)
 
 -- Enhanced Resource Management Systems
-spec:RegisterResource( 0, { -- Mana = 0 in MoP
-    -- Life Tap - Instant 15% mana restoration
-    life_tap = {
-        aura = "life_tap",
-        last = function()
-            local app = state.buff.life_tap.applied
-            if app > 0 then return app end
-            return 0
-        end,
-        interval = function() return 0 end, -- Instant
-        value = function() 
-            return state.mana.max * 0.15 -- 15% instant restoration
-        end,
-    },
-    
-    -- Dark Soul: Knowledge - 25% mana efficiency bonus
-    dark_soul_knowledge = {
-        aura = "dark_soul_knowledge",
-        last = function()
-            local app = state.buff.dark_soul_knowledge.applied
-            if app > 0 then return app end
-            return 0
-        end,
-        interval = 1,
-        value = function()
-            if state.buff.dark_soul_knowledge.up then
-                return state.mana.regen * 0.25 -- 25% efficiency bonus
-            end
-            return 0
-        end,
-    },
-    
-    -- Harvest Life - 2% per enemy affected (up to 6%)
-    harvest_life = {
-        aura = "harvest_life",
-        last = function()
-            local app = state.buff.harvest_life.applied
-            if app > 0 then return app end
-            return 0
-        end,
-        interval = 1,
-        value = function()
-            if state.buff.harvest_life.up then
-                local enemies_affected = math.min(3, state.active_enemies or 1)
-                return state.mana.max * 0.02 * enemies_affected -- 2% per enemy
-            end
-            return 0
-        end,
-    },
-    
-    -- Soul Link - 0.5% mana efficiency while pet is active
-    soul_link = {
-        aura = "soul_link",
-        last = function()
-            if state.pet.active then return state.query_time end
-            return 0
-        end,
-        interval = 1,
-        value = function()
-            if state.pet.active and state.talent.soul_link.enabled then
-                return state.mana.regen * 0.005 -- 0.5% efficiency
-            end
-            return 0
-        end,
-    },
-    
-    -- Fel Armor - 30% spirit bonus to mana regeneration
-    fel_armor = {
-        aura = "fel_armor",
-        last = function()
-            local app = state.buff.fel_armor.applied
-            if app > 0 then return app end
-            return 0
-        end,
-        interval = 1,
-        value = function()
-            if state.buff.fel_armor.up then
-                local spirit_bonus = state.stat.spell_power * 0.3 -- 30% spirit bonus
-                return spirit_bonus * 0.5 -- Convert to mana regen
-            end
-            return 0
-        end,
-    },
-}, {
-    -- Base mana regeneration with combat penalty
-    base_regen = function()
-        local base = state.mana.max * 0.02 -- 2% base regeneration per second
-        if state.combat then
-            base = base * 0.33 -- 67% penalty in combat
-        end
-        
-        -- Spirit-based regeneration
-        local spirit_regen = state.stat.spirit * 0.5
-        if state.combat then
-            spirit_regen = spirit_regen * 0.33
-        end
-        
-        return base + spirit_regen
-    end,
-} )
+spec:RegisterResource( 0 ) -- Mana = 0 in MoP
 
-spec:RegisterResource( 14, { -- BurningEmbers = 14 in MoP
-    max = 4,
-    
-    regen = 0,
-    regenRate = function( state )
-        return 0 -- Burning Embers generate from abilities, not passively
-    end,
-    
-    -- Enhanced Burning Ember generation tracking
-    generate = function( amount, overcap )
-        local cur = state.burning_embers.current
-        local max = state.burning_embers.max
-        
-        amount = amount or 0.1 -- Default to 0.1 (partial ember)
-        
-        -- Dark Soul: Instability doubles generation
-        if state.buff.dark_soul_instability.up then
-            amount = amount * 2
-        end
-        
-        -- Metamorphosis increases generation by 50%
-        if state.buff.metamorphosis.up then
-            amount = amount * 1.5
-        end
-        
-        if overcap then
-            state.burning_embers.current = cur + amount
-        else
-            state.burning_embers.current = math.min( max, cur + amount )
-        end
-        
-        if state.burning_embers.current > cur then
-            state.gain( amount, "burning_embers" )
-        end
-    end,
-    
-    spend = function( amount )
-        local cur = state.burning_embers.current
-        
-        if cur >= amount then
-            state.burning_embers.current = cur - amount
-            state.spend( amount, "burning_embers" )
-            return true
-        end
-        
-        return false
-    end,
-} )
+spec:RegisterResource( 14 ) -- BurningEmbers = 14 in MoP
 
 -- Comprehensive Tier Set and Gear Registration
 -- T14 - Curse of the Elements (Raid Finder/Normal/Heroic)

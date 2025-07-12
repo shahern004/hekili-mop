@@ -88,7 +88,9 @@ function Hekili:OnInitialize()
             ToggleDropDownMenu( 1, nil, ns.UI.Menu, "cursor", 8, 5 )
         end
         GameTooltip:Hide()
-    end    local function GetDataText()
+    end
+    
+local function GetDataText()
         local p = Hekili.DB and Hekili.DB.profile
         if not p then return "Loading..." end
         
@@ -102,10 +104,11 @@ function Hekili:OnInitialize()
     end
 
     Hekili_OnAddonCompartmentEnter = function( addonName, button )
-        GameTooltip:SetOwner( AddonCompartmentFrame )
+        GameTooltip:SetOwner( AddonCompartmentFrame, "ANCHOR_RIGHT", 0 )
         GameTooltip:AddDoubleLine( "Hekili", GetDataText() )
         GameTooltip:AddLine( "|cFFFFFFFFLeft-click to make quick adjustments.|r" )
-        GameTooltip:AddLine( "|cFFFFFFFFRight-click to open the options interface.|r" )        GameTooltip:Show()
+        GameTooltip:AddLine( "|cFFFFFFFFRight-click to open the options interface.|r" )
+        GameTooltip:Show()
     end
     
     Hekili_OnAddonCompartmentLeave = function( addonName, button )
@@ -131,7 +134,7 @@ function Hekili:OnInitialize()
             icon = "Interface\\ICONS\\spell_nature_bloodlust",
             OnClick = Hekili_OnAddonCompartmentClick,
             OnEnter = function( self )
-                GameTooltip:SetOwner( self )
+                GameTooltip:SetOwner( self, "ANCHOR_RIGHT", 0 )
                 GameTooltip:AddDoubleLine( "Hekili", ns.UI.Minimap.text )
                 GameTooltip:AddLine( "|cFFFFFFFFLeft-click to make quick adjustments.|r" )
                 GameTooltip:AddLine( "|cFFFFFFFFRight-click to open the options interface.|r" )
@@ -159,6 +162,55 @@ function Hekili:OnInitialize()
     if callHook then
         callHook( "onInitialize" )
     end
+    
+    -- Register talent update events after addon is fully initialized
+    -- Check if ns.updateTalents exists (defined in Events.lua)
+    if ns.updateTalents then
+        ns.updateTalents()
+        ns.RegisterEvent("PLAYER_TALENT_UPDATE", ns.updateTalents)
+        ns.RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", ns.updateTalents)  
+        ns.RegisterEvent("PLAYER_ENTERING_WORLD", ns.updateTalents)
+        
+        -- LibClassicSpecs integration with proper callback registration
+        local LibClassicSpecs = LibStub and LibStub("LibClassicSpecs-1.0", true)
+        if LibClassicSpecs then
+            -- Register for spec change events using LibClassicSpecs
+            if LibClassicSpecs.RegisterCallback then
+                LibClassicSpecs:RegisterCallback("ClassicSpecs_SpecChanged", function()
+                    self.PendingSpecializationChange = true
+                    ns.updateTalents()
+                    if self.SpecializationChanged then
+                        self:SpecializationChanged()
+                    end
+                end)
+            end
+        end
+    else
+        -- Delay talent registration until Events.lua is loaded
+        C_Timer.After(0.1, function()
+            if ns.updateTalents then
+                ns.updateTalents()
+                ns.RegisterEvent("PLAYER_TALENT_UPDATE", ns.updateTalents)
+                ns.RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", ns.updateTalents)  
+                ns.RegisterEvent("PLAYER_ENTERING_WORLD", ns.updateTalents)
+                
+                -- LibClassicSpecs integration with proper callback registration
+                local LibClassicSpecs = LibStub and LibStub("LibClassicSpecs-1.0", true)
+                if LibClassicSpecs then
+                    -- Register for spec change events using LibClassicSpecs
+                    if LibClassicSpecs.RegisterCallback then
+                        LibClassicSpecs:RegisterCallback("ClassicSpecs_SpecChanged", function()
+                            Hekili.PendingSpecializationChange = true
+                            ns.updateTalents()
+                            if Hekili.SpecializationChanged then
+                                Hekili:SpecializationChanged()
+                            end
+                        end)
+                    end
+                end
+            end
+        end)
+    end
 end
 
 
@@ -169,9 +221,18 @@ function Hekili:ReInitialize()
     end
 
     checkImports()
-    self:RunOneTimeFixes()self.PendingSpecializationChange = true
+    self:RunOneTimeFixes()
+    self.PendingSpecializationChange = true
 
     if callHook then callHook( "onInitialize" ) end
+
+    -- Register talent update events after re-initialization  
+    if ns.updateTalents then
+        ns.updateTalents()
+        ns.RegisterEvent("PLAYER_TALENT_UPDATE", ns.updateTalents)
+        ns.RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", ns.updateTalents)  
+        ns.RegisterEvent("PLAYER_ENTERING_WORLD", ns.updateTalents)
+    end
 
     if self.DB.profile.enabled == false and self.DB.profile.AutoDisabled then
         self.DB.profile.AutoDisabled = nil

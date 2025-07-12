@@ -31,6 +31,8 @@ end
 
 local spec = Hekili:NewSpecialization( 62 ) -- Arcane spec ID for MoP
 
+-- No longer need custom spec detection - WeakAuras system handles this in Constants.lua
+
 -- Arcane-specific combat log event tracking
 local arcaneCombatLogFrame = CreateFrame("Frame")
 local arcaneCombatLogEvents = {}
