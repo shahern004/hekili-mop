@@ -1565,6 +1565,10 @@ do
                    ( not v.channel or state.buff.casting.up and state.buff.casting.v3 == 1 and state.buff.casting.v1 == class.abilities[ v.channel ].id ) then
 
                     local l = v.last()
+                    -- Ensure l is a valid number, default to now if nil
+                    if l == nil then
+                        l = now
+                    end
                     local i = type( v.interval ) == "number" and v.interval or
                               ( type( v.interval ) == "function" and v.interval( now, r.actual ) or
                               ( type( v.interval ) == "string" and state[ v.interval ] or 0 ) )
@@ -1979,6 +1983,9 @@ do
         resetting = 1,
         scriptID = 1,
         whitelist = 1,
+        
+        -- Player identification
+        GUID = 1,
 
         -- Timings.
         delay = 1,
@@ -2172,6 +2179,7 @@ do
             elseif k == "scriptID" then t[k] = "NilScriptID"
             elseif k == "whitelist" then return nil
             elseif k == "cycle" then t[k] = false
+            elseif k == "GUID" then t[k] = UnitGUID("player") or "player"
 
             -- Timings.
             elseif k == "delay" then t[k] = 0
@@ -2585,8 +2593,8 @@ do
             if k ~= "scriptID" and not ( logged_state_errors[ t.scriptID ] and logged_state_errors[ t.scriptID ][ k ] ) then
                 local key_str = type(k) == "function" and tostring(k) or k
                 Hekili:Error( "Unknown key '" .. key_str .. "' in emulated environment for [ " .. t.scriptID .. " : " .. t.this_action .. " ].\n\n" .. debugstack() )
-                logged_state_errors[ t.script ] = logged_state_errors[ t.script ] or {}
-                logged_state_errors[ t.script ][ k ] = true
+                logged_state_errors[ t.scriptID ] = logged_state_errors[ t.scriptID ] or {}
+                logged_state_errors[ t.scriptID ][ k ] = true
             end
         end,
         __newindex = function( t, k, v )

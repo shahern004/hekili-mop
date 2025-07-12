@@ -486,9 +486,6 @@ spec:RegisterHook( "runHandler", function( ability )
     end
 end )
 
-.caster  = "nobody"
-end
-
 spec:RegisterAuras( {
     bt_rake = {
         duration = 4,

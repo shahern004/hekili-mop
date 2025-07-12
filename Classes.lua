@@ -264,6 +264,18 @@ local HekiliSpecMixin = {
         end
     end,
 
+    RegisterGlyphs = function( self, glyphs )
+        for spellID, glyphName in pairs( glyphs ) do
+            if type( spellID ) == "number" and type( glyphName ) == "string" then
+                self.glyphs[ glyphName ] = spellID
+                self.glyphs[ spellID ] = glyphName
+                CommitKey( glyphName )
+            else
+                Hekili:Error( "RegisterGlyphs: Invalid glyph format for spell %s -> %s in spec %d", tostring( spellID ), tostring( glyphName ), self.id )
+            end
+        end
+    end,
+
     RegisterAura = function( self, aura, data )
         CommitKey( aura )
 
@@ -1330,6 +1342,7 @@ function Hekili:NewSpecialization( specID, isRanged, icon )
         talents = {},
         pvptalents = {},
         powers = {},
+        glyphs = {},
 
         auras = {},
         pseudoAuras = 0,
@@ -2609,15 +2622,35 @@ all:RegisterAbilities( {
 
     arcane_torrent = {
         id = function ()
-            if class.file == "PALADIN"      then return 155145 end
-            if class.file == "MONK"         then return 129597 end
-            if class.file == "DEATHKNIGHT"  then return  50613 end
-            if class.file == "WARRIOR"      then return  69179 end
-            if class.file == "ROGUE"        then return  25046 end
-            if class.file == "HUNTER"       then return  80483 end
-            if class.file == "DEMONHUNTER"  then return 202719 end
-            if class.file == "PRIEST"       then return 232633 end
-            return 28730
+            -- Version-specific spell IDs for Arcane Torrent
+            if Hekili.IsMoP() then
+                if class.file == "MAGE"         then return 28730 end
+                if class.file == "PALADIN"      then return 28730 end
+                if class.file == "PRIEST"       then return 28730 end
+                if class.file == "WARLOCK"      then return 28730 end
+                if class.file == "MONK"         then return 129597 end
+                if class.file == "WARRIOR"      then return 69179 end
+                if class.file == "ROGUE"        then return 25046 end
+                if class.file == "DEATHKNIGHT"  then return 50613 end
+                if class.file == "HUNTER"       then return 80483 end
+                return 28730
+            elseif Hekili.IsRetail() then
+                -- Retail spell IDs
+                if class.file == "PALADIN"      then return 155145 end
+                if class.file == "MONK"         then return 129597 end
+                if class.file == "DEATHKNIGHT"  then return  50613 end
+                if class.file == "WARRIOR"      then return  69179 end
+                if class.file == "ROGUE"        then return  25046 end
+                if class.file == "HUNTER"       then return  80483 end
+                if class.file == "DEMONHUNTER"  then return 202719 end
+                if class.file == "PRIEST"       then return 232633 end
+                return 28730
+            else
+                -- Default/Classic spell IDs
+                if class.file == "DEATHKNIGHT"  then return  50613 end
+                if class.file == "ROGUE"        then return  25046 end
+                return 28730
+            end
         end,
         cast = 0,
         cooldown = 120,
@@ -2630,15 +2663,26 @@ all:RegisterAbilities( {
         toggle = "cooldowns",
 
         handler = function ()
-            if class.file == "DEATHKNIGHT" then gain( 20, "runic_power" )
-            elseif class.file == "HUNTER" then gain( 15, "focus" )
-            elseif class.file == "MONK" then gain( 1, "chi" )
-            elseif class.file == "PALADIN" then gain( 1, "holy_power" )
-            elseif class.file == "ROGUE" then gain( 15, "energy" )
-            elseif class.file == "WARRIOR" then gain( 15, "rage" )
-            elseif class.file == "DEMONHUNTER" then gain( 15, "fury" )
-            elseif class.file == "PRIEST" and state.spec.shadow then gain( 15, "insanity" ) end
-
+            if Hekili.IsMoP() then
+                if class.file == "MAGE"         then gain( 2, "mana" ) end
+                if class.file == "PALADIN"      then gain( 2, "mana" ) end
+                if class.file == "PRIEST"       then gain( 2, "mana" ) end
+                if class.file == "WARLOCK"      then gain( 2, "mana" ) end
+                if class.file == "MONK"         then gain( 1, "chi" ) end
+                if class.file == "WARRIOR"      then gain( 15, "rage" ) end
+                if class.file == "ROGUE"        then gain( 15, "energy" ) end
+                if class.file == "DEATHKNIGHT"  then gain( 15, "runic_power" ) end
+                if class.file == "HUNTER"       then gain( 15, "focus" ) end
+            elseif Hekili.IsRetail() then
+                if class.file == "DEATHKNIGHT"  then gain( 20, "runic_power" ) end
+                if class.file == "HUNTER"       then gain( 15, "focus" ) end
+                if class.file == "MONK"         then gain( 1, "chi" ) end
+                if class.file == "PALADIN"      then gain( 1, "holy_power" ) end
+                if class.file == "ROGUE"        then gain( 15, "energy" ) end
+                if class.file == "WARRIOR"      then gain( 15, "rage" ) end
+                if class.file == "DEMONHUNTER"  then gain( 15, "fury" ) end
+                if class.file == "PRIEST"       then gain( 15, "insanity" ) end
+            end
             removeBuff( "dispellable_magic" )
         end,
 
