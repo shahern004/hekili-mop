@@ -987,9 +987,7 @@ spec:RegisterAuras( {
         id = 6117,
         duration = 1800,
         max_stack = 1
-    },
-    
-    molten_armor = {
+    },      molten_armor = {
         id = 30482,
         duration = 1800,
         max_stack = 1

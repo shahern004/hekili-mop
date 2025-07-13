@@ -414,10 +414,10 @@ ns.Specializations = {
 
 }
 
--- ns.getSpecializationKey = function ( id )
---     local spec = ns.Specializations[ id ]
---     return spec and spec.key or "none"
--- end
+ns.getSpecializationKey = function ( id )
+    local spec = ns.Specializations[ id ]
+    return spec and spec.key or "none"
+end
 
 -- ns.getSpecializationID = function ( index )
 --     -- LibClassicSpecs integration with proper API usage
@@ -587,31 +587,30 @@ ns.Specializations = {
 --         end
 --     end
     
---     -- Fallback: Try basic spec index mapping if spell detection fails
+    -- Fallback: Try basic spec index mapping if spell detection fails
 
     
---     -- Basic fallback mapping for MoP Classic
---     local fallbackMapping = {
---         HUNTER = { [1] = 253, [2] = 254, [3] = 255 },       -- Beast Mastery, Marksmanship, Survival
---         DEATHKNIGHT = { [1] = 250, [2] = 251, [3] = 252 },  -- Blood, Frost, Unholy
---         DRUID = { [1] = 102, [2] = 103, [3] = 104, [4] = 105 }, -- Balance, Feral, Guardian, Restoration
---         MAGE = { [1] = 62, [2] = 63, [3] = 64 },            -- Arcane, Fire, Frost
---         MONK = { [1] = 268, [2] = 269, [3] = 270 },         -- Brewmaster, Windwalker, Mistweaver
---         PALADIN = { [1] = 65, [2] = 66, [3] = 70 },         -- Holy, Protection, Retribution
---         PRIEST = { [1] = 256, [2] = 257, [3] = 258 },       -- Discipline, Holy, Shadow
---         ROGUE = { [1] = 259, [2] = 260, [3] = 261 },        -- Assassination, Combat, Subtlety
---         SHAMAN = { [1] = 262, [2] = 263, [3] = 264 },       -- Elemental, Enhancement, Restoration
---         WARLOCK = { [1] = 265, [2] = 266, [3] = 267 },      -- Affliction, Demonology, Destruction
---         WARRIOR = { [1] = 71, [2] = 72, [3] = 73 }          -- Arms, Fury, Protection
---     }
+    -- Basic fallback mapping for MoP Classic
+    local fallbackMapping = {
+        HUNTER = { [1] = 253, [2] = 254, [3] = 255 },       -- Beast Mastery, Marksmanship, Survival
+        DEATHKNIGHT = { [1] = 250, [2] = 251, [3] = 252 },  -- Blood, Frost, Unholy
+        DRUID = { [1] = 102, [2] = 103, [3] = 104, [4] = 105 }, -- Balance, Feral, Guardian, Restoration
+        MAGE = { [1] = 62, [2] = 63, [3] = 64 },            -- Arcane, Fire, Frost
+        MONK = { [1] = 268, [2] = 269, [3] = 270 },         -- Brewmaster, Windwalker, Mistweaver
+        PALADIN = { [1] = 65, [2] = 66, [3] = 70 },         -- Holy, Protection, Retribution
+        PRIEST = { [1] = 256, [2] = 257, [3] = 258 },       -- Discipline, Holy, Shadow
+        ROGUE = { [1] = 259, [2] = 260, [3] = 261 },        -- Assassination, Combat, Subtlety
+        SHAMAN = { [1] = 262, [2] = 263, [3] = 264 },       -- Elemental, Enhancement, Restoration
+        WARLOCK = { [1] = 265, [2] = 266, [3] = 267 },      -- Affliction, Demonology, Destruction
+        WARRIOR = { [1] = 71, [2] = 72, [3] = 73 }          -- Arms, Fury, Protection
+    }
     
---     if fallbackMapping[playerClass] and fallbackMapping[playerClass][selectedSpec] then
+if fallbackMapping[playerClass] and fallbackMapping[playerClass][selectedSpec] then
 
---         return fallbackMapping[playerClass][selectedSpec]
---     end
-    
---     return 0  -- Complete fallback
--- end
+    return fallbackMapping[playerClass][selectedSpec]
+end
+
+do return 0 end  -- Complete fallback
 
 
 

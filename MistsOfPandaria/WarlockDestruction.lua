@@ -42,37 +42,30 @@ local destructionCombatLogEvents = {}
 local function RegisterDestructionCombatLogEvent(event, handler)
     if not destructionCombatLogEvents[event] then
         destructionCombatLogEvents[event] = {}
-        -- Don't register sub-events, only COMBAT_LOG_EVENT_UNFILTERED
+        destructionCombatLogFrame:RegisterEvent(event)
     end
     table.insert(destructionCombatLogEvents[event], handler)
 end
 
 -- Combat log event handlers for Destruction mechanics
 local function HandleDestructionCombatLogEvent(self, event, ...)
-    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        local timestamp, subevent, _, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags = CombatLogGetCurrentEventInfo()
-        
-        if sourceGUID == UnitGUID("player") or sourceGUID == UnitGUID("pet") then
-            local handlers = destructionCombatLogEvents[subevent]
-            if handlers then
-                for _, handler in ipairs(handlers) do
-                    handler(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, select(12, CombatLogGetCurrentEventInfo()))
-                end
-            end
+    local handlers = destructionCombatLogEvents[event]
+    if handlers then
+        for _, handler in ipairs(handlers) do
+            handler(...)
         end
     end
 end
 
 destructionCombatLogFrame:SetScript("OnEvent", HandleDestructionCombatLogEvent)
-destructionCombatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
 -- Burning Ember generation from Immolate/Conflagrate ticks
-RegisterDestructionCombatLogEvent("SPELL_PERIODIC_DAMAGE", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
+RegisterDestructionCombatLogEvent("SPELL_PERIODIC_DAMAGE", function(timestamp, eventType, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing)
     if sourceGUID == UnitGUID("player") then
-        if spellID == 348 then -- Immolate DoT tick
+        if spellId == 348 then -- Immolate DoT tick
             -- Generate 0.1 Burning Ember per tick with chance for bonus
             local emberGenerated = 0.1
-            -- Note: critical info would need to be extracted from combat log data
+            if critical then emberGenerated = emberGenerated + 0.1 end -- Critical ticks generate more
             
             if state and state.burning_embers then
                 state.burning_embers.generate(emberGenerated)
@@ -82,8 +75,8 @@ RegisterDestructionCombatLogEvent("SPELL_PERIODIC_DAMAGE", function(timestamp, s
 end)
 
 -- Backlash proc tracking from damage taken
-RegisterDestructionCombatLogEvent("SPELL_DAMAGE", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
-    if destGUID == UnitGUID("player") then
+RegisterDestructionCombatLogEvent("SPELL_DAMAGE", function(timestamp, eventType, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing)
+    if destGUID == UnitGUID("player") and amount > 0 then
         -- 25% chance for Backlash proc when taking damage
         if math.random(100) <= 25 then
             -- Set Backlash buff (reduces cast time of next Incinerate/Chaos Bolt by 30%)
@@ -97,9 +90,9 @@ RegisterDestructionCombatLogEvent("SPELL_DAMAGE", function(timestamp, subevent, 
 end)
 
 -- Conflagrate usage and Backdraft proc tracking
-RegisterDestructionCombatLogEvent("SPELL_CAST_SUCCESS", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
+RegisterDestructionCombatLogEvent("SPELL_CAST_SUCCESS", function(timestamp, eventType, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool)
     if sourceGUID == UnitGUID("player") then
-        if spellID == 17962 then -- Conflagrate
+        if spellId == 17962 then -- Conflagrate
             -- Generate 2 Backdraft charges (reduces Incinerate cast time by 30%)
             if state and state.buff then
                 state.buff.backdraft.applied = GetTime()
@@ -111,7 +104,7 @@ RegisterDestructionCombatLogEvent("SPELL_CAST_SUCCESS", function(timestamp, sube
             if state and state.burning_embers then
                 state.burning_embers.generate(0.2)
             end
-        elseif spellID == 116858 then -- Chaos Bolt
+        elseif spellId == 116858 then -- Chaos Bolt
             -- Generate 0.1-0.2 Burning Ember based on target's burning effects
             local emberGenerated = 0.1
             if state.debuff.immolate.up then emberGenerated = emberGenerated + 0.05 end
@@ -125,9 +118,9 @@ RegisterDestructionCombatLogEvent("SPELL_CAST_SUCCESS", function(timestamp, sube
 end)
 
 -- Dark Soul: Instability usage tracking
-RegisterDestructionCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
+RegisterDestructionCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, eventType, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool, auraType)
     if destGUID == UnitGUID("player") then
-        if spellID == 113858 then -- Dark Soul: Instability
+        if spellId == 113858 then -- Dark Soul: Instability
             -- Enhance Burning Ember generation by 100% for 20 seconds
             if state and state.buff then
                 state.buff.dark_soul_instability.applied = GetTime()

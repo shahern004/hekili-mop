@@ -773,6 +773,7 @@ state.UnitPowerMax = UnitPowerMax
 state.abs = math.abs
 state.ceil = math.ceil
 state.floor = math.floor
+state.math = math
 state.format = string.format
 state.ipairs = ipairs
 state.pairs = pairs
@@ -2154,7 +2155,6 @@ do
             elseif k == "scriptID" then t[k] = "NilScriptID"
             elseif k == "whitelist" then return nil
             elseif k == "cycle" then t[k] = false
-            elseif k == "GUID" then t[k] = UnitGUID("player") or "player"
 
             -- Timings.
             elseif k == "delay" then t[k] = 0
@@ -7367,7 +7367,7 @@ do
         local spec = rawget( profile.specs, state.spec.id )
         if not spec then return true end
 
-        local option = ability.item and (spec.items and spec.items[ spell ]) or spec.abilities[ spell ]
+        local option = ability.item and spec.items[ spell ] or spec.abilities[ spell ]
 
         if not strict then
             local toggle = option.toggle
@@ -7435,7 +7435,7 @@ do
         local spec = rawget( profile.specs, state.spec.id )
         if not spec then return true end
 
-        local option = ability.item and (spec.items and spec.items[ spell ]) or spec.abilities[ spell ]
+        local option = ability.item and spec.items[ spell ] or spec.abilities[ spell ]
         local toggle = option.toggle
         if not toggle or toggle == "default" then toggle = ability.toggle end
 

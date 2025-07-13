@@ -1800,6 +1800,14 @@ spec:RegisterAbilities( {
 } )
 
 -- Enhanced State Expressions for Marksmanship optimization
+spec:RegisterStateExpr( "current_focus", function()
+    return focus.current
+end )
+
+spec:RegisterStateExpr( "focus_deficit", function()
+    return focus.max - focus.current
+end )
+
 spec:RegisterStateExpr( "focus_time_to_max", function()
     local regen_rate = 6 * haste
     if buff.aspect_of_the_iron_hawk.up then regen_rate = regen_rate * 1.3 end

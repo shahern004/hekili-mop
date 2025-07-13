@@ -15,53 +15,53 @@ local ResetDisabledGearAndSpells = ns.ResetDisabledGearAndSpells
 local RegisterEvent = ns.RegisterEvent
 local RegisterUnitEvent = ns.RegisterUnitEvent
 
--- Safe access to getSpecializationKey function
-local function getSpecializationKey(id)
-    -- First, check if the namespaced version is available
-    if ns and ns.getSpecializationKey then
-        return ns.getSpecializationKey(id)
-    end
+-- -- Safe access to getSpecializationKey function
+-- local function getSpecializationKey(id)
+--     -- First, check if the namespaced version is available
+--     if ns and ns.getSpecializationKey then
+--         return ns.getSpecializationKey(id)
+--     end
     
-    -- If not available, provide immediate fallback lookup table for MoP Classic spec IDs
-    local specKeys = {
-        [0] = "all",          -- All specs
-        [62] = "arcane",      -- Mage Arcane
-        [63] = "fire",        -- Mage Fire  
-        [64] = "frost",       -- Mage Frost
-        [65] = "holy",        -- Paladin Holy
-        [66] = "protection",  -- Paladin Protection
-        [70] = "retribution", -- Paladin Retribution
-        [71] = "arms",        -- Warrior Arms
-        [72] = "fury",        -- Warrior Fury
-        [73] = "protection",  -- Warrior Protection
-        [102] = "balance",    -- Druid Balance
-        [103] = "feral",      -- Druid Feral
-        [104] = "guardian",   -- Druid Guardian 
-        [105] = "restoration", -- Druid Restoration
-        [250] = "blood",      -- Death Knight Blood
-        [251] = "frost",      -- Death Knight Frost
-        [252] = "unholy",     -- Death Knight Unholy
-        [253] = "beast_mastery", -- Hunter Beast Mastery
-        [254] = "marksmanship", -- Hunter Marksmanship
-        [255] = "survival",   -- Hunter Survival
-        [256] = "discipline", -- Priest Discipline
-        [257] = "holy",       -- Priest Holy
-        [258] = "shadow",     -- Priest Shadow
-        [259] = "assassination", -- Rogue Assassination
-        [260] = "combat",     -- Rogue Combat
-        [261] = "subtlety",   -- Rogue Subtlety
-        [262] = "elemental",  -- Shaman Elemental
-        [263] = "enhancement", -- Shaman Enhancement
-        [264] = "restoration", -- Shaman Restoration
-        [265] = "affliction", -- Warlock Affliction
-        [266] = "demonology", -- Warlock Demonology
-        [267] = "destruction", -- Warlock Destruction
-        [268] = "brewmaster", -- Monk Brewmaster
-        [269] = "windwalker", -- Monk Windwalker
-        [270] = "mistweaver", -- Monk Mistweaver
-    }
-    return specKeys[id] or "none"
-end
+--     -- If not available, provide immediate fallback lookup table for MoP Classic spec IDs
+--     local specKeys = {
+--         [0] = "all",          -- All specs
+--         [62] = "arcane",      -- Mage Arcane
+--         [63] = "fire",        -- Mage Fire  
+--         [64] = "frost",       -- Mage Frost
+--         [65] = "holy",        -- Paladin Holy
+--         [66] = "protection",  -- Paladin Protection
+--         [70] = "retribution", -- Paladin Retribution
+--         [71] = "arms",        -- Warrior Arms
+--         [72] = "fury",        -- Warrior Fury
+--         [73] = "protection",  -- Warrior Protection
+--         [102] = "balance",    -- Druid Balance
+--         [103] = "feral",      -- Druid Feral
+--         [104] = "guardian",   -- Druid Guardian 
+--         [105] = "restoration", -- Druid Restoration
+--         [250] = "blood",      -- Death Knight Blood
+--         [251] = "frost",      -- Death Knight Frost
+--         [252] = "unholy",     -- Death Knight Unholy
+--         [253] = "beast_mastery", -- Hunter Beast Mastery
+--         [254] = "marksmanship", -- Hunter Marksmanship
+--         [255] = "survival",   -- Hunter Survival
+--         [256] = "discipline", -- Priest Discipline
+--         [257] = "holy",       -- Priest Holy
+--         [258] = "shadow",     -- Priest Shadow
+--         [259] = "assassination", -- Rogue Assassination
+--         [260] = "combat",     -- Rogue Combat
+--         [261] = "subtlety",   -- Rogue Subtlety
+--         [262] = "elemental",  -- Shaman Elemental
+--         [263] = "enhancement", -- Shaman Enhancement
+--         [264] = "restoration", -- Shaman Restoration
+--         [265] = "affliction", -- Warlock Affliction
+--         [266] = "demonology", -- Warlock Demonology
+--         [267] = "destruction", -- Warlock Destruction
+--         [268] = "brewmaster", -- Monk Brewmaster
+--         [269] = "windwalker", -- Monk Windwalker
+--         [270] = "mistweaver", -- Monk Mistweaver
+--     }
+--     return specKeys[id] or "none"
+-- end
 
 local LSR = LibStub( "SpellRange-1.0" )
 
@@ -324,13 +324,20 @@ local HekiliSpecMixin = {
         CommitKey( resource )
     end,
 
-RegisterTalents = function( self, talents )
-    for talent, id in pairs( talents ) do
-        self.talents[ talent ] = id
-        CommitKey( talent )
-    
-    end
-end,
+    RegisterTalents = function( self, talents )
+        for talent, id in pairs( talents ) do
+            self.talents[ talent ] = id
+            CommitKey( talent )
+
+            local hero = id[ 4 ]
+
+            if hero then
+                self.talents[ hero ] = id
+                CommitKey( hero )
+                id[ 4 ] = nil
+            end
+        end
+    end,
 
 
     RegisterAura = function( self, aura, data )
@@ -437,7 +444,8 @@ end,
                     end
 
                     self.auras[ a.name ] = a
-                    if ns.getSpecializationID() == self.id then
+                    local currentSpecID = Hekili.GetMoPSpecialization and Hekili:GetMoPSpecialization() or ns.getSpecializationID()
+                    if currentSpecID == self.id then
                         -- Copy to class table as well.
                         class.auras[ a.name ] = a
                     end
@@ -1392,7 +1400,7 @@ function Hekili:NewSpecialization( specID, isRanged, icon )
         class.initialized = true
     end
 
-    local token = getSpecializationKey( id )
+    local token = ns.getSpecializationKey( id )
 
     local spec = class.specs[ id ] or {
         id = id,
@@ -3409,10 +3417,10 @@ function Hekili:SpecializationChanged()
     end
     
     -- Fallback to basic detection if enhanced detection fails
-    -- if not currentID then
-    --     currentID = ns.getSpecializationID(currentSpec)
-    --     currentName = getSpecializationKey(currentID)
-    -- end
+    if not currentID then
+        currentID = ns.getSpecializationID(currentSpec)
+        currentName = ns.getSpecializationKey(currentID)
+    end
     
     -- Don't override if we already have a valid spec ID that matches our detection
     if state.spec.id and state.spec.id == currentID then
@@ -3491,7 +3499,7 @@ function Hekili:SpecializationChanged()
     
     state.spec.id = currentID
     state.spec.name = currentName or "Unknown"
-    state.spec.key = getSpecializationKey( currentID )
+    state.spec.key = ns.getSpecializationKey( currentID )
 
     -- Set default role - will be overridden by spec-specific files if needed
     for k in pairs( state.role ) do
