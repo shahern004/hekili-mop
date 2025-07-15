@@ -15,7 +15,6 @@ local ResetDisabledGearAndSpells = ns.ResetDisabledGearAndSpells
 local RegisterEvent = ns.RegisterEvent
 local RegisterUnitEvent = ns.RegisterUnitEvent
 
-
 local LSR = LibStub( "SpellRange-1.0" )
 
 local insert, wipe = table.insert, table.wipe
@@ -33,15 +32,15 @@ else
 end
 
 -- MoP compatible item and spell functions
-local GetItemCooldown = _G.GetItemCooldown or function(item) 
+local GetItemCooldown = _G.GetItemCooldown or function(item)
     if type(item) == "number" then
-        return GetItemCooldown(item) 
+        return GetItemCooldown(item)
     else
         return 0, 0
     end
 end
 
-local GetSpellDescription = _G.GetSpellDescription or function(spellID) 
+local GetSpellDescription = _G.GetSpellDescription or function(spellID)
     local tooltip = CreateFrame("GameTooltip", "HekiliTooltip", nil, "GameTooltipTemplate")
     tooltip:SetSpell(spellID)
     return _G[tooltip:GetName() .. "TextLeft2"]:GetText() or ""
@@ -52,7 +51,7 @@ local GetSpellTexture = _G.GetSpellTexture or function(spellID)
     return icon or "Interface\\Icons\\INV_Misc_QuestionMark"
 end
 
-local GetSpellLink = _G.GetSpellLink or function(spellID) 
+local GetSpellLink = _G.GetSpellLink or function(spellID)
     local name = GetSpellInfo(spellID)
     if name then
         return "|cff71d5ff|Hspell:" .. spellID .. "|h[" .. name .. "]|h|r"
@@ -63,9 +62,8 @@ end
 -- Use original GetSpellInfo for MoP
 local GetSpellInfo = _G.GetSpellInfo
 
-
 -- MoP compatible item functions
-local GetItemSpell = _G.GetItemSpell or function(item) 
+local GetItemSpell = _G.GetItemSpell or function(item)
     local spellName, spellID = GetItemSpell(item)
     return spellName, spellID
 end
@@ -349,9 +347,6 @@ local HekiliSpecMixin = {
             if a.id > 0 then
                 -- Hekili:ContinueOnSpellLoad( a.id, function( success )
                 a.onLoad = function( a )
-                    a.name = GetSpellInfo( a.id )
-
-                    if not a.name then
                         for k, v in pairs( class.auraList ) do
                             if v == a then class.auraList[ k ] = nil end
                         end
@@ -880,10 +875,10 @@ local HekiliSpecMixin = {
                     -- Try GetItemInfo as fallback
                     name = GetItemInfo( a.id )
                 end
-                
+
                 if name then
                     a.name = name
-                    
+
                     if a.suffix then
                         a.actualName = a.name
                         a.name = a.name .. " " .. a.suffix
@@ -966,7 +961,7 @@ local HekiliSpecMixin = {
         for ability, data in pairs( abilities ) do
             self:RegisterAbility( ability, data )
         end
-        
+
         -- If this is spec 0 (all), copy the new abilities to all other specs
         if self.id == 0 then
             for specID, spec in pairs( class.specs ) do
@@ -1392,7 +1387,7 @@ function Hekili:NewSpecialization( specID, isRanged, icon )
     for key, func in pairs( HekiliSpecMixin ) do
         spec[ key ] = func
     end    class.specs[ id ] = spec
-    
+
     -- Copy shared abilities from spec 0 (all) to this spec (but not to spec 0 itself)
     if id ~= 0 and class.specs[0] then
         local copiedCount = 0
@@ -1412,7 +1407,7 @@ function Hekili:NewSpecialization( specID, isRanged, icon )
             -- Shared abilities copied successfully
         end
     end
-    
+
     return spec
 end
 
@@ -1429,7 +1424,7 @@ local all = Hekili:NewSpecialization( 0, "All", "Interface\\Addons\\Hekili\\Text
 -- SHARED SPELLS/BUFFS/ETC. --
 ------------------------------
 
-all:RegisterAuras( {
+all:RegisterAuras({
 
     -- Can be used in GCD calculation.
     shadowform = {
@@ -1668,7 +1663,6 @@ all:RegisterAuras( {
     },
 
 
-
     casting = {
         name = "Casting",
         generate = function( t, auraType )
@@ -1835,6 +1829,97 @@ all:RegisterAuras( {
         duration = 2,
     },
 
+    -- MoP Buff Categories
+    stats = {
+        alias = {
+            "blessing_of_kings",
+            "embrace_of_the_shale_spider",
+            "legacy_of_the_emperor",
+            "mark_of_the_wild"
+        },
+        aliasMode = "latest",
+        aliasType = "buff",
+        shared = "target",
+        shared_aura = true
+    },
+
+    mastery = {
+        alias = {
+            "blessing_of_might",
+            "grace_of_air",
+            "roar_of_courage",
+            "spirit_beast_blessing"
+        },
+        aliasMode = "latest",
+        aliasType = "buff",
+        shared = "target",
+        shared_aura = true
+    },
+
+    blessing_of_kings = {
+        id = 20217,
+        duration = 3600,
+        max_stack = 1,
+        shared = "target",
+        shared_aura = true
+    },
+
+    embrace_of_the_shale_spider = {
+        id = 90363,
+        duration = 3600,
+        max_stack = 1,
+        shared = "target",
+        shared_aura = true
+    },
+
+    legacy_of_the_emperor = {
+        id = 115921,
+        duration = 3600,
+        max_stack = 1,
+        shared = "target",
+        shared_aura = true
+    },
+
+    mark_of_the_wild = {
+        id = 1126,
+        duration = 3600,
+        max_stack = 1,
+        shared = "target",
+        shared_aura = true
+    },
+
+    blessing_of_might = {
+        id = 19740,
+        duration = 3600,
+        max_stack = 1,
+        shared = "target",
+        shared_aura = true
+    },
+
+    grace_of_air = {
+        id = 116956,
+        duration = 3600,
+        max_stack = 1,
+        shared = "target",
+        shared_aura = true
+    },
+
+    roar_of_courage = {
+        id = 93435,
+        duration = 3600,
+        max_stack = 1,
+        shared = "target",
+        shared_aura = true
+    },
+
+    spirit_beast_blessing = {
+        id = 128997,
+        duration = 3600,
+        max_stack = 1,
+        shared = "target",
+        shared_aura = true
+    },
+
     out_of_range = {
         generate = function ( oor )
             oor.rangeSpell = rawget( oor, "rangeSpell" ) or settings.spec.rangeChecker or class.specs[ state.spec.id ].ranges[ 1 ]
@@ -1894,8 +1979,7 @@ all:RegisterAuras( {
         end,
     },
 
-    disoriented =  -- Disorients (e.g., Polymorph, Dragon’s Breath, Blind)
-    {
+    disoriented = { -- Disorients (e.g., Polymorph, Dragon's Breath, Blind)
         duration = 10,
         generate = function( t )
             local max_events = GetActiveLossOfControlDataCount()
@@ -2390,20 +2474,20 @@ all:RegisterAuras( {
         end,
         copy = "unravel_absorb"
     },
-    
+
     -- Food and drink auras for MoP Classic
     food = {
         id = 433,
         duration = 30,
         max_stack = 1,
     },
-    
+
     drink = {
         id = 430,
         duration = 30,
         max_stack = 1,
     },
-} )
+})
 
 do
     -- MoP Classic Potions - Simplified for compatibility
@@ -2414,7 +2498,7 @@ do
             duration = 25
         },
         {
-            name = "potion_of_mogu_power", 
+            name = "potion_of_mogu_power",
             item = 76093,
             duration = 25
         },
@@ -2474,7 +2558,7 @@ do
 
     for _, potion in ipairs( mop_potions ) do
         local name, link, _, _, _, _, _, _, _, texture = GetItemInfo( potion.item )
-        
+
         all:RegisterAbility( potion.name, {
             name = name or potion.name,
             listName = link or name or potion.name,
@@ -2632,15 +2716,35 @@ all:RegisterAbilities( {
 
     arcane_torrent = {
         id = function ()
-            if class.file == "PALADIN"      then return 155145 end
-            if class.file == "MONK"         then return 129597 end
-            if class.file == "DEATHKNIGHT"  then return  50613 end
-            if class.file == "WARRIOR"      then return  69179 end
-            if class.file == "ROGUE"        then return  25046 end
-            if class.file == "HUNTER"       then return  80483 end
-            if class.file == "DEMONHUNTER"  then return 202719 end
-            if class.file == "PRIEST"       then return 232633 end
-            return 28730
+            -- Version-specific spell IDs for Arcane Torrent
+            if Hekili.IsMoP() then
+                if class.file == "MAGE"         then return 28730 end
+                if class.file == "PALADIN"      then return 28730 end
+                if class.file == "PRIEST"       then return 28730 end
+                if class.file == "WARLOCK"      then return 28730 end
+                if class.file == "MONK"         then return 129597 end
+                if class.file == "WARRIOR"      then return 69179 end
+                if class.file == "ROGUE"        then return 25046 end
+                if class.file == "DEATHKNIGHT"  then return 50613 end
+                if class.file == "HUNTER"       then return 80483 end
+                return 28730
+            elseif Hekili.IsRetail() then
+                -- Retail spell IDs
+                if class.file == "PALADIN"      then return 155145 end
+                if class.file == "MONK"         then return 129597 end
+                if class.file == "DEATHKNIGHT"  then return  50613 end
+                if class.file == "WARRIOR"      then return  69179 end
+                if class.file == "ROGUE"        then return  25046 end
+                if class.file == "HUNTER"       then return  80483 end
+                if class.file == "DEMONHUNTER"  then return 202719 end
+                if class.file == "PRIEST"       then return 232633 end
+                return 28730
+            else
+                -- Default/Classic spell IDs
+                if class.file == "DEATHKNIGHT"  then return  50613 end
+                if class.file == "ROGUE"        then return  25046 end
+                return 28730
+            end
         end,
         cast = 0,
         cooldown = 120,
@@ -2653,15 +2757,26 @@ all:RegisterAbilities( {
         toggle = "cooldowns",
 
         handler = function ()
-            if class.file == "DEATHKNIGHT" then gain( 20, "runic_power" )
-            elseif class.file == "HUNTER" then gain( 15, "focus" )
-            elseif class.file == "MONK" then gain( 1, "chi" )
-            elseif class.file == "PALADIN" then gain( 1, "holy_power" )
-            elseif class.file == "ROGUE" then gain( 15, "energy" )
-            elseif class.file == "WARRIOR" then gain( 15, "rage" )
-            elseif class.file == "DEMONHUNTER" then gain( 15, "fury" )
-            elseif class.file == "PRIEST" and state.spec.shadow then gain( 15, "insanity" ) end
-
+            if Hekili.IsMoP() then
+                if class.file == "MAGE"         then gain( 2, "mana" ) end
+                if class.file == "PALADIN"      then gain( 2, "mana" ) end
+                if class.file == "PRIEST"       then gain( 2, "mana" ) end
+                if class.file == "WARLOCK"      then gain( 2, "mana" ) end
+                if class.file == "MONK"         then gain( 1, "chi" ) end
+                if class.file == "WARRIOR"      then gain( 15, "rage" ) end
+                if class.file == "ROGUE"        then gain( 15, "energy" ) end
+                if class.file == "DEATHKNIGHT"  then gain( 15, "runic_power" ) end
+                if class.file == "HUNTER"       then gain( 15, "focus" ) end
+            elseif Hekili.IsRetail() then
+                if class.file == "DEATHKNIGHT"  then gain( 20, "runic_power" ) end
+                if class.file == "HUNTER"       then gain( 15, "focus" ) end
+                if class.file == "MONK"         then gain( 1, "chi" ) end
+                if class.file == "PALADIN"      then gain( 1, "holy_power" ) end
+                if class.file == "ROGUE"        then gain( 15, "energy" ) end
+                if class.file == "WARRIOR"      then gain( 15, "rage" ) end
+                if class.file == "DEMONHUNTER"  then gain( 15, "fury" ) end
+                if class.file == "PRIEST"       then gain( 15, "insanity" ) end
+            end
             removeBuff( "dispellable_magic" )
         end,
 
@@ -3338,27 +3453,27 @@ Hekili.SpecChangeHistory = {}
 
 function Hekili:SpecializationChanged()
     local currentSpec, currentID, currentName
-    
+
     -- MoP Classic: Use our enhanced spec detection logic
     currentSpec = GetSpecialization and GetSpecialization() or 1
-    
+
     -- Try our enhanced detection first
     if self.GetMoPSpecialization then
         currentID, currentName = self:GetMoPSpecialization()
     end
-    
+
     -- Fallback to basic detection if enhanced detection fails
     if not currentID then
         currentID = ns.getSpecializationID(currentSpec)
         currentName = ns.getSpecializationKey(currentID)
     end
-    
+
     -- Don't override if we already have a valid spec ID that matches our detection
     if state.spec.id and state.spec.id == currentID then
         self.PendingSpecializationChange = false
         return
     end
-        
+
     -- Ensure profile exists for this spec
     if currentID and Hekili.DB and Hekili.DB.profile and Hekili.DB.profile.specs then
         if not Hekili.DB.profile.specs[currentID] then
@@ -3427,7 +3542,7 @@ function Hekili:SpecializationChanged()
 
     -- MoP Classic: Use the detected spec directly
     insert( specs, 1, currentID )
-    
+
     state.spec.id = currentID
     state.spec.name = currentName or "Unknown"
     state.spec.key = ns.getSpecializationKey( currentID )
@@ -3436,15 +3551,15 @@ function Hekili:SpecializationChanged()
     for k in pairs( state.role ) do
         state.role[ k ] = false
     end
-    
+
     -- Default role assignment (most specs are DPS)
     state.role.attack = true
     state.spec.primaryStat = "agility" -- Default for most physical DPS
-    
+
     -- Override for known caster specs
     local casterSpecs = {
         [62] = true,   -- Mage Arcane
-        [63] = true,   -- Mage Fire  
+        [63] = true,   -- Mage Fire
         [64] = true,   -- Mage Frost
         [102] = true,  -- Druid Balance
         [105] = true,  -- Druid Restoration
@@ -3457,21 +3572,21 @@ function Hekili:SpecializationChanged()
         [266] = true,  -- Warlock Demonology
         [267] = true,  -- Warlock Destruction
     }
-    
+
     -- Override for known tank specs
     local tankSpecs = {
         [104] = true,  -- Druid Guardian
         [66] = true,   -- Paladin Protection
         [73] = true,   -- Warrior Protection
     }
-    
+
     if casterSpecs[currentID] then
         state.spec.primaryStat = "intellect"
     elseif tankSpecs[currentID] then
         state.role.attack = false
         state.role.tank = true
     end
-    
+
     state.spec[ state.spec.key ] = true
 
     insert( specs, 0 )
@@ -3508,18 +3623,18 @@ function Hekili:SpecializationChanged()
 
     for i, specID in ipairs( specs ) do
         local spec = class.specs[ specID ]
-        
+
 if spec then
             if specID == currentID then
                 self.currentSpec = spec
                 self.currentSpecOpts = rawget( self.DB.profile.specs, specID )
-                
+
                 -- Create default spec profile if it doesn't exist
                 if not self.currentSpecOpts then
                     self.DB.profile.specs[ specID ] = self.DB.profile.specs[ specID ] or {}
                     self.currentSpecOpts = self.DB.profile.specs[ specID ]
                 end
-                
+
                 state.settings.spec = self.currentSpecOpts
 
                 state.spec.can_dual_cast = spec.can_dual_cast

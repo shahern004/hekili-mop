@@ -1,5 +1,5 @@
 -- PaladinRetribution.lua
--- Updated May 28, 2025 - Modern Structure
+-- Updated July 15, 2025 - Modern Structure
 -- Mists of Pandaria module for Paladin: Retribution spec
 
 -- MoP: Use UnitClass instead of UnitClassBase
@@ -7,16 +7,9 @@ local _, playerClass = UnitClass('player')
 if playerClass ~= 'PALADIN' then return end
 
 local addon, ns = ...
-local Hekili = _G[ "Hekili" ]
-local class = Hekili.Class
-local state = Hekili.State
-
-local function getReferences()
-    -- Legacy function for compatibility
-    return class, state
-end
-
-local spec = Hekili:NewSpecialization( 70 ) -- Retribution spec ID for MoP
+local Hekili = _G[ addon ]
+local class, state = Hekili.Class, Hekili.State
+local spec = Hekili:NewSpecialization( 70 )
 
 local strformat = string.format
 local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
@@ -114,7 +107,7 @@ spec:RegisterResource( 0, { -- Mana = 0 in MoP
             return regen
         end,
     },
-    
+
     seal_of_insight = {
         last = function ()
             return state.swing.last_taken
@@ -1909,19 +1902,109 @@ spec:RegisterAbilities( {
             applyBuff("sacred_shield")
         end
     },
+
+    blessing_of_kings = {
+        id = 20217,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        spend = 0.05,
+        spendType = "mana",
+
+        startsCombat = false,
+        texture = 135993,
+
+        handler = function()
+            applyBuff("blessing_of_kings")
+        end
+    },
+
+    blessing_of_might = {
+        id = 19740,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        spend = 0.05,
+        spendType = "mana",
+
+        startsCombat = false,
+        texture = 135908,
+
+        handler = function()
+            applyBuff("blessing_of_might")
+        end
+    },
+
+    seal_of_truth = {
+        id = 31801,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        texture = 135969,
+
+        handler = function()
+            applyBuff("seal_of_truth")
+        end
+    },
+
+    seal_of_righteousness = {
+        id = 20154,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        texture = 135960,
+
+        handler = function()
+            applyBuff("seal_of_righteousness")
+        end
+    },
+
+    seal_of_justice = {
+        id = 20164,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        texture = 135971,
+
+        handler = function()
+            applyBuff("seal_of_justice")
+        end
+    },
+
+    seal_of_insight = {
+        id = 20165,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        texture = 135917,
+
+        handler = function()
+            applyBuff("seal_of_insight")
+        end
+    }
 } )
 
 -- States and calculations for Retribution specific mechanics
-local function checkArtOfWar()
-    -- 20% chance to proc Art of War on Crusader Strike
-    return buff.art_of_war.up
-end
+-- local function checkArtOfWar()
+--     -- 20% chance to proc Art of War on Crusader Strike
+--     return buff.art_of_war.up
+-- end
 
-state.RegisterExpressions( {
-    ['artOfWarActive'] = function()
-        return checkArtOfWar()
-    end
-} )
+-- state.RegisterExpressions( {
+--     ['artOfWarActive'] = function()
+--         return checkArtOfWar()
+--     end
+-- } )
 
 -- Range
 spec:RegisterRanges( "judgment", "hammer_of_justice", "rebuke", "crusader_strike" )
@@ -1948,5 +2031,3 @@ spec:RegisterOptions( {
 
 -- Register default pack for MoP Retribution Paladin
 spec:RegisterPack( "Retribution", 20250515, [[Hekili:T1PBVTTn04FlXjHj0OfnrQ97Lvv9n0KxkzPORkyzyV1ikA2JC7fSOhtkfLjjRKKGtkLQfifs4YC7O3MF11Fw859fNZXPb72TQWN3yiOtto8jREEP(D)CaaR7oXR]hYdVp)NhS4(SZdhFpzmYBPn2qGdjcw5Jt8jc((52Lbb6W0P)MM]] )
-
--- Register pack selector for Retribution

@@ -21,7 +21,6 @@ MultilineEditor.lua
 Constants.lua
 State.lua
 Events.lua
-spectest.lua
 
 Classes.lua
 

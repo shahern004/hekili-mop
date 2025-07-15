@@ -16,8 +16,6 @@ local function getReferences()
     return class, state
 end
 
-local spec = Hekili:NewSpecialization( 66 ) -- Protection spec ID for MoP
-
 local strformat = string.format
 local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
 local function UA_GetPlayerAuraBySpellID(spellID)
@@ -1182,22 +1180,22 @@ local function trackBastion()
     end
 end
 
-state.RegisterFunctions( {
-    ['trackBastion'] = function()
-        return trackBastion()
-    end
-} )
+-- state.RegisterFunctions( {
+--     ['trackBastion'] = function()
+--         return trackBastion()
+--     end
+-- } )
 
-local function checkGrandCrusader()
-    -- 12% chance to proc Grand Crusader on Crusader Strike or Hammer of the Righteous
-    return buff.grand_crusader.up
-end
+-- local function checkGrandCrusader()
+--     -- 12% chance to proc Grand Crusader on Crusader Strike or Hammer of the Righteous
+--     return buff.grand_crusader.up
+-- end
 
-state.RegisterExpressions( {
-    ['grandCrusaderActive'] = function()
-        return checkGrandCrusader()
-    end
-} )
+-- state.RegisterExpressions( {
+--     ['grandCrusaderActive'] = function()
+--         return checkGrandCrusader()
+--     end
+-- } )
 
 -- Range
 spec:RegisterRanges( "judgment", "avengers_shield", "hammer_of_justice", "rebuke", "crusader_strike", "hammer_of_the_righteous" )
@@ -1224,5 +1222,3 @@ spec:RegisterOptions( {
 
 -- Register default pack for MoP Protection Paladin
 spec:RegisterPack( "Protection", 20250515, [[Hekili:T1PBVTTn04FlXjHj0OfnrQ97Lvv9n0KxkzPORkyzyV1ikA2JC7fSOhtkfLjjRKKGtkLQfifs4YC7O3MF11Fw859fNZXPb72TQWN3yiOtto8jREEP(D)CaaR7oXR]hYdVp)NhS4(SZdhFpzmYBPn2qGdjcw5Jt8jc((52Lbb6W0P)MM]] )
-
--- Register pack selector for Protection
