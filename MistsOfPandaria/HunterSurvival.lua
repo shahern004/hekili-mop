@@ -9,7 +9,7 @@ if playerClass ~= 'HUNTER' then return end
 local addon, ns = ...
 local Hekili = _G[ addon ]
 local class, state = Hekili.Class, Hekili.State
-
+local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
 local floor = math.floor
 local strformat = string.format
 local spec = Hekili:NewSpecialization( 255, false ) -- Survival spec ID for Hekili (255 = ranged in MoP Classic)

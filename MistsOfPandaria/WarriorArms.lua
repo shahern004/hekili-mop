@@ -121,7 +121,9 @@ RegisterArmsCombatLogEvent("UNIT_DIED", function(timestamp, subevent, sourceGUID
 end)
 
 -- Enhanced Rage resource system for Arms Warrior (MoP stance system)
-spec:RegisterResource( 1, { -- Rage = 1 in MoP
+local ResourceInfo = ns.GetResourceInfo()
+
+spec:RegisterResource( ResourceInfo.rage, {
     -- MoP Stance-based rage generation
     battle_stance_regen = {
         aura = "battle_stance",

@@ -31,7 +31,6 @@ spec:RegisterResource( 4 ) -- ComboPoints
 spec:RegisterResource( 1 ) -- Rage
 spec:RegisterResource( 0 ) -- Mana
 
--- No longer need custom spec detection - WeakAuras system handles this in Constants.lua
 
 -- Add reset_precast hook for state management and form checking
 spec:RegisterHook( "reset_precast", function()

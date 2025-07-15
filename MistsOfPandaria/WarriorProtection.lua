@@ -1,52 +1,100 @@
 -- WarriorProtection.lua
--- Updated May 28, 2025 - Modern Structure
+-- Updated July, 2025 - Smufrik
 -- Mists of Pandaria module for Warrior: Protection spec
-
-if not Hekili or not Hekili.NewSpecialization then return end
 
 -- MoP: Use UnitClass instead of UnitClassBase
 local _, playerClass = UnitClass('player')
 if playerClass ~= 'WARRIOR' then return end
 
 local addon, ns = ...
-local Hekili = _G[ "Hekili" ]
-local class = Hekili.Class
-local state = Hekili.State
+local Hekili = _G[ addon ]
+local class, state = Hekili.Class, Hekili.State
 
-local function getReferences()
-    -- Legacy function for compatibility
-    return class, state
-end
-
+local floor = math.floor
 local strformat = string.format
-local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
-local function UA_GetPlayerAuraBySpellID(spellID)
-    for i = 1, 40 do
-        local name, _, count, _, duration, expires, caster, _, _, id = UnitBuff("player", i)
-        if not name then break end
-        if id == spellID then return name, _, count, _, duration, expires, caster end
-    end
-    for i = 1, 40 do
-        local name, _, count, _, duration, expires, caster, _, _, id = UnitDebuff("player", i)
-        if not name then break end
-        if id == spellID then return name, _, count, _, duration, expires, caster end
-    end
-    return nil
+local spec = Hekili:NewSpecialization( 73, true ) -- Survival spec ID for Hekili (255 = ranged in MoP Classic)
+
+-- Ensure state is properly initialized
+if not state then 
+    state = Hekili.State 
 end
 
-local spec = Hekili:NewSpecialization( 73 ) -- Protection spec ID for MoP
+-- Register resources with proper rage generation system from Cataclysm
+local function rage_amount( isOffhand )
+    -- MoP rage generation calculation
+    local hit_factor = 6.5
+    local speed = (isOffhand and state.swings.offhand_speed or state.swings.mainhand_speed)/state.haste
+    local rage_multiplier = state.talent.anger_management.enabled and 1.25 or 1
 
--- Register resources
-spec:RegisterResource( 1, { -- Rage = 1 in MoP
-    ragePerAuto = function ()
-        local mult = 1.75 -- Base rage generation multiplier for Protection
-        
-        return 4 * mult -- 4 base rage per auto attack, multiplied by specialization rage multiplier
-    end,
-    
-    regenRate = function ()
-        return 0
-    end,
+    return hit_factor * speed * rage_multiplier * (isOffhand and 0.5 or 1)
+end
+
+local ResourceInfo = ns.GetResourceInfo()
+
+spec:RegisterResource( ResourceInfo.rage, {
+    anger_management = {
+        talent = "anger_management",
+
+        last = function ()
+            local app = state.buff.anger_management.applied
+            local t = state.query_time
+
+            return app + floor( t - app )
+        end,
+
+        interval = 3,
+        value = 1
+    },
+
+    second_wind = {
+        aura = "second_wind",
+
+        last = function ()
+            local app = state.buff.second_wind.applied
+            local t = state.query_time
+
+            return app + floor( t - app )
+        end,
+
+        interval = 2,
+        value = function() return talent.second_wind.rank * 2 end,
+    },
+
+    mainhand = {
+        swing = "mainhand",
+
+        last = function ()
+            local swing = state.combat == 0 and state.now or state.swings.mainhand
+            local t = state.query_time
+
+            return swing + ( floor( ( t - swing ) / state.swings.mainhand_speed ) * state.swings.mainhand_speed )
+        end,
+
+        interval = "mainhand_speed",
+
+        stop = function () return state.swings.mainhand == 0 end,
+        value = function( now )
+            return rage_amount()
+        end,
+    },
+
+    offhand = {
+        swing = "offhand",
+
+        last = function ()
+            local swing = state.combat == 0 and state.now or state.swings.offhand
+            local t = state.query_time
+
+            return swing + ( floor( ( t - swing ) / state.swings.offhand_speed ) * state.swings.offhand_speed )
+        end,
+
+        interval = "offhand_speed",
+
+        stop = function () return state.swings.offhand == 0 end,
+        value = function( now )
+            return rage_amount( true ) or 0
+        end,
+    },
 } )
 
 -- Tier sets and combat log tracking
@@ -154,6 +202,48 @@ local function RegisterProtectionCombatLog()
 end
 
 RegisterProtectionCombatLog()
+
+-- MoP Protection Warrior specific variables and tracking
+spec:RegisterVariable( "rage_pooling", function()
+    -- Determine if we should pool rage for upcoming abilities
+    return rage.current < 40 and ( cooldown.shield_slam.remains < 2 or cooldown.revenge.remains < 2 )
+end )
+
+spec:RegisterVariable( "defensive_cd_up", function()
+    -- Check if any major defensive cooldown is active
+    return buff.shield_wall.up or buff.last_stand.up or buff.spell_reflection.up or buff.avatar.up
+end )
+
+spec:RegisterVariable( "can_shield_block", function()
+    -- Check if we can and should use Shield Block
+    return cooldown.shield_block.charges > 0 and rage.current >= 60 and buff.shield_block.remains < 3
+end )
+
+spec:RegisterVariable( "execute_phase", function()
+    -- In MoP, there's no execute phase for Protection, but we can define low health scenarios
+    return target.health.pct < 20
+end )
+
+spec:RegisterVariable( "aoe_count", function()
+    -- Number of enemies for AoE decision making
+    return active_enemies
+end )
+
+spec:RegisterVariable( "threat_mode", function()
+    -- Determine current threat mode based on situation
+    if active_enemies >= 3 then
+        return "aoe"
+    elseif active_enemies == 2 then
+        return "cleave"
+    else
+        return "single"
+    end
+end )
+
+spec:RegisterVariable( "vengeance_value", function()
+    -- Calculate current Vengeance value for ability prioritization
+    return buff.vengeance.stack or 0
+end )
 
 -- Tier set bonus tracking with generate functions
 spec:RegisterGear( "tier14_2pc", function() return set_bonus.tier14_2pc end )
@@ -293,11 +383,11 @@ spec:RegisterAuras( {
     },
     
     shield_block = {
-        id = 2565,
+        id = 132404, -- Shield Block buff effect
         duration = 6,
         max_stack = 1,
         generate = function( t, auraType )
-            local aura = UA_GetPlayerAuraBySpellID( 2565 )
+            local aura = UA_GetPlayerAuraBySpellID( 132404 )
             if aura then
                 t.name = aura.name
                 t.count = aura.applications
@@ -805,103 +895,61 @@ spec:RegisterAuras( {
             t.applied = 0
             t.caster = "nobody"        end,
     },
-} )
-
--- Protection Warrior abilities
-spec:RegisterAbilities( {
-    commanding_shout = {
-        id = 469,
-        duration = 3600,
-        max_stack = 1,
-    },
-    shield_block = {
-        id = 2565,
-        duration = 6,
-        max_stack = 1,
-    },
-    shield_barrier = {
-        id = 112048,
-        duration = 6,
-        max_stack = 1,
-    },
-    shield_wall = {
-        id = 871,
-        duration = 12,
-        max_stack = 1,
-    },
-    last_stand = {
-        id = 12975,
+    
+    -- Missing auras for APL compatibility
+    victory_rush = {
+        id = 32216,
         duration = 20,
         max_stack = 1,
+        generate = function( t, auraType )
+            local aura = UA_GetPlayerAuraBySpellID( 32216 )
+            if aura then
+                t.name = aura.name
+                t.count = aura.applications
+                t.expires = aura.expirationTime
+                t.applied = aura.expirationTime - 20
+                t.caster = "player"
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
     },
-    vengeance = {
-        id = 76691,
-        duration = 20, -- Vengeance lasts 20 seconds in MoP
+
+    -- Additional auras needed for APL imports
+    shield_slam_ready = {
+        id = 52437,
+        duration = 5,
         max_stack = 1,
     },
-    berserker_rage = {
-        id = 18499,
-        duration = function() return glyph.unending_rage.enabled and 8 or 6 end,
-        max_stack = 1,
-    },
-    sunder_armor = {
-        id = 7386,
-        duration = 30,
-        max_stack = 3,
-    },
-    devastate = {
-        id = 20243,
-        duration = 1,
+    revenge_ready = {
+        id = 5302,
+        duration = 5,
         max_stack = 1,
     },
     
-    -- Talent-specific buffs/debuffs
-    avatar = {
-        id = 107574,
-        duration = 24,
+    -- Crowd control and utility
+    intimidating_shout = {
+        id = 5246,
+        duration = 8,
         max_stack = 1,
     },
-    bladestorm = {
-        id = 46924,
-        duration = 6,
+    demoralizing_shout = {
+        id = 1160,
+        duration = 30,
         max_stack = 1,
     },
-    bloodbath = {
-        id = 12292,
-        duration = 12,
-        max_stack = 1,
-    },
-    bloodbath_dot = {
-        id = 113344,
-        duration = 6,
-        tick_time = 1,
-        max_stack = 1,
-    },
-    dragon_roar = {
-        id = 118000,
+    shockwave = {
+        id = 46968,
         duration = 4,
         max_stack = 1,
     },
-    second_wind = {
-        id = 29838,
-        duration = 3600,
-        max_stack = 1,
-    },
-    vigilance = {
-        id = 114030,
-        duration = 12,
-        max_stack = 1,
-    },
-    
-    -- Crowd control / utility
-    spell_reflection = {
-        id = 23920,
-        duration = function() return glyph.spell_reflection.enabled and 4 or 5 end,
-        max_stack = 1,
-    },
-    mass_spell_reflection = {
-        id = 114028,
-        duration = 5,
+    storm_bolt = {
+        id = 107570,
+        duration = 3,
         max_stack = 1,
     },
     hamstring = {
@@ -914,134 +962,208 @@ spec:RegisterAbilities( {
         duration = 15,
         max_stack = 1,
     },
-    staggering_shout = {
-        id = 107566,
-        duration = 15,        max_stack = 1,    },
-    war_banner = {
-        id = 114207,
-        duration = 15,
-        max_stack = 1,
-    },
-    rallying_cry = {
-        id = 97462,
-        duration = 10,        max_stack = 1,
-    },
-    disrupting_shout = {
-        id = 102060,
-        duration = 4,        max_stack = 1,
-    },
     taunt = {
         id = 355,
         duration = 3,
         max_stack = 1,
     },
-    enraged_regeneration = {
-        id = 55694,
-        duration = 5,
-        tick_time = 1,
-        max_stack = 1,
-    },
-    charge_root = {
-        id = 105771,
-        duration = function() 
-            if talent.warbringer.enabled then
-                return 4
-            elseif glyph.bull_rush.enabled then                return 1
-            end
-            return 0
-        end,
-        max_stack = 1,
-    },
-    
-    -- Additional Protection-specific tracking with generate functions
-    intimidating_shout = {
-        id = 5246,
-        duration = 8,
-        max_stack = 1,
-        generate = function( t, auraType )
-            local aura = FindUnitDebuffByID( "target", 5246 )
-            if aura then
-                t.name = aura.name
-                t.count = aura.applications
-                t.expires = aura.expirationTime
-                t.applied = aura.expirationTime - 8
-                t.caster = "player"
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-    
-    demoralizing_shout = {
-        id = 1160,
+    thunder_clap_debuff = {
+        id = 6343,
         duration = 30,
         max_stack = 1,
-        generate = function( t, auraType )
-            local aura = FindUnitDebuffByID( "target", 1160 )
-            if aura then
-                t.name = aura.name
-                t.count = aura.applications
-                t.expires = aura.expirationTime
-                t.applied = aura.expirationTime - 30
-                t.caster = "player"
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
     },
     
-    shockwave = {
-        id = 46968,
-        duration = 4,
-        max_stack = 1,
-        generate = function( t, auraType )
-            local aura = FindUnitDebuffByID( "target", 46968 )
-            if aura then
-                t.name = aura.name
-                t.count = aura.applications
-                t.expires = aura.expirationTime
-                t.applied = aura.expirationTime - 4
-                t.caster = "player"
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
-    
-    storm_bolt = {
-        id = 107570,
-        duration = 3,
-        max_stack = 1,
-        generate = function( t, auraType )
-            local aura = FindUnitDebuffByID( "target", 107570 )
-            if aura then
-                t.name = aura.name
-                t.count = aura.applications
-                t.expires = aura.expirationTime
-                t.applied = aura.expirationTime - 3
-                t.caster = "player"
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end,
-    },
 } )
+
+-- Debug function for tracking profile sections
+local function debugPrint(section, message)
+    if ns.debug then
+        print(string.format("[Hekili Protection Debug] %s: %s", section, message or "OK"))
+    end
+end
+
+-- Enable debug mode (set to false to disable)
+ns.debug = true
+
+debugPrint("AURAS", "Auras registered successfully")
+
+-- Add individual aura validation debug
+local function validateAuras()
+    debugPrint("AURA_CHECK", "Validating individual auras...")
+    
+    local auraList = {
+        "shield_block",
+        "shield_barrier", 
+        "sunder_armor",
+        "battle_shout",
+        "commanding_shout",
+        "shield_wall",
+        "last_stand",
+        "vengeance",
+        "berserker_rage",
+        "revenge",
+        "devastate",
+        "shield_slam",
+        "thunder_clap"
+    }
+    
+    for _, auraName in ipairs(auraList) do
+        if class.auras[auraName] then
+            debugPrint("AURA_VALID", auraName .. " - OK")
+        else
+            debugPrint("AURA_MISSING", auraName .. " - MISSING")
+        end
+    end
+    
+    debugPrint("AURA_CHECK", "Aura validation completed")
+end
+
+validateAuras()
+
+debugPrint("INIT", "Starting Protection Warrior spec registration")
+
+-- Protection Warrior State Variables and Helper Functions
+spec:RegisterStateExpr( "rage_deficit", function()
+    return rage.max - rage.current
+end )
+
+spec:RegisterStateExpr( "rage_percent", function()
+    return ( rage.current / rage.max ) * 100
+end )
+
+spec:RegisterStateExpr( "shield_block_charges_full", function()
+    return cooldown.shield_block.charges == cooldown.shield_block.max_charges
+end )
+
+spec:RegisterStateExpr( "shield_block_charges_deficit", function()
+    return cooldown.shield_block.max_charges - cooldown.shield_block.charges
+end )
+
+spec:RegisterStateExpr( "sunder_armor_missing", function()
+    if not state.settings.maintain_sunder_armor then return false end
+    return debuff.sunder_armor.down or debuff.sunder_armor.stack < 3
+end )
+
+spec:RegisterStateExpr( "revenge_available", function()
+    return buff.revenge_ready.up or cooldown.revenge.ready
+end )
+
+spec:RegisterStateExpr( "incoming_damage_5s", function()
+    return damage.incoming_damage_5s or 0
+end )
+
+spec:RegisterStateExpr( "health_pct", function()
+    return ( health.current / health.max ) * 100
+end )
+
+spec:RegisterStateExpr( "threat_status", function()
+    -- Simplified threat status: 0 = no threat, 1 = threat, 2 = high threat
+    -- In practice, this would be calculated from combat log events
+    return state.threat_status or 1
+end )
+
+spec:RegisterStateExpr( "vengeance_stacks", function()
+    return buff.vengeance.stack or 0
+end )
+
+-- Add debug state expressions for problematic auras
+spec:RegisterStateExpr( "debug_shield_block", function()
+    debugPrint("STATE_DEBUG", "shield_block buff exists: " .. tostring(buff.shield_block ~= nil))
+    if buff.shield_block then
+        debugPrint("STATE_DEBUG", "shield_block.up: " .. tostring(buff.shield_block.up))
+        debugPrint("STATE_DEBUG", "shield_block.down: " .. tostring(buff.shield_block.down))
+        debugPrint("STATE_DEBUG", "shield_block.remains: " .. tostring(buff.shield_block.remains))
+    end
+    return true
+end )
+
+spec:RegisterStateExpr( "debug_shield_barrier", function()
+    debugPrint("STATE_DEBUG", "shield_barrier buff exists: " .. tostring(buff.shield_barrier ~= nil))
+    if buff.shield_barrier then
+        debugPrint("STATE_DEBUG", "shield_barrier.up: " .. tostring(buff.shield_barrier.up))
+        debugPrint("STATE_DEBUG", "shield_barrier.down: " .. tostring(buff.shield_barrier.down))
+        debugPrint("STATE_DEBUG", "shield_barrier.remains: " .. tostring(buff.shield_barrier.remains))
+    end
+    return true
+end )
+
+spec:RegisterStateExpr( "debug_sunder_armor", function()
+    debugPrint("STATE_DEBUG", "sunder_armor debuff exists: " .. tostring(debuff.sunder_armor ~= nil))
+    if debuff.sunder_armor then
+        debugPrint("STATE_DEBUG", "sunder_armor.up: " .. tostring(debuff.sunder_armor.up))
+        debugPrint("STATE_DEBUG", "sunder_armor.down: " .. tostring(debuff.sunder_armor.down))
+        debugPrint("STATE_DEBUG", "sunder_armor.stack: " .. tostring(debuff.sunder_armor.stack))
+        debugPrint("STATE_DEBUG", "sunder_armor.remains: " .. tostring(debuff.sunder_armor.remains))
+    end
+    return true
+end )
+
+debugPrint("STATE_DEBUG", "Debug state expressions added")
+
+debugPrint("STATE_EXPR", "State expressions registered successfully")
+
+-- Protection Warrior specific state table modifications
+spec:RegisterStateTable( "protection", {
+    -- Defensive cooldown priorities
+    defensive_priority = {
+        emergency = { "last_stand", "shield_wall" },
+        major = { "shield_wall", "spell_reflection" },
+        minor = { "shield_barrier", "shield_block" }
+    },
+    
+    -- Rage management thresholds
+    rage = {
+        emergency = 10,
+        low = 20,
+        comfortable = 40,
+        high = 80,
+        max = 100
+    },
+    
+    -- Threat management
+    threat = {
+        single_target_rotation = { "shield_slam", "revenge", "devastate" },
+        aoe_rotation = { "thunder_clap", "revenge", "shield_slam" },
+        emergency_threat = { "taunt", "challenging_shout" }
+    },
+    
+    -- Buff/Debuff priorities
+    maintain_buffs = { "battle_shout", "commanding_shout" },
+    maintain_debuffs = { "sunder_armor", "thunder_clap_debuff" },
+    
+    -- Cooldown usage guidelines
+    use_on_pull = { "charge", "shield_slam" },
+    use_on_aoe = { "thunder_clap", "cleave" },
+    use_emergency = { "last_stand", "shield_wall", "enraged_regeneration" }
+} )
+
+debugPrint("STATE_TABLE", "State tables registered successfully")
+
+-- MoP Protection Warrior specific functions
+spec:RegisterHook( "reset_precast", function()
+    -- Reset any Protection-specific state
+    if talent.vigilance.enabled and buff.vigilance.down then
+        -- Track vigilance target if needed
+    end
+    
+    -- Calculate optimal rage spending
+    if rage.current > 80 then
+        state.rage_overflow = true
+    else
+        state.rage_overflow = false
+    end
+    
+    -- Track Shield Block charges more accurately
+    if cooldown.shield_block.charges > 0 and buff.shield_block.down then
+        state.shield_block_ready = true
+    else
+        state.shield_block_ready = false
+    end
+end )
+
+debugPrint("HOOK", "RegisterHook reset_precast registered successfully")
+
+-- Protection Warrior abilities
 
 -- Protection Warrior abilities
 spec:RegisterAbilities( {
@@ -1191,6 +1313,8 @@ spec:RegisterAbilities( {
         startsCombat = false,
         texture = 132110,
         
+        aura = "shield_block",
+        
         handler = function()
             applyBuff( "shield_block" )
         end,
@@ -1213,6 +1337,8 @@ spec:RegisterAbilities( {
         
         startsCombat = false,
         texture = 600676,
+        
+        aura = "shield_barrier",
         
         handler = function()
             applyBuff( "shield_barrier" )
@@ -1661,6 +1787,8 @@ spec:RegisterAbilities( {
         startsCombat = true,
         texture = 132363,
         
+        aura = "sunder_armor",
+        
         handler = function()
             if debuff.sunder_armor.stack < 3 then
                 if glyph.sunder_armor.enabled then
@@ -1789,31 +1917,251 @@ spec:RegisterAbilities( {
             applyDebuff( "target", "intimidating_shout" )
         end,
     },
+    
+    
+    heroic_throw = {
+        id = 57755,
+        cast = 0,
+        cooldown = 30,
+        gcd = "spell",
+        
+        spend = 0,
+        spendType = "rage",
+        
+        range = 30,
+        
+        startsCombat = true,
+        texture = 132453,
+        
+        handler = function()
+            -- Ranged attack that interrupts spellcasting
+        end,
+    },
+    
+    victory_rush = {
+        id = 34428,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0,
+        spendType = "rage",
+        
+        startsCombat = false,
+        texture = 132342,
+        
+        usable = function() return buff.victory_rush.up, "requires victory rush proc" end,
+        
+        handler = function()
+            local heal_amount = health.max * (glyph.bloody_healing.enabled and 0.2 or 0.1)
+            gain( heal_amount, "health" )
+            removeBuff( "victory_rush" )
+        end,
+    },
+    
+    stance = {
+        id = 71,  -- Defensive Stance
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        
+        spend = 0,
+        spendType = "rage",
+        
+        startsCombat = false,
+        texture = 132341,
+        
+        handler = function()
+            -- Switch to defensive stance
+        end,
+    },
 } )
+
+debugPrint("ABILITIES", "Abilities registered successfully")
 
 -- Range
 spec:RegisterRanges( "devastate", "charge", "heroic_throw" )
 
--- Options
-spec:RegisterOptions( {
-    enabled = true,
-    
-    aoe = 3,
-    
-    gcd = 1645,
-    
-    nameplates = true,
-    nameplateRange = 8,
-    
-    damage = true,
-    damageExpiration = 8,
-    
-    potion = "earthen",
-    
-    package = "Protection",
+debugPrint("RANGES", "Ranges registered successfully")
+
+-- Protection Warrior Settings
+spec:RegisterSetting( "use_shield_wall", true, {
+    name = strformat( "Use %s", Hekili:GetSpellLinkWithTexture( 871 ) ), -- Shield Wall
+    desc = "If checked, Shield Wall will be recommended when health drops below the defensive threshold. If unchecked, it will not be recommended automatically.",
+    type = "toggle",
+    width = "full"
 } )
 
--- Default pack for MoP Protection Warrior
-spec:RegisterPack( "Protection", 20250515, [[Hekili:TznBVTTnu4FlXjHjMjENnWUYJaUcMLf8KvAm7nYjPPQonGwX2jzlkiuQumzkaLRQiQOeH9an1Y0YnpYoWgwlYFltwGtRJ(aiCN9tobHNVH)8TCgF)(5ElyJlFNlcDnPXD5A8j0)(MNZajDa3aNjp2QphnPtoKvyF)GcKKOzjI08QjnOVOCXMj3nE)waT58Pw(aFm0P)MM]] )
+spec:RegisterSetting( "use_last_stand", true, {
+    name = strformat( "Use %s", Hekili:GetSpellLinkWithTexture( 12975 ) ), -- Last Stand
+    desc = "If checked, Last Stand will be recommended as an emergency defensive cooldown. If unchecked, it will not be recommended automatically.",
+    type = "toggle",
+    width = "full"
+} )
 
--- Register pack selector for Protection
+spec:RegisterSetting( "defensive_health_threshold", 50, {
+    name = "Defensive Cooldown Health Threshold",
+    desc = "Health percentage threshold below which major defensive cooldowns will be recommended (Shield Wall, Last Stand).",
+    type = "range",
+    min = 20,
+    max = 80,
+    step = 5,
+    width = 1.5
+} )
+
+spec:RegisterSetting( "shield_barrier_rage_threshold", 60, {
+    name = strformat( "%s Rage Threshold", Hekili:GetSpellLinkWithTexture( 112048 ) ), -- Shield Barrier
+    desc = "Minimum rage required before recommending Shield Barrier for rage dumping.",
+    type = "range",
+    min = 20,
+    max = 100,
+    step = 10,
+    width = 1.5
+} )
+
+spec:RegisterSetting( "maintain_sunder_armor", true, {
+    name = strformat( "Maintain %s", Hekili:GetSpellLinkWithTexture( 7386 ) ), -- Sunder Armor
+    desc = "If checked, the addon will prioritize maintaining 3 stacks of Sunder Armor on the target.",
+    type = "toggle",
+    width = "full"
+} )
+
+spec:RegisterSetting( "shield_block_priority", "automatic", {
+    name = strformat( "%s Priority", Hekili:GetSpellLinkWithTexture( 2565 ) ), -- Shield Block
+    desc = "When to prioritize Shield Block usage:",
+    type = "select",
+    values = {
+        automatic = "Automatic (when taking physical damage)",
+        always = "Always maintain uptime",
+        defensive = "Only when low health",
+        never = "Never recommend"
+    },
+    width = 2
+} )
+
+spec:RegisterSetting( "vengeance_optimization", true, {
+    name = strformat( "Optimize for %s", Hekili:GetSpellLinkWithTexture( 76691 ) ), -- Vengeance
+    desc = "If checked, the rotation will prioritize damage abilities when Vengeance stacks are high.",
+    type = "toggle",
+    width = "full"
+} )
+
+spec:RegisterSetting( "vengeance_stack_threshold", 5, {
+    name = "Vengeance Stack Threshold",
+    desc = "Minimum Vengeance stacks before prioritizing damage abilities over pure threat abilities.",
+    type = "range",
+    min = 1,
+    max = 10,
+    step = 1,
+    width = 1.5
+} )
+
+spec:RegisterSetting( "aoe_enemy_threshold", 3, {
+    name = "AoE Enemy Threshold",
+    desc = "Number of enemies required before switching to AoE rotation (Thunder Clap, Cleave).",
+    type = "range",
+    min = 2,
+    max = 8,
+    step = 1,
+    width = 1.5
+} )
+
+spec:RegisterSetting( "use_heroic_strike", true, {
+    name = strformat( "Use %s", Hekili:GetSpellLinkWithTexture( 78 ) ), -- Heroic Strike
+    desc = "If checked, Heroic Strike will be recommended for rage dumping on single targets.",
+    type = "toggle",
+    width = "full"
+} )
+
+spec:RegisterSetting( "threat_mode_priority", "survival", {
+    name = "Rotation Priority Mode",
+    desc = "Select the primary focus of the rotation:",
+    type = "select",
+    values = {
+        survival = "Survival (Maximum Mitigation)",
+        threat = "Threat (Maximum Threat Generation)",
+        balanced = "Balanced (Survival + Threat)",
+        damage = "Damage (When Vengeance is High)"
+    },
+    width = 2
+} )
+
+spec:RegisterSetting( "auto_taunt", true, {
+    name = strformat( "Auto-Recommend %s", Hekili:GetSpellLinkWithTexture( 355 ) ), -- Taunt
+    desc = "If checked, Taunt will be recommended when threat is low or lost.",
+    type = "toggle",
+    width = "full"
+} )
+
+spec:RegisterSetting( "use_spell_reflection", true, {
+    name = strformat( "Use %s", Hekili:GetSpellLinkWithTexture( 23920 ) ), -- Spell Reflection
+    desc = "If checked, Spell Reflection will be recommended against incoming magical attacks.",
+    type = "toggle",
+    width = "full"
+} )
+
+spec:RegisterSetting( "cooldown_usage", "defensive", {
+    name = "Cooldown Usage Priority",
+    desc = "When to use major cooldowns (Avatar, Bloodbath, etc.):",
+    type = "select",
+    values = {
+        defensive = "Defensive situations only",
+        aggressive = "Use for damage when safe",
+        automatic = "Automatic based on situation",
+        never = "Never recommend"
+    },
+    width = 2
+} )
+
+spec:RegisterSetting( "maintain_buffs", true, {
+    name = "Maintain Shouts",
+    desc = "If checked, the addon will remind you to maintain Battle Shout or Commanding Shout.",
+    type = "toggle",
+    width = "full"
+} )
+
+spec:RegisterSetting( "use_berserker_rage", true, {
+    name = strformat( "Use %s", Hekili:GetSpellLinkWithTexture( 18499 ) ), -- Berserker Rage
+    desc = "If checked, Berserker Rage will be recommended for fear/charm immunity and rage generation.",
+    type = "toggle",
+    width = "full"
+} )
+
+debugPrint("SETTINGS", "Settings registered successfully")
+
+debugPrint("COMPLETE", "Protection Warrior spec registration completed successfully")
+
+-- Test aura system functionality
+local function testAuraSystem()
+    debugPrint("AURA_TEST", "Testing aura system functionality...")
+    
+    -- Test if we can access the problematic auras through the state system
+    local success, err = pcall(function()
+        local shield_block_test = state.buff.shield_block.up
+        debugPrint("AURA_TEST", "shield_block accessible: " .. tostring(shield_block_test ~= nil))
+    end)
+    if not success then
+        debugPrint("AURA_TEST", "shield_block ERROR: " .. tostring(err))
+    end
+    
+    local success2, err2 = pcall(function()
+        local shield_barrier_test = state.buff.shield_barrier.down
+        debugPrint("AURA_TEST", "shield_barrier accessible: " .. tostring(shield_barrier_test ~= nil))
+    end)
+    if not success2 then
+        debugPrint("AURA_TEST", "shield_barrier ERROR: " .. tostring(err2))
+    end
+    
+    local success3, err3 = pcall(function()
+        local sunder_armor_test = state.debuff.sunder_armor.down
+        debugPrint("AURA_TEST", "sunder_armor accessible: " .. tostring(sunder_armor_test ~= nil))
+    end)
+    if not success3 then
+        debugPrint("AURA_TEST", "sunder_armor ERROR: " .. tostring(err3))
+    end
+    
+    debugPrint("AURA_TEST", "Aura system test completed")
+end
+
+-- Run aura test after a short delay to ensure everything is loaded
+C_Timer.After(1, testAuraSystem)
