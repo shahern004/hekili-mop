@@ -37,17 +37,8 @@ end
 local spec = Hekili:NewSpecialization( 72 ) -- Fury spec ID for MoP
 
 -- Register resources
-spec:RegisterResource( 1, { -- Rage = 1 in MoP
-    ragePerAuto = function ()
-        local mult = 1.75 -- Base rage generation multiplier
-        
-        return 5 * mult -- 5 base rage per auto attack, multiplied by specialization rage multiplier
-    end,
-    
-    regenRate = function ()
-        return 0
-    end,
-} )
+local ResourceInfo = ns.GetResourceInfo()
+spec:RegisterResource( ResourceInfo.rage )
 
 -- ===================
 -- ENHANCED COMBAT LOG EVENT TRACKING

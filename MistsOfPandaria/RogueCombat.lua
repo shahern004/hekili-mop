@@ -20,11 +20,9 @@ if not state then
     state = Hekili.State 
 end
 
--- Use MoP power type numbers instead of Enum
--- Energy = 3 in MoP Classic
-spec:RegisterResource( 3 )
--- Combo Points = 4 in MoP Classic
-spec:RegisterResource( 4 )
+-- Register resources using MoP power types from Constants.lua
+spec:RegisterResource( ns.GetResourceID( "energy" ) ) -- Energy 
+spec:RegisterResource( ns.GetResourceID( "combo_points" ) ) -- Combo Points
 
 -- Talents
 spec:RegisterTalents( {

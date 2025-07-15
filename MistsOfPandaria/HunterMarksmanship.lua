@@ -11,7 +11,6 @@ local state = Hekili.State
 
 local strformat = string.format
 local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
-
 -- Enhanced helper functions for Marksmanship mechanics
 local function UA_GetPlayerAuraBySpellID(spellID)
     return FindUnitBuffByID("player", spellID)
@@ -1805,7 +1804,7 @@ spec:RegisterStateExpr( "current_focus", function()
 end )
 
 spec:RegisterStateExpr( "focus_deficit", function()
-    return focus.max - focus.current
+    return (focus.max or 100) - (focus.current or 0)
 end )
 
 spec:RegisterStateExpr( "focus_time_to_max", function()

@@ -10,74 +10,11 @@ local insert, remove = table.insert, table.remove
 local class = Hekili.Class
 local state = Hekili.State
 
--- MoP API compatibility layer
-local GetPlayerAuraBySpellID = function(spellID)
-    for i = 1, 40 do
-        local name, icon, count, debuffType, duration, expirationTime, source, isStealable, 
-              nameplateShowPersonal, id = UnitBuff("player", i)
-        if not name then break end
-        if id == spellID then
-            return {
-                name = name,
-                icon = icon,
-                applications = count or 1,
-                dispelType = debuffType,
-                duration = duration or 0,
-                expirationTime = expirationTime or 0,
-                sourceUnit = source,
-                spellId = id
-            }
-        end
-    end
-    return nil
-end
-
-local GetBuffDataByIndex = function(unit, index)
-    local name, icon, count, debuffType, duration, expirationTime, source, isStealable, 
-          nameplateShowPersonal, spellId = UnitBuff(unit, index)
-    if name then
-        return {
-            name = name,
-            icon = icon,
-            applications = count or 1,
-            dispelType = debuffType,
-            duration = duration or 0,
-            expirationTime = expirationTime or 0,
-            sourceUnit = source,
-            spellId = spellId
-        }
-    end
-    return nil
-end
-
-local GetDebuffDataByIndex = function(unit, index)
-    local name, icon, count, debuffType, duration, expirationTime, source, isStealable, 
-          nameplateShowPersonal, spellId = UnitDebuff(unit, index)
-    if name then
-        return {
-            name = name,
-            icon = icon,
-            applications = count or 1,
-            dispelType = debuffType,
-            duration = duration or 0,
-            expirationTime = expirationTime or 0,
-            sourceUnit = source,
-            spellId = spellId
-        }
-    end
-    return nil
-end
-
-local UnpackAuraData = function(auraData)
-    if not auraData then return nil end
-    return auraData.name, auraData.icon, auraData.applications, auraData.dispelType,
-           auraData.duration, auraData.expirationTime, auraData.sourceUnit, auraData.isStealable,
-           false, auraData.spellId, false, false, true
-end
+-- Classic API - Use traditional UnitBuff/UnitDebuff iteration
 
 local GetSpellBookItemInfo = function(index, bookType)
-    -- MoP compatibility: GetSpellName function
-    local name, _, icon, _, _, _, spellID = GetSpellName(index, bookType)
+    -- MoP compatibility: Use GetSpellBookItemName instead of GetSpellName
+    local name, _, icon, _, _, _, spellID = GetSpellBookItemName(index, bookType)
     return name, icon, spellID
 end
 
@@ -402,7 +339,7 @@ end
 -- Rivers' iterator for group members.
 function ns.GroupMembers( reversed, forceParty )
     local unit = ( not forceParty and IsInRaid() ) and 'raid' or 'party'
-    local numGroupMembers = forceParty and GetNumSubgroupMembers() or GetNumGroupMembers()
+    local numGroupMembers = forceParty and GetNumPartyMembers() or GetNumRaidMembers()
     local i = reversed and numGroupMembers or ( unit == 'party' and 0 or 1 )
 
     return function()
@@ -454,7 +391,7 @@ function ns.FindRaidBuffByID( id )
     if IsInRaid() or IsInGroup() then
         if IsInRaid() then
             unitName = "raid"
-            for numGroupMembers=1, GetNumGroupMembers() do
+            for numGroupMembers=1, GetNumRaidMembers() do
                 buffIterator = 1
                 name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3 = UnitBuff( unitName..numGroupMembers, buffIterator )
                 while( spellID ) do
@@ -465,7 +402,7 @@ function ns.FindRaidBuffByID( id )
             end
         elseif IsInGroup() then
             unitName = "party"
-            for numGroupMembers=1, GetNumGroupMembers() do
+            for numGroupMembers=1, GetNumPartyMembers() do
                 name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3 = UnitBuff( unitName..numGroupMembers, buffIterator )
                 while( spellID ) do
                     if spellID == id then buffCounter = buffCounter + 1 break end
@@ -501,7 +438,7 @@ function ns.FindLowHpPlayerWithoutBuffByID(id)
     if IsInRaid() or IsInGroup() then
         if IsInRaid() then
             unitName = "raid"
-            for numGroupMembers=1, GetNumGroupMembers() do
+            for numGroupMembers=1, GetNumRaidMembers() do
                 buffFound = false
                 buffIterator = 1
                 name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3 = UnitBuff( unitName..numGroupMembers, buffIterator )
@@ -524,7 +461,7 @@ function ns.FindLowHpPlayerWithoutBuffByID(id)
             end
         elseif IsInGroup() then
             unitName = "party"
-            for numGroupMembers=1, GetNumGroupMembers() do
+            for numGroupMembers=1, GetNumPartyMembers() do
                 buffFound = false
                 buffIterator = 1
                 name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3 = UnitBuff( unitName..numGroupMembers, buffIterator )
@@ -587,7 +524,7 @@ function ns.FindRaidBuffLowestRemainsByID(id)
     if IsInRaid() or IsInGroup() then
         if IsInRaid() then
             unitName = "raid"
-            for numGroupMembers=1, GetNumGroupMembers() do
+            for numGroupMembers=1, GetNumRaidMembers() do
                 buffIterator = 1
                 name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3 = UnitBuff( unitName..numGroupMembers, buffIterator )
                 while( name ) do
@@ -613,7 +550,7 @@ function ns.FindRaidBuffLowestRemainsByID(id)
             end
         elseif IsInGroup() then
             unitName = "party"
-            for numGroupMembers=1, GetNumGroupMembers() do
+            for numGroupMembers=1, GetNumPartyMembers() do
                 buffIterator = 1
                 name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, nameplateShowAll, timeMod, value1, value2, value3 = UnitBuff( unitName..numGroupMembers, buffIterator )
                 while( name ) do
@@ -667,11 +604,16 @@ function ns.FindRaidBuffLowestRemainsByID(id)
 end
 
 local function FindPlayerAuraByID( id )
-    local aura = GetPlayerAuraBySpellID( id )
-
-    if aura and aura.name then
-        return aura.name, aura.icon, aura.applications, aura.dispelName, aura.duration, aura.expirationTime, aura.sourceUnit, aura.isStealable, aura.nameplateShowPersonal, aura.spellId, aura.canApplyAura, aura.isBossAura, aura.nameplateShowAll, aura.timeMod, unpack( aura.points )
+    -- Classic implementation using direct UnitBuff iteration
+    for i = 1, 40 do
+        local name, icon, count, debuffType, duration, expirationTime, caster, stealable, 
+              nameplateShowPersonal, spellID = UnitBuff("player", i)
+        if not name then break end
+        if spellID == id then
+            return name, icon, count, debuffType, duration, expirationTime, caster, stealable, nameplateShowPersonal, spellID
+        end
     end
+    return nil
 end
 ns.FindPlayerAuraByID = FindPlayerAuraByID
 
@@ -687,8 +629,9 @@ ns.UnitDebuffByID = ns.FindUnitDebuffByID
 function ns.IsActiveSpell( id )
     local slot = FindSpellBookSlotBySpellID( id )
     if not slot then return false end
-    local _, _, spellID = GetSpellBookItemInfo( slot, "spell" )
-    return id == spellID
+    local name = GetSpellBookItemName( slot, "spell" )
+    -- For MoP compatibility, we'll check if the spell name exists
+    return name ~= nil
 end
 
 
@@ -839,8 +782,7 @@ do
     
     -- Try to get GetItemInfo function from various sources
     local function getItemInfoFunction()
-        return _G.GetItemInfo or GetItemInfo or 
-               GetItemInfo or
+        return _G.GetItemInfo or 
                function() return nil end  -- Fallback that returns nil
     end
 

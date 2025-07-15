@@ -15,53 +15,6 @@ local ResetDisabledGearAndSpells = ns.ResetDisabledGearAndSpells
 local RegisterEvent = ns.RegisterEvent
 local RegisterUnitEvent = ns.RegisterUnitEvent
 
--- -- Safe access to getSpecializationKey function
--- local function getSpecializationKey(id)
---     -- First, check if the namespaced version is available
---     if ns and ns.getSpecializationKey then
---         return ns.getSpecializationKey(id)
---     end
-    
---     -- If not available, provide immediate fallback lookup table for MoP Classic spec IDs
---     local specKeys = {
---         [0] = "all",          -- All specs
---         [62] = "arcane",      -- Mage Arcane
---         [63] = "fire",        -- Mage Fire  
---         [64] = "frost",       -- Mage Frost
---         [65] = "holy",        -- Paladin Holy
---         [66] = "protection",  -- Paladin Protection
---         [70] = "retribution", -- Paladin Retribution
---         [71] = "arms",        -- Warrior Arms
---         [72] = "fury",        -- Warrior Fury
---         [73] = "protection",  -- Warrior Protection
---         [102] = "balance",    -- Druid Balance
---         [103] = "feral",      -- Druid Feral
---         [104] = "guardian",   -- Druid Guardian 
---         [105] = "restoration", -- Druid Restoration
---         [250] = "blood",      -- Death Knight Blood
---         [251] = "frost",      -- Death Knight Frost
---         [252] = "unholy",     -- Death Knight Unholy
---         [253] = "beast_mastery", -- Hunter Beast Mastery
---         [254] = "marksmanship", -- Hunter Marksmanship
---         [255] = "survival",   -- Hunter Survival
---         [256] = "discipline", -- Priest Discipline
---         [257] = "holy",       -- Priest Holy
---         [258] = "shadow",     -- Priest Shadow
---         [259] = "assassination", -- Rogue Assassination
---         [260] = "combat",     -- Rogue Combat
---         [261] = "subtlety",   -- Rogue Subtlety
---         [262] = "elemental",  -- Shaman Elemental
---         [263] = "enhancement", -- Shaman Enhancement
---         [264] = "restoration", -- Shaman Restoration
---         [265] = "affliction", -- Warlock Affliction
---         [266] = "demonology", -- Warlock Demonology
---         [267] = "destruction", -- Warlock Destruction
---         [268] = "brewmaster", -- Monk Brewmaster
---         [269] = "windwalker", -- Monk Windwalker
---         [270] = "mistweaver", -- Monk Mistweaver
---     }
---     return specKeys[id] or "none"
--- end
 
 local LSR = LibStub( "SpellRange-1.0" )
 
@@ -110,23 +63,6 @@ end
 -- Use original GetSpellInfo for MoP
 local GetSpellInfo = _G.GetSpellInfo
 
--- -- MoP compatible specialization functions
--- local GetSpecialization, GetSpecializationInfo = _G.GetSpecialization, _G.GetSpecializationInfo
--- if not GetSpecialization then
---     GetSpecialization = function() 
---         return ns.getSpecializationID() and 1 or nil
---     end
--- end
--- if not GetSpecializationInfo then
---     GetSpecializationInfo = function(index)
---         local specID = ns.getSpecializationID(index)
---         local specData = ns.Specializations[specID]
---         if specData then
---             return specID, specData.key, "", "Interface\\Icons\\INV_Misc_QuestionMark", specData.ranged and "DAMAGER" or "TANK", specData.class
---         end
---         return nil
---     end
--- end
 
 -- MoP compatible item functions
 local GetItemSpell = _G.GetItemSpell or function(item) 
@@ -273,11 +209,8 @@ local HekiliSpecMixin = {
             times = {},
             values = {},
 
-            actual = 0,
-            max = 1,
-
-            active_regen = 0.001,
-            inactive_regen = 0.001,
+            active_regen = 0,
+            inactive_regen = 0,
             last_tick = 0,
 
             swingGen = false,
@@ -299,21 +232,30 @@ local HekiliSpecMixin = {
             setfenv( func, state )
         end
 
-        if r.state.regenModel and type(r.state.regenModel) == "table" then
+        if model and not model.timeTo then
+            model.timeTo = function( x )
+                return state:TimeToResource( r.state, x )
+            end
+        end
+
+        if r.state.regenModel then
             for _, v in pairs( r.state.regenModel ) do
-                v.resource = v.resource or resource
-                self.resourceAuras[ v.resource ] = self.resourceAuras[ v.resource ] or {}
+                -- Add type check to ensure v is a table before trying to index it
+                if type( v ) == "table" then
+                    v.resource = v.resource or resource
+                    self.resourceAuras[ v.resource ] = self.resourceAuras[ v.resource ] or {}
 
-                if v.aura then
-                    self.resourceAuras[ v.resource ][ v.aura ] = true
-                end
+                    if v.aura then
+                        self.resourceAuras[ v.resource ][ v.aura ] = true
+                    end
 
-                if v.channel then
-                    self.resourceAuras[ v.resource ].casting = true
-                end
+                    if v.channel then
+                        self.resourceAuras[ v.resource ].casting = true
+                    end
 
-                if v.swing then
-                    r.state.swingGen = true
+                    if v.swing then
+                        r.state.swingGen = true
+                    end
                 end
             end
         end
@@ -328,16 +270,9 @@ local HekiliSpecMixin = {
         for talent, id in pairs( talents ) do
             self.talents[ talent ] = id
             CommitKey( talent )
-
-            local hero = id[ 4 ]
-
-            if hero then
-                self.talents[ hero ] = id
-                CommitKey( hero )
-                id[ 4 ] = nil
-            end
         end
     end,
+
 
 
     RegisterAura = function( self, aura, data )
@@ -406,22 +341,17 @@ local HekiliSpecMixin = {
         end
 
         self.auras[ aura ] = a
+        
+        -- Always add to class.auras with the key for validation purposes
+        class.auras[ aura ] = a
 
         if a.id then
             if a.id > 0 then
                 -- Hekili:ContinueOnSpellLoad( a.id, function( success )
                 a.onLoad = function( a )
-                    local name, rank, icon, castTime, minRange, maxRange, spellId = OriginalGetSpellInfo( a.id )
-                    if name then
-                        a.name = name
-                        local texture = a.texture or icon or "Interface\\Icons\\INV_Misc_QuestionMark"
-                        
-                        if self.id > 0 then
-                            class.auraList[ a.key ] = "|T" .. texture .. ":0|t " .. a.name
-                        end
-                        
-                        a.desc = GetSpellDescription( a.id )
-                    else
+                    a.name = GetSpellInfo( a.id )
+
+                    if not a.name then
                         for k, v in pairs( class.auraList ) do
                             if v == a then class.auraList[ k ] = nil end
                         end
@@ -437,23 +367,21 @@ local HekiliSpecMixin = {
 
                     a.desc = GetSpellDescription( a.id )
 
-                    local texture = a.texture or icon or "Interface\\Icons\\INV_Misc_QuestionMark"
+                    local texture = a.texture or GetSpellTexture( a.id )
 
                     if self.id > 0 then
                         class.auraList[ a.key ] = "|T" .. texture .. ":0|t " .. a.name
                     end
 
                     self.auras[ a.name ] = a
-                    local currentSpecID = Hekili.GetMoPSpecialization and Hekili:GetMoPSpecialization() or ns.getSpecializationID()
-                    if currentSpecID == self.id then
-                        -- Copy to class table as well.
-                        class.auras[ a.name ] = a
-                    end
+                    -- Always add to class.auras with both key and name
+                    class.auras[ a.key ] = a
+                    class.auras[ a.name ] = a
 
                     if self.pendingItemSpells[ a.name ] then
                         local items = self.pendingItemSpells[ a.name ]
 
-                        if type( items ) == "table" then
+                        if type( items ) == 'table' then
                             for i, item in ipairs( items ) do
                                 local ability = self.abilities[ item ]
                                 ability.itemSpellKey = a.key .. "_" .. ability.itemSpellID
@@ -475,6 +403,7 @@ local HekiliSpecMixin = {
                 end
             end
             self.auras[ a.id ] = a
+            class.auras[ a.id ] = a
         end
 
         if data.meta then
@@ -487,9 +416,11 @@ local HekiliSpecMixin = {
         if data.copy then
             if type( data.copy ) ~= "table" then
                 self.auras[ data.copy ] = a
+                class.auras[ data.copy ] = a
             else
                 for _, key in ipairs( data.copy ) do
                     self.auras[ key ] = a
+                    class.auras[ key ] = a
                 end
             end
         end
@@ -3464,7 +3395,7 @@ function Hekili:SpecializationChanged()
         bt = debugstack()
     } )
 
-    for k, _ in pairs( state.spec ) do
+    for k, v in pairs( state.spec ) do
         state.spec[ k ] = nil
     end
 

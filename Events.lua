@@ -1544,6 +1544,10 @@ do
         -- MoP: Simple fallback without instance tracking or cache updates
         if unit == "player" or unit == "target" then
             state[ unit ].updated = true
+            -- Force aura rescan for MoP compatibility
+            if ns.scanAuras then
+                ns.scanAuras( unit )
+            end
             Hekili:ForceUpdate( "UNIT_AURA_MOP", true )
         end        --[[ MoP: Rest of modern aura code disabled
         local forceUpdateNeeded = false

@@ -102,19 +102,10 @@ FrostCombatFrame:SetScript( "OnEvent", function( self, event, ... )
                     frostEventData.last_km_proc = GetTime()
                 end
                 
-                -- Weapon strike tracking for dual-wield mechanics
-                frostEventData.weapon_mechanics.main_hand_strikes = frostEventData.weapon_mechanics.main_hand_strikes + 1
-                
-                -- Threat of Thassarian off-hand proc chance
-                if spec.talent.threat_of_thassarian.enabled and math.random() < 0.50 then
-                    frostEventData.weapon_mechanics.off_hand_strikes = frostEventData.weapon_mechanics.off_hand_strikes + 1
-                    frostEventData.weapon_mechanics.threat_of_thassarian_procs = frostEventData.weapon_mechanics.threat_of_thassarian_procs + 1
-                end
             end
-            
             -- Obliterate usage and Rime proc tracking
             if subEvent == "SPELL_CAST_SUCCESS" and spellID == 49020 then -- Obliterate
-                local rime_chance = spec.talent.rime.enabled and 0.45 or 0.15
+                local rime_chance = state.talent.rime.enabled and 0.45 or 0.15
                 if math.random() < rime_chance then
                     frostEventData.rime_procs = frostEventData.rime_procs + 1
                     frostEventData.last_rime_proc = GetTime()
@@ -126,7 +117,7 @@ FrostCombatFrame:SetScript( "OnEvent", function( self, event, ... )
             -- Frost Strike Runic Power spending tracking
             if subEvent == "SPELL_CAST_SUCCESS" and spellID == 49143 then -- Frost Strike
                 -- Track RP spending and potential Runic Empowerment/Corruption procs
-                if spec.talent.runic_empowerment.enabled and math.random() < 0.45 then
+                if state.talent.runic_empowerment.enabled and math.random() < 0.45 then
                     frostEventData.rune_events.empower_uses = frostEventData.rune_events.empower_uses + 1
                 end
             end
@@ -180,14 +171,14 @@ spec:RegisterResource( 6, { -- RunicPower = 6 in MoP
     
     -- Chill of the Grave talent enhancement
     chill_bonus = function()
-        return spec.talent.chill_of_the_grave.enabled and 5 or 0 -- +5 RP per Icy Touch
+        return state.talent.chill_of_the_grave.enabled and 5 or 0 -- +5 RP per Icy Touch
     end,
     
     -- Runic Empowerment and Corruption interaction
     empowerment_efficiency = function()
-        if spec.talent.runic_empowerment.enabled then
+        if state.talent.runic_empowerment.enabled then
             return 1.15 -- 15% more efficient RP usage due to rune refresh
-        elseif spec.talent.runic_corruption.enabled then
+        elseif state.talent.runic_corruption.enabled then
             return 1.20 -- 20% more efficient due to faster rune regen
         end
         return 1.0
@@ -208,17 +199,17 @@ spec:RegisterResource( 5, { -- Runes = 5 in MoP
     
     -- Unholy Presence speed bonus
     unholy_presence_bonus = function()
-        return spec.aura.unholy_presence.up and 0.15 or 0 -- 15% faster regen
+        return state.buff.unholy_presence.up and 0.15 or 0 -- 15% faster regen
     end,
     
     -- Runic Corruption enhancement
     corruption_multiplier = function()
-        return spec.aura.runic_corruption.up and 2.0 or 1.0 -- 100% faster when active
+        return state.buff.runic_corruption.up and 2.0 or 1.0 -- 100% faster when active
     end,
     
     -- Blood Tap conversion mechanics
     blood_tap_conversion = function()
-        if spec.talent.blood_tap.enabled then
+        if state.talent.blood_tap.enabled then
             return {
                 charges = 10,           -- Maximum Blood Tap charges
                 charge_generation = 2,  -- Charges per Blood rune spent
@@ -552,7 +543,7 @@ spec:RegisterAuras( {
                 
                 -- Blood Strike damage bonus tracking
                 local disease_count = 1
-                if spec.aura.frost_fever.up then disease_count = disease_count + 1 end
+                if state.debuff.frost_fever.up then disease_count = disease_count + 1 end
                 aura.disease_damage_bonus = disease_count * 0.125 -- 12.5% per disease
                 return
             end
@@ -674,7 +665,7 @@ spec:RegisterAuras( {
         duration = 3600,
         max_stack = 1,
         generate = function( aura )
-            if spec.set_bonus.tier14_2pc > 0 then
+            if state.set_bonus.tier14_2pc > 0 then
                 aura.count = 1
                 aura.expires = GetTime() + 3600
                 aura.applied = GetTime()
@@ -697,10 +688,10 @@ spec:RegisterAuras( {
         duration = 20, -- Duration of Pillar of Frost
         max_stack = 1,
         generate = function( aura )
-            if spec.set_bonus.tier15_2pc > 0 and spec.aura.pillar_of_frost.up then
+            if state.set_bonus.tier15_2pc > 0 and state.buff.pillar_of_frost.up then
                 aura.count = 1
-                aura.expires = spec.aura.pillar_of_frost.expires
-                aura.applied = spec.aura.pillar_of_frost.applied
+                aura.expires = state.buff.pillar_of_frost.expires
+                aura.applied = state.buff.pillar_of_frost.applied
                 aura.caster = "player"
                 aura.crit_bonus = 0.05 -- 5% critical strike chance
                 return

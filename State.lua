@@ -16,38 +16,34 @@ local orderedPairs = ns.orderedPairs
 local round, roundUp, roundDown = ns.round, ns.roundUp, ns.roundDown
 local safeMin, safeMax = ns.safeMin, ns.safeMax
 
--- MoP: Use compatibility function for player auras
-local GetPlayerAuraBySpellID = ns.GetPlayerAuraBySpellID or function() return nil end
--- MoP: Use legacy item API
+
 local GetItemSpell = ns.GetItemSpell
 local GetItemCooldown = GetItemCooldown  
 local IsUsableItem = ns.IsUsableItem
--- MoP: Use legacy spell API and disable loss of control
-local GetSpellInfo, GetSpellCharges, GetSpellLossOfControlCooldown = ns.GetUnpackedSpellInfo, GetSpellCharges, function() return 0, 0 end
+local GetSpellInfo = ns.GetUnpackedSpellInfo
 local UnitBuff, UnitDebuff = ns.UnitBuff, ns.UnitDebuff
--- MoP: IsPlayerSpell doesn't exist in MoP, use fallback
+local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
+
+-- MoP: API com patibility functions 
 local IsPlayerSpell = IsPlayerSpell or function(spellID) 
     return IsSpellKnown(spellID) or IsSpellKnownOrOverridesKnown(spellID) 
 end
--- MoP: GetPowerRegenForPowerType might not exist
 local GetPowerRegenForPowerType = GetPowerRegenForPowerType or function() return 0, 0 end
--- MoP: UnitPartialPower doesn't exist in MoP
 local UnitPartialPower = UnitPartialPower or function() return 0 end
--- MoP: IsSpellKnownOrOverridesKnown fallback for older MoP versions
 local IsSpellKnownOrOverridesKnown = IsSpellKnownOrOverridesKnown or IsSpellKnown
+local GetSpellLossOfControlCooldown = function() return 0, 0 end
 
--- MoP: Use legacy aura functions
+-- MoP: Aura functions compatibility
 local GetBuffDataByIndex, GetDebuffDataByIndex = function() return nil end, function() return nil end
--- MoP: AuraUtil doesn't exist in MoP, create fallback
 local UnpackAuraData = function(data)
     if not data then return nil end
-    -- Return standard aura data format for MoP
     return data.name, data.icon, data.count, data.dispelType, data.duration, 
            data.expires, data.caster, data.isStealable, data.nameplateShowPersonal, 
-           data.spellId, data.canApplyAura, data.isBossDebuff, data.isFromPlayerOrPlayerPet,           data.nameplateShowAll, data.timeMod, data.v1, data.v2, data.v3
+           data.spellId, data.canApplyAura, data.isBossDebuff, data.isFromPlayerOrPlayerPet,
+           data.nameplateShowAll, data.timeMod, data.v1, data.v2, data.v3
 end
 
--- MoP: GetSpellCharges might return different format, use fallback
+-- MoP: Spell charges compatibility
 local GetSpellCharges = function(spellID)
     if type(GetSpellCharges) == "function" then
         local charges, maxCharges, start, duration, chargeModRate = GetSpellCharges(spellID)
@@ -55,10 +51,8 @@ local GetSpellCharges = function(spellID)
             return charges, maxCharges, start, duration, chargeModRate
         end
     end
-    -- Fallback: no charges in MoP for most spells
     return 0, 0, 0, 0, 1
 end
-local FindPlayerAuraByID, IsAbilityDisabled = ns.FindPlayerAuraByID, ns.IsAbilityDisabled
 
 -- Clean up table_x later.
 ---@diagnostic disable-next-line: deprecated
@@ -87,40 +81,6 @@ state.now = 0
 state.offset = 0
 state.modified = false
 state.resetType = "heavy"
-
--- MoP: Update state.talent with actual enabled/disabled state for each registered talent.
-local function UpdateMoPTalents()
-    if not class or not class.specs or not state or not state.talent then return end
-    local spec = class.specs[Hekili and Hekili.Spec or 255] or class.specs[255] -- 255 = Survival default
-    if not spec or not spec.talents then return end
-    local groupIndex = (GetActiveSpecGroup and GetActiveSpecGroup()) or 1
-    for talentName, id in pairs(spec.talents) do
-        if type(id) == "table" and id[1] and id[2] and id[3] then
-            local tier, column, spellID = id[1], id[2], id[3]
-            local _, _, _, selected = GetTalentInfo and GetTalentInfo(tier, column, groupIndex)
-            state.talent[talentName] = state.talent[talentName] or {}
-            state.talent[talentName].enabled = selected or false
-        end
-    end
-end
-
--- Hook to PLAYER_TALENT_UPDATE for MoP
-if select(4, GetBuildInfo()) >= 50400 then
-    local f = CreateFrame("Frame")
-    f:RegisterEvent("PLAYER_TALENT_UPDATE")
-    f:SetScript("OnEvent", function()
-        -- Only update if state is available
-        if state and state.talent then
-            UpdateMoPTalents()
-        end
-    end)
-    -- Also update talents on load (with delay to ensure state is initialized)
-    C_Timer.After(3, function()
-        if state and state.talent then
-            UpdateMoPTalents()
-        end
-    end)
-end
 
 state.encounterID = 0
 state.encounterName = "None"
@@ -160,7 +120,7 @@ state.consumable = {}
 state.cooldown = {}
 
 -- MoP: Empowerment spells don't exist in MoP, disable this feature
---[[ 
+
 state.empowerment = {
     id = 0,
     active = false,
@@ -170,10 +130,9 @@ state.empowerment = {
     hold = 0,
     stages = {}
 }
--- Empowering system disabled for MoP
--- state.max_empower = 3
--- state.empowering = {}
-]]
+ state.max_empower = 3
+state.empowering = {}
+
 -- MoP: Simple placeholder for empowerment
 state.empowerment = { active = false }
 state.max_empower = 0
@@ -2434,7 +2393,7 @@ do
             -- The next block are values that reference an ability.
             local action = t.this_action
             local model = t.action[ action ]
-            local ability = class.abilities[ action ]
+            local ability = class and class.abilities and class.abilities[ action ]
             local cooldown = t.cooldown[ action ]
 
             -- MoP: Empowerment spells don't exist, removed this check
@@ -2509,7 +2468,7 @@ do
             if value ~= nil then return value end ]]
 
             local aura_name = ability and ability.aura or t.this_action
-            local aura = aura_name and class.auras[ aura_name ]
+            local aura = aura_name and class and class.auras and class.auras[ aura_name ]
             local app = aura and ( ( t.buff[ aura_name ].up and t.buff[ aura_name ] ) or ( t.debuff[ aura_name ].up and t.debuff[ aura_name ] ) or t.buff[ aura_name ] )
 
             if not app then
@@ -2564,6 +2523,11 @@ do
             if t:GetVariableIDs( k ) then return t.variable[ k ] end
             if t.settings[ k ] ~= nil then return t.settings[ k ] end
             if t.toggle[ k ]   ~= nil then return t.toggle[ k ] end
+            
+            -- Check for state tables
+            if class.stateTables and class.stateTables[ k ] then
+                return class.stateTables[ k ]
+            end
 
             if k ~= "scriptID" and not ( logged_state_errors[ t.scriptID ] and logged_state_errors[ t.scriptID ][ k ] ) then
                 local key_str = type(k) == "function" and tostring(k) or k
@@ -5886,10 +5850,16 @@ do
 
         local i = 1
         while ( true ) do
-            local buffData = GetBuffDataByIndex( unit, i )
-            if not buffData then break end
-
-            local name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnpackAuraData( buffData )
+            -- MoP compatibility: Use UnitBuff instead of GetBuffDataByIndex
+            local name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3
+            if GetBuffDataByIndex then
+                local buffData = GetBuffDataByIndex( unit, i )
+                if not buffData then break end
+                name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnpackAuraData( buffData )
+            else
+                -- MoP fallback
+                name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnitBuff( unit, i )
+            end
             if not name then break end
 
             local aura = class.auras[ spellID ]
@@ -5934,10 +5904,16 @@ do
 
         i = 1
         while ( true ) do
-            local debuffData = GetDebuffDataByIndex( unit, i )
-            if not debuffData then break end
-
-            local name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnpackAuraData( debuffData )
+            -- MoP compatibility: Use UnitDebuff instead of GetDebuffDataByIndex
+            local name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3
+            if GetDebuffDataByIndex then
+                local debuffData = GetDebuffDataByIndex( unit, i )
+                if not debuffData then break end
+                name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnpackAuraData( debuffData )
+            else
+                -- MoP fallback
+                name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnitDebuff( unit, i )
+            end
             if not name then break end
 
             local aura = class.auras[ spellID ]
@@ -7354,7 +7330,7 @@ do
     function state:IsDisabled( spell, strict )
         spell = spell or self.this_action
 
-        local ability = class.abilities[ spell ]
+        local ability = class and class.abilities and class.abilities[ spell ]
         if not ability then return false end
 
         if ability.id > -100 and ability.id < 0 then
