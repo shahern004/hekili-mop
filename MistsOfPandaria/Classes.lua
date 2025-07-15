@@ -1,5 +1,5 @@
 -- Classes.lua
--- Updated May 28, 2025 - Modern Structure  
+-- Updated May 28, 2025 - Modern Structure
 -- Mists of Pandaria module for Classes loading
 
 local addon, ns = ...
@@ -53,7 +53,7 @@ local spellFilters = {
             }, -- Epicenter
         },
     },
-    
+
     -- Heart of Fear
     [ 1009 ] = {
         name = "Heart of Fear",
@@ -72,7 +72,7 @@ local spellFilters = {
             }, -- Unseen Strike
         },
     },
-    
+
     -- Terrace of Endless Spring
     [ 996 ] = {
         name = "Terrace of Endless Spring",
@@ -91,7 +91,7 @@ local spellFilters = {
             }, -- Shadow Breath
         },
     },
-    
+
     -- Throne of Thunder
     [ 1098 ] = {
         name = "Throne of Thunder",
@@ -110,7 +110,7 @@ local spellFilters = {
             }, -- Frostbite
         },
     },
-    
+
     -- Siege of Orgrimmar
     [ 1136 ] = {
         name = "Siege of Orgrimmar",
@@ -129,7 +129,7 @@ local spellFilters = {
             }, -- Corruption
         },
     },
-    
+
     -- MoP Dungeons
     [ 962 ] = {
         name = "Gate of the Setting Sun",
@@ -140,7 +140,7 @@ local spellFilters = {
             }, -- Sabotage
         },
     },
-    
+
     [ 994 ] = {
         name = "Mogu'shan Palace",
         [ 61444 ] = {
@@ -150,7 +150,7 @@ local spellFilters = {
             }, -- Magnetic Field
         },
     },
-    
+
     [ 959 ] = {
         name = "Shado-Pan Monastery",
         [ 56541 ] = {
@@ -160,7 +160,7 @@ local spellFilters = {
             }, -- Tornado Kick
         },
     },
-    
+
     [ 960 ] = {
         name = "Temple of the Jade Serpent",
         [ 56448 ] = {
@@ -170,7 +170,7 @@ local spellFilters = {
             }, -- Hydrolance
         },
     },
-    
+
     [ 961 ] = {
         name = "Stormstout Brewery",
         [ 56637 ] = {
@@ -180,7 +180,7 @@ local spellFilters = {
             }, -- Barrel Toss
         },
     },
-    
+
     [ 1011 ] = {
         name = "Siege of Niuzao Temple",
         [ 61567 ] = {
@@ -219,10 +219,10 @@ local function RegisterMistsAuras()
                 end
             end
         end
-        
+
         class.interruptibleFilters = interruptibleFilters
     end
-    
+
     all:RegisterAuras({
         -- Legendary Cloak Procs
         spirit_of_chi_ji = {
@@ -314,13 +314,13 @@ local function RegisterMistsAuras()
             duration = 15,
             max_stack = 1,
         },
-        
+
         tier14_2pc_strength = {
             id = 123154,
             duration = 15,
             max_stack = 1,
         },
-        
+
         tier14_2pc_intellect = {
             id = 123156,
             duration = 15,
@@ -333,13 +333,13 @@ local function RegisterMistsAuras()
             duration = 15,
             max_stack = 3,
         },
-        
+
         tier15_2pc_strength = {
             id = 138217,
             duration = 15,
             max_stack = 3,
         },
-        
+
         tier15_2pc_intellect = {
             id = 138218,
             duration = 15,
@@ -352,13 +352,13 @@ local function RegisterMistsAuras()
             duration = 10,
             max_stack = 1,
         },
-        
+
         tier16_2pc_strength = {
             id = 144653,
             duration = 10,
             max_stack = 1,
         },
-        
+
         tier16_2pc_intellect = {
             id = 144865,
             duration = 10,
@@ -371,56 +371,56 @@ local function RegisterMistsAuras()
             duration = 20,
             max_stack = 1,
         },
-        
+
         renatakis_soul_charm = {
             id = 138729,
             duration = 20,
             max_stack = 1,
         },
-        
+
         restless_spirit = {
             id = 138728,
             duration = 10,
             max_stack = 1,
         },
-        
+
         breath_of_hydra = {
             id = 138963,
             duration = 10,
             max_stack = 1,
         },
-        
+
         wushoolays_final_choice = {
             id = 138703,
             duration = 15,
             max_stack = 1,
         },
-        
+
         feather_of_ji_kun = {
             id = 138759,
             duration = 10,
             max_stack = 1,
         },
-        
+
         rune_of_reorigination = {
             id = 139120,
             duration = 10,
             max_stack = 1,
         },
-        
+
         -- SoO Trinkets
         amplification = {
             id = 146046,
             duration = 20,
             max_stack = 1,
         },
-        
+
         cleave = {
             id = 146048,
             duration = 20,
             max_stack = 1,
         },
-        
+
         multistrike = {
             id = 146051,
             duration = 20,
@@ -439,57 +439,57 @@ end
 local function RegisterMistsGear()
     local class, all = getReferences()
     if not all then return end
-    
+
     -- MoP Trinkets - shared across all specializations
     -- Celestial Arena Trinkets (from Celestials)
     all:RegisterGear( "relic_of_chi_ji", 94511 )
     all:RegisterGear( "relic_of_niuzao", 94512 )
     all:RegisterGear( "relic_of_xuen", 94513 )
     all:RegisterGear( "relic_of_yu_lon", 94514 )
-    
+
     -- Heart of Fear Trinkets
     all:RegisterGear( "bottle_of_infinite_stars", 86301 )      -- Normal
     all:RegisterGear( "bottle_of_infinite_stars_lfr", 86326 )  -- LFR
     all:RegisterGear( "bottle_of_infinite_stars_heroic", 86350 ) -- Heroic
-    
+
     all:RegisterGear( "stuff_of_nightmares", 86308 )          -- Normal
-    all:RegisterGear( "stuff_of_nightmares_lfr", 86333 )      -- LFR  
+    all:RegisterGear( "stuff_of_nightmares_lfr", 86333 )      -- LFR
     all:RegisterGear( "stuff_of_nightmares_heroic", 86357 )   -- Heroic
-    
+
     -- Throne of Thunder Trinkets
     all:RegisterGear( "lei_shens_final_orders", 95802 )       -- Normal
     all:RegisterGear( "lei_shens_final_orders_lfr", 96540 )   -- LFR
     all:RegisterGear( "lei_shens_final_orders_heroic", 96741 ) -- Heroic
-    
+
     all:RegisterGear( "bad_juju", 95810 )                     -- Normal
     all:RegisterGear( "bad_juju_lfr", 96548 )                 -- LFR
     all:RegisterGear( "bad_juju_heroic", 96749 )              -- Heroic
-    
+
     all:RegisterGear( "wushoolays_final_choice", 95815 )      -- Normal
     all:RegisterGear( "wushoolays_final_choice_lfr", 96553 )  -- LFR
     all:RegisterGear( "wushoolays_final_choice_heroic", 96754 ) -- Heroic
-    
+
     all:RegisterGear( "renatakis_soul_charm", 95802 )         -- Normal (duplicate ID, different item)
     all:RegisterGear( "renatakis_soul_charm_lfr", 96540 )     -- LFR
     all:RegisterGear( "renatakis_soul_charm_heroic", 96741 )  -- Heroic
-    
+
     -- Siege of Orgrimmar Trinkets
     all:RegisterGear( "ticking_ebon_detonator", 101801 )      -- Normal
     all:RegisterGear( "ticking_ebon_detonator_lfr", 102293 )  -- LFR
     all:RegisterGear( "ticking_ebon_detonator_heroic", 102658 ) -- Heroic
-    
+
     all:RegisterGear( "haromms_talisman", 101797 )            -- Normal
     all:RegisterGear( "haromms_talisman_lfr", 102289 )        -- LFR
     all:RegisterGear( "haromms_talisman_heroic", 102654 )     -- Heroic
-    
+
     all:RegisterGear( "assurance_of_consequence", 101805 )    -- Normal
     all:RegisterGear( "assurance_of_consequence_lfr", 102297 ) -- LFR
     all:RegisterGear( "assurance_of_consequence_heroic", 102662 ) -- Heroic
-    
+
     all:RegisterGear( "rooks_unlucky_talisman", 101804 )      -- Normal
     all:RegisterGear( "rooks_unlucky_talisman_lfr", 102296 )  -- LFR
     all:RegisterGear( "rooks_unlucky_talisman_heroic", 102661 ) -- Heroic
-    
+
     -- MoP Idols/Relics (class-specific items)
     all:RegisterGear( "inscribed_tiger_staff", 86196 )       -- Feral/Guardian
     all:RegisterGear( "inscribed_crane_staff", 86197 )       -- Balance/Resto
