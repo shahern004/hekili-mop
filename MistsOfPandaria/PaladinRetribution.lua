@@ -1,5 +1,5 @@
 -- PaladinRetribution.lua
--- Updated May 28, 2025 - Modern Structure
+-- Updated July 15, 2025 - Modern Structure
 -- Mists of Pandaria module for Paladin: Retribution spec
 
 -- MoP: Use UnitClass instead of UnitClassBase
@@ -7,16 +7,14 @@ local _, playerClass = UnitClass('player')
 if playerClass ~= 'PALADIN' then return end
 
 local addon, ns = ...
-local Hekili = _G[ "Hekili" ]
-local class = Hekili.Class
-local state = Hekili.State
+local Hekili = _G[ addon ]
+local class, state = Hekili.Class, Hekili.State
+local spec = Hekili:NewSpecialization( 70 )
 
 local function getReferences()
     -- Legacy function for compatibility
     return class, state
 end
-
-local spec = Hekili:NewSpecialization( 70 ) -- Retribution spec ID for MoP
 
 local strformat = string.format
 local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
@@ -78,43 +76,43 @@ end)
 
 -- Enhanced resource systems
 spec:RegisterResource( 0, { -- Mana = 0 in MoP
-    divine_plea = {
-        last = function ()
-            return state.buff.divine_plea.applied
-        end,
+    -- divine_plea = {
+    --     last = function ()
+    --         return state.buff.divine_plea.applied
+    --     end,
 
-        interval = 3.0,
+    --     interval = 3.0,
         
-        stop = function ()
-            return state.buff.divine_plea.down
-        end,
+    --     stop = function ()
+    --         return state.buff.divine_plea.down
+    --     end,
 
-        value = function ()
-            return 0.12 * state.mana.max -- 12% mana per tick
-        end,
-    },
+    --     value = function ()
+    --         return 0.12 * state.mana.max -- 12% mana per tick
+    --     end,
+    -- },
     
-    guarded_by_the_light = {
-        last = function ()
-            return state.combat_start
-        end,
+    -- guarded_by_the_light = {
+    --     last = function ()
+    --         return state.combat
+    --     end,
 
-        interval = 2.0,
+    --     interval = 2.0,
         
-        stop = function ()
-            return false
-        end,
+    --     stop = function ()
+    --         return false
+    --     end,
 
-        value = function ()
-            local regen = 0.02 * state.mana.max -- 2% base
-            -- Enhanced by Word of Glory usage
-            if state.buff.guarded_by_the_light.up then
-                regen = regen * 2
-            end
-            return regen
-        end,
-    },
-    
+    --     value = function ()
+    --         local regen = 0.02 * state.mana.max -- 2% base
+    --         -- Enhanced by Word of Glory usage
+    --         if state.buff.guarded_by_the_light.up then
+    --             regen = regen * 2
+    --         end
+    --         return regen
+    --     end,
+    -- },
+
     seal_of_insight = {
         last = function ()
             return state.swing.last_taken
@@ -795,6 +793,64 @@ spec:RegisterAuras( {
             t.remains = 0
         end
     },
+
+    holy_avenger = {
+        id = 105809,
+        duration = 18,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetPlayerAuraBySpellID(105809)
+
+            if name then
+                t.name = name
+                t.count = count
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime - GetTime()
+                return
+            end
+
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.up = false
+            t.down = true
+            t.remains = 0
+        end
+    },
+
+    divine_crusader = {
+        id = 144595,
+        duration = 12,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetPlayerAuraBySpellID(144595)
+
+            if name then
+                t.name = name
+                t.count = count
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime - GetTime()
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.up = false
+            t.down = true
+            t.remains = 0
+        end
+    },
     
     -- Tier set bonuses
     ret_tier14_2pc = {
@@ -998,13 +1054,16 @@ spec:RegisterAbilities( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 105809 )
-            
+
             if name then
                 t.name = name
                 t.count = count
                 t.expires = expirationTime
                 t.applied = expirationTime - duration
                 t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime - GetTime()
                 return
             end
             
@@ -1012,6 +1071,9 @@ spec:RegisterAbilities( {
             t.expires = 0
             t.applied = 0
             t.caster = "nobody"
+            t.up = false
+            t.down = true
+            t.remains = 0
         end
     },
     
@@ -1686,11 +1748,23 @@ spec:RegisterAbilities( {
         
         handler = function()
             gain(1, "holy_power")
-            
-            -- Art of War proc chance (20%)
-            if math.random() < 0.20 then
-                applyBuff("art_of_war")
-            end
+        end
+    },
+
+    hammer_of_the_righteous = {
+        id = 53595,
+        cast = 0,
+        cooldown = 4.5,
+        gcd = "spell",
+        
+        spend = 0.03,
+        spendType = "mana",
+        
+        startsCombat = true,
+        texture = 236253,
+
+        handler = function()
+            gain(1, "holy_power")
         end
     },
     
@@ -1909,19 +1983,109 @@ spec:RegisterAbilities( {
             applyBuff("sacred_shield")
         end
     },
+
+    blessing_of_kings = {
+        id = 20217,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        spend = 0.05,
+        spendType = "mana",
+
+        startsCombat = false,
+        texture = 135993,
+
+        handler = function()
+            applyBuff("blessing_of_kings")
+        end
+    },
+
+    blessing_of_might = {
+        id = 19740,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        spend = 0.05,
+        spendType = "mana",
+
+        startsCombat = false,
+        texture = 135908,
+
+        handler = function()
+            applyBuff("blessing_of_might")
+        end
+    },
+
+    seal_of_truth = {
+        id = 31801,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        texture = 135969,
+
+        handler = function()
+            applyBuff("seal_of_truth")
+        end
+    },
+
+    seal_of_righteousness = {
+        id = 20154,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        texture = 135960,
+
+        handler = function()
+            applyBuff("seal_of_righteousness")
+        end
+    },
+
+    seal_of_justice = {
+        id = 20164,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        texture = 135971,
+
+        handler = function()
+            applyBuff("seal_of_justice")
+        end
+    },
+
+    seal_of_insight = {
+        id = 20165,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        startsCombat = false,
+        texture = 135917,
+
+        handler = function()
+            applyBuff("seal_of_insight")
+        end
+    }
 } )
 
 -- States and calculations for Retribution specific mechanics
-local function checkArtOfWar()
-    -- 20% chance to proc Art of War on Crusader Strike
-    return buff.art_of_war.up
-end
+-- local function checkArtOfWar()
+--     -- 20% chance to proc Art of War on Crusader Strike
+--     return buff.art_of_war.up
+-- end
 
-state.RegisterExpressions( {
-    ['artOfWarActive'] = function()
-        return checkArtOfWar()
-    end
-} )
+-- state.RegisterExpressions( {
+--     ['artOfWarActive'] = function()
+--         return checkArtOfWar()
+--     end
+-- } )
 
 -- Range
 spec:RegisterRanges( "judgment", "hammer_of_justice", "rebuke", "crusader_strike" )
@@ -1947,6 +2111,4 @@ spec:RegisterOptions( {
 } )
 
 -- Register default pack for MoP Retribution Paladin
-spec:RegisterPack( "Retribution", 20250515, [[Hekili:T1PBVTTn04FlXjHj0OfnrQ97Lvv9n0KxkzPORkyzyV1ikA2JC7fSOhtkfLjjRKKGtkLQfifs4YC7O3MF11Fw859fNZXPb72TQWN3yiOtto8jREEP(D)CaaR7oXR]hYdVp)NhS4(SZdhFpzmYBPn2qGdjcw5Jt8jc((52Lbb6W0P)MM]] )
-
--- Register pack selector for Retribution
+spec:RegisterPack( "Retribution", 20250715, [[Hekili:9M1wVTTnu4FlfdWOPRtZw2EjDikp09YAFOyyQpljAzABUOBJKkPgWq)23HuwwKuKsozB9H26sEU8DUYZbkAr0xJc3I44OV4p3F98BxS2ZF(6vl8Jc5hRWrHvO0hr7HFuGYH)(pXCkztnNuw0K87KCmQj5Jyosq4XSs0wHazL10uG4qs(Vrr74njRxD3pDxu4MAsg)tfrBSRuGZkCA0xUDEu4bY2T4wkXS0OWVEGWAse)b04zq1KuUd()PTOjJW4W17kPaYWpsYiEaQOL7izaw(HMK)aLH2sk(1MevR4ZT8Z8QO40Y8ni(pg8ZBYWmgPyFC5U4hH)L9EYUG3SPE3opghXzE1vtZyoz)bEpJ5ightp6KvggLjyJtR5heSji6jCmUaNtWS7xnoBuH2WL1Scabdz)Hah8xv26gUC7LZec5TsOVjRSCBwnJ7rXavNozECD1m5jONWf7fM)Zue)aC8nNoXr09yUhhswI5LXBj47dwn)gv9rk(7AcJORuLd92w(CXPtdoMIZrKc29b(3m7ThkZogxv(mM(qWsRQTNI35p)S42sEIuGJRQPvLmCR9PHnDtsaVbWqjIcmSVgr3sqfIGcQiLGl495qtWReHsnIPcY5OmGDp1J9WfiilB7SHEjik0BIcNIQORz4ychN)ErHCaK)x8iMVqOKNquIqKENpmMDSinMLvYdwmZMsmJ(krN(dH6K0hdwCfGWFcq4)FmiKxhVRMEu7umLHPIaLw0NMIkejqukeiuVb)nCQSdsmdUbxKIvcydVC8W2lZy0SMmrDpl(akpxlNr78)30(5Yhg4GYT10XxTUmy9ifDDnv0Y11YOHY6XvUQStP1m0wqesHptfeQIaYfRYquw8tyOOnv2U2cGhfutjpNM8m7302tBLwFbzuu0rr2fs9QNre(7z40G0YYmrKZZG4ojkGYu08W8ztrY9bZ98FLrb7VrCv(Vr5QhQ8d4(xch)vqGVo4bGNsEepUB1GyRUvh0O6wDqYa3k(BL0ucZrvL(jWdQZyqpZnLf1mqI8yobtxSo2VkD2(SJvhetFWI7Kzx7av99x1B3NB0JBOtOJkRwV5LQMT5D)lsJUQ8fB1B2CVJBUxCy2mxZlvnxZ7gyUobUs0BvvQOzJrSE1lR)RRHMEy1vbNj5STvi9CMQ6alYd7s1IcFgrleJbff(P8Qskhs)s8ngF3R5ZrHYFjxmbVdvNXHF(f5IkDI6JrHPuymcyIHOW32Ky8svBSo50PMKHxcnosMD(0H9usUPLVHdp2KCFqtYQ5ajrHTyg2UqoNCehwKzs8zooBRIC5JBvNVeqZK2r)tonjpa3TCeKQt97abnxrDwlnunlf8iSTLoTnldt0lfDVRqqREDcY5a1czU2Pmhz25oFQf1kVs171fh6XJQefq4xmGqhDDZyRck3J52KakArFYPfynmB2irYyATwr2c(213Vaja23ooS9FbW2)7dS9fW(obS7WA)O8QMcq1h0O6YO9guTyUkz6Z6BsQ7oqtoZ)uPBVEhKwE5qaibU7wtJTPW3jmRPBjCD3Tr)TT2UG(2ApcNVEY(DQppymE)GEaN73QdD1NELiFI2B2NLXuvcSpIoC3UBehWvzEknamMfqQyZMC2nodF8mxrGU34GxuNqV3QwHASsIzj6DgyegLda6e7Z0lDX4FQg2uCcoUMK5sRCAsfpJaJakX5hUkFPLef7tT4oDXF(4AAerzly47UhOTAZv2cCAlOjfQVAe2y7iJiSVzZb9iSJvRUIiSdoTfHDsQse23DRa3nXmVroVP8gxR2jVCK17uFAO9gj4wR6W72lZ0tBwVR7Pn3M7kCXMSyZ3oKgvNQ5alxtzZi1gMDlUIoAtuEOn0XfxUUJDPzjPUJ1CVXRWXAYInh7qAuCSlDxwl9ed2i1E66K9Yx6Ese3vfUxq6bnfAgEx(c2AXHiTAdURShz13lTbVCxKqAHx(omrwwXTJPnMFlQ2pjgLu1EV1pRLkWEZzVy3xUsMR60m6OU)ZvzhkYVUL0LC1rv9ueTV3LqqVSMMwKK2NatirToDNxwxRCugfqG(lPrHYpNP8OO)5p]] )

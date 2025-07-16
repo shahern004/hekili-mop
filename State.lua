@@ -18,16 +18,12 @@ local safeMin, safeMax = ns.safeMin, ns.safeMax
 
 
 local GetItemSpell = ns.GetItemSpell
-local GetItemCooldown = GetItemCooldown  
+local GetItemCooldown = GetItemCooldown
 local IsUsableItem = ns.IsUsableItem
 local GetSpellInfo = ns.GetUnpackedSpellInfo
 local UnitBuff, UnitDebuff = ns.UnitBuff, ns.UnitDebuff
-local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
+local IsAbilityDisabled = ns.IsAbilityDisabled
 
--- MoP: API com patibility functions 
-local IsPlayerSpell = IsPlayerSpell or function(spellID) 
-    return IsSpellKnown(spellID) or IsSpellKnownOrOverridesKnown(spellID) 
-end
 local GetPowerRegenForPowerType = GetPowerRegenForPowerType or function() return 0, 0 end
 local UnitPartialPower = UnitPartialPower or function() return 0 end
 local IsSpellKnownOrOverridesKnown = IsSpellKnownOrOverridesKnown or IsSpellKnown
@@ -37,10 +33,6 @@ local GetSpellLossOfControlCooldown = function() return 0, 0 end
 local GetBuffDataByIndex, GetDebuffDataByIndex = function() return nil end, function() return nil end
 local UnpackAuraData = function(data)
     if not data then return nil end
-    return data.name, data.icon, data.count, data.dispelType, data.duration, 
-           data.expires, data.caster, data.isStealable, data.nameplateShowPersonal, 
-           data.spellId, data.canApplyAura, data.isBossDebuff, data.isFromPlayerOrPlayerPet,
-           data.nameplateShowAll, data.timeMod, data.v1, data.v2, data.v3
 end
 
 -- MoP: Spell charges compatibility
@@ -120,7 +112,6 @@ state.consumable = {}
 state.cooldown = {}
 
 -- MoP: Empowerment spells don't exist in MoP, disable this feature
-
 state.empowerment = {
     id = 0,
     active = false,
@@ -670,14 +661,14 @@ state.IsActiveSpell = ns.IsActiveSpell
 -- MoP: Use fallback for IsPlayerSpell
 state.IsPlayerSpell = IsPlayerSpell
 state.IsSpellKnown = IsSpellKnown
--- MoP: Use fallback for IsSpellKnownOrOverridesKnown  
+-- MoP: Use fallback for IsSpellKnownOrOverridesKnown
 state.IsSpellKnownOrOverridesKnown = IsSpellKnownOrOverridesKnown
 -- MoP: Use legacy IsUsableItem
 state.IsUsableItem = IsUsableItem
 -- MoP: Use legacy IsUsableSpell
 state.IsUsableSpell = IsUsableSpell
 state.UnitAura = UnitAura
--- MoP: Aura slots not available  
+-- MoP: Aura slots not available
 state.UnitAuraSlots = function() return {} end
 state.UnitBuff = UnitBuff
 state.UnitCanAttack = UnitCanAttack
@@ -711,7 +702,7 @@ state.glyph = setmetatable( {}, {
                 end
             end
         end
-        
+
         -- Return false glyph object if not found
         return { enabled = false }
     end
@@ -1507,6 +1498,10 @@ do
                    ( not v.channel or state.buff.casting.up and state.buff.casting.v3 == 1 and state.buff.casting.v1 == class.abilities[ v.channel ].id ) then
 
                     local l = v.last()
+                    if not l or type(l) ~= "number" then
+                        l = now  -- Fallback to current time if last() returns nil or invalid value
+                    end
+
                     local i = type( v.interval ) == "number" and v.interval or
                               ( type( v.interval ) == "function" and v.interval( now, r.actual ) or
                               ( type( v.interval ) == "string" and state[ v.interval ] or 0 ) )
@@ -1630,15 +1625,15 @@ local resourceChange = function( amount, resource, overcap )
     if amount == 0 then return false end
 
     local r = state[ resource ]
-    if not r then 
+    if not r then
         return false -- Resource doesn't exist
     end
-    
+
     -- Ensure current is properly initialized
     if r.current == nil then
         r.current = r.actual or 0
     end
-    
+
     local pre = r.current
 
     if amount < 0 and r.spend then r.spend( -amount, resource, overcap )
@@ -3115,7 +3110,7 @@ do
                 if not isPlayer then isPlayer = PvpDummies[ t.npcid ] end
                 t[k] = isPlayer or false -- Enables proper treatment of Absolute Corruption and similar modified-in-PvP effects.
 
-            elseif k == "is_dummy" then 
+            elseif k == "is_dummy" then
                 t[k] = ( TargetDummies and TargetDummies[ t.npcid ] ~= nil ) or false
             elseif k == "is_undead" then t[k] = UnitCreatureType( "target" ) == BATTLE_PET_NAME_4
 
@@ -3522,7 +3517,7 @@ local mt_gcd = {
 
         elseif k == "expires" then
             return state.cooldown.global_cooldown.expires        elseif k == "max" or k == "duration" then
-            -- MoP: Use legacy power type constants  
+            -- MoP: Use legacy power type constants
             if one_sec_gcd[ class.file ] or class.file == "DRUID" and UnitPowerType( "player" ) == 3 then -- ENERGY = 3 in MoP
                 return state.buff.adrenaline_rush.up and max( 0.75, state.haste ) or 1
             end
@@ -4238,7 +4233,7 @@ do
             if k == "__scanned" then
                 return false
             end
-            
+
             -- Safety check: ignore function keys
             if type(k) == "function" then
                 return unknown_buff
@@ -5248,7 +5243,7 @@ do
             if type(k) == "function" then
                 return unknown_debuff
             end
-            
+
             local aura = class.auras[ k ]
 
             if aura then
@@ -5993,7 +5988,7 @@ end
     Hekili:ProfileCPU( "ScrapeUnitAuras", state.ScrapeUnitAuras )
 
     Hekili.AuraDB = ns.auras
-    
+
 local ScrapeUnitAuras = state.ScrapeUnitAuras
 
 
