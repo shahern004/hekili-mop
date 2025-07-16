@@ -271,8 +271,6 @@ local HekiliSpecMixin = {
         end
     end,
 
-
-
     RegisterAura = function( self, aura, data )
         CommitKey( aura )
 
@@ -347,54 +345,53 @@ local HekiliSpecMixin = {
             if a.id > 0 then
                 -- Hekili:ContinueOnSpellLoad( a.id, function( success )
                 a.onLoad = function( a )
-                        for k, v in pairs( class.auraList ) do
-                            if v == a then class.auraList[ k ] = nil end
-                        end
-
-                        Hekili.InvalidSpellIDs = Hekili.InvalidSpellIDs or {}
-                        Hekili.InvalidSpellIDs[ a.id ] = a.name or a.key
-
-                        a.id = a.key
-                        a.name = a.name or a.key
-
-                        return
+                    for k, v in pairs( class.auraList ) do
+                        if v == a then class.auraList[ k ] = nil end
                     end
 
-                    a.desc = GetSpellDescription( a.id )
+                    Hekili.InvalidSpellIDs = Hekili.InvalidSpellIDs or {}
+                    Hekili.InvalidSpellIDs[ a.id ] = a.name or a.key
 
-                    local texture = a.texture or GetSpellTexture( a.id )
+                    a.id = a.key
+                    a.name = a.name or a.key
 
-                    if self.id > 0 then
-                        class.auraList[ a.key ] = "|T" .. texture .. ":0|t " .. a.name
-                    end
+                    return
+                end
 
-                    self.auras[ a.name ] = a
-                    -- Always add to class.auras with both key and name
-                    class.auras[ a.key ] = a
-                    class.auras[ a.name ] = a
+                a.desc = GetSpellDescription( a.id )
 
-                    if self.pendingItemSpells[ a.name ] then
-                        local items = self.pendingItemSpells[ a.name ]
+                local texture = a.texture or GetSpellTexture( a.id ) or "Interface\\Icons\\INV_Misc_QuestionMark"
 
-                        if type( items ) == 'table' then
-                            for i, item in ipairs( items ) do
-                                local ability = self.abilities[ item ]
-                                ability.itemSpellKey = a.key .. "_" .. ability.itemSpellID
+                if self.id > 0 then
+                    class.auraList[ a.key ] = "|T" .. texture .. ":0|t " .. a.name
+                end
 
-                                self.abilities[ ability.itemSpellKey ] = a
-                                class.abilities[ ability.itemSpellKey ] = a
-                            end
-                        else
-                            local ability = self.abilities[ items ]
+                self.auras[ a.name ] = a
+                -- Always add to class.auras with both key and name
+                class.auras[ a.key ] = a
+                class.auras[ a.name ] = a
+
+                if self.pendingItemSpells[ a.name ] then
+                    local items = self.pendingItemSpells[ a.name ]
+
+                    if type( items ) == 'table' then
+                        for i, item in ipairs( items ) do
+                            local ability = self.abilities[ item ]
                             ability.itemSpellKey = a.key .. "_" .. ability.itemSpellID
 
                             self.abilities[ ability.itemSpellKey ] = a
                             class.abilities[ ability.itemSpellKey ] = a
                         end
+                    else
+                        local ability = self.abilities[ items ]
+                        ability.itemSpellKey = a.key .. "_" .. ability.itemSpellID
 
-                        self.pendingItemSpells[ a.name ] = nil
-                        self.itemPended = nil
+                        self.abilities[ ability.itemSpellKey ] = a
+                        class.abilities[ ability.itemSpellKey ] = a
                     end
+
+                    self.pendingItemSpells[ a.name ] = nil
+                    self.itemPended = nil
                 end
             end
             self.auras[ a.id ] = a

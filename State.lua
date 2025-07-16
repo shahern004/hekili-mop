@@ -22,8 +22,8 @@ local GetItemCooldown = GetItemCooldown
 local IsUsableItem = ns.IsUsableItem
 local GetSpellInfo = ns.GetUnpackedSpellInfo
 local UnitBuff, UnitDebuff = ns.UnitBuff, ns.UnitDebuff
+local IsAbilityDisabled = ns.IsAbilityDisabled
 
-end
 local GetPowerRegenForPowerType = GetPowerRegenForPowerType or function() return 0, 0 end
 local UnitPartialPower = UnitPartialPower or function() return 0 end
 local IsSpellKnownOrOverridesKnown = IsSpellKnownOrOverridesKnown or IsSpellKnown

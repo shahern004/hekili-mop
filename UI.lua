@@ -65,7 +65,7 @@ local GetItemInfoInstant = function(itemID)
 end
 local GetSpellTexture = function(spellID)
     local name, rank, icon = GetSpellInfo(spellID)
-    return icon
+    return icon or "Interface\\Icons\\INV_Misc_QuestionMark"
 end
 local IsUsableSpell = function(spellID)
     local usable, noMana = IsUsableSpell(spellID)
