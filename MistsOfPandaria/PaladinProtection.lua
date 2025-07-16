@@ -10,6 +10,7 @@ local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
 local class = Hekili.Class
 local state = Hekili.State
+local spec = Hekili:NewSpecialization( 66 )
 
 local function getReferences()
     -- Legacy function for compatibility
