@@ -640,11 +640,15 @@ function ns.GetUnpackedSpellInfo( spellID )
         return nil;
     end
 
-    -- MoP compatibility: GetSpellInfo returns direct values, not a table
-    local name, _, icon, castTime, minRange, maxRange, id = GetSpellInfo(spellID);
+    -- MoP compatibility: GetSpellInfo returns exactly 6 values: name, rank, icon, castTime, minRange, maxRange
+    local name, rank, icon, castTime, minRange, maxRange = GetSpellInfo(spellID);
     if name then
-        return name, nil, icon, castTime, minRange, maxRange, id, icon;
+        -- Return with spellID as the 7th parameter for compatibility with retail expectations
+        return name, rank, icon, castTime, minRange, maxRange, spellID, icon;
     end
+    
+    -- Return nil if spell is not found - this is important for autoAuraKey fallback logic
+    return nil;
 end
 
 

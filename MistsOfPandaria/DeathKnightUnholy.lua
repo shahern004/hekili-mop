@@ -23,21 +23,21 @@ spec:RegisterResource( 5 ) -- Runes = 5 in MoP
 spec:RegisterResource( 6 ) -- RunicPower = 6 in MoP
 
 spec:RegisterResource( 5, {
-        rune_regen = {
-            last = function () return state.query_time end,
-            stop = function( x ) return x == 6 end,
+    rune_regen = {
+        last = function () return state.query_time end,
+        stop = function( x ) return x == 6 end,
 
-            interval = function( time, val )
-                val = floor( val )
-                if val == 6 then return -1 end
-                return state.runes.expiry[ val + 1 ] - time
-            end,
-            value = 1,
-        }
-    }, setmetatable( {
-        expiry = { 0, 0, 0, 0, 0, 0 },
-        cooldown = 10,
-        regen = 0,
+        interval = function( time, val )
+            val = floor( val )
+            if val == 6 then return -1 end
+            return state.runes.expiry[ val + 1 ] - time
+        end,
+        value = 1,
+    }
+}, setmetatable( {
+    expiry = { 0, 0, 0, 0, 0, 0 },
+    cooldown = 10,
+    regen = 0,
     max = 6,
     forecast = {},
     fcount = 0,

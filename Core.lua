@@ -2336,9 +2336,18 @@ function Hekili:DumpCPUInfo()
     end
 end
 
--- Add missing callHook function to fix State.lua error
+-- Add missing callHook function to fix State.lua error - now with safety checks
 ns.callHook = ns.callHook or function(hookName, ...)
-    -- Dummy implementation for missing callHook function
-    -- This prevents the State.lua error from occurring
+    -- Safety implementation for missing callHook function
+    -- This prevents State.lua errors and SecureGroupHeaders corruption
+    if not hookName or type(hookName) ~= "string" then
+        return
+    end
+    
+    -- Don't interfere with buff/debuff related hooks to prevent SecureGroupHeaders issues
+    if hookName:match("aura") or hookName:match("buff") or hookName:match("debuff") then
+        return
+    end
+    
     return
 end

@@ -352,7 +352,10 @@ local HekiliSpecMixin = {
                     Hekili.InvalidSpellIDs = Hekili.InvalidSpellIDs or {}
                     Hekili.InvalidSpellIDs[ a.id ] = a.name or a.key
 
-                    a.id = a.key
+                    -- FIX: Only set a.id to the key if the key is a number and a.id is not already set
+                    if not a.id and type(aura) == "number" then
+                        a.id = aura
+                    end
                     a.name = a.name or a.key
 
                     return
@@ -394,6 +397,7 @@ local HekiliSpecMixin = {
                     self.itemPended = nil
                 end
             end
+
             self.auras[ a.id ] = a
             class.auras[ a.id ] = a
         end
