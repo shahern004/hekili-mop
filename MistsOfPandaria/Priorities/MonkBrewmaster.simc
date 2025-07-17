@@ -1,5 +1,6 @@
 ## Monk: Brewmaster
-##actions.precombat+=/stance_of_the_sturdy_ox
+##
+actions.precombat+=/stance_of_the_sturdy_ox
 actions.precombat+=/chi_burst,if=talent.chi_burst.enabled
 actions.precombat+=/legacy_of_the_white_tiger
 
