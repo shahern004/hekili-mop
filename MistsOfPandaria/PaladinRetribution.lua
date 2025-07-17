@@ -204,17 +204,17 @@ spec:RegisterResource( 9, { -- HolyPower = 9 in MoP
 } )
 
 -- Comprehensive Tier sets with MoP gear progression
-spec:RegisterGear( "tier14", 85349, 85350, 85351, 85352, 85353 ) -- T14 Yaungol Slayer Battlegear
-spec:RegisterGear( "tier14_lfr", 89084, 89083, 89082, 89081, 89080 ) -- LFR versions
-spec:RegisterGear( "tier14_heroic", 90459, 90458, 90457, 90456, 90455 ) -- Heroic versions
+spec:RegisterGear( "tier14", 85339, 85340, 85341, 85342, 85343 ) -- T14 White Tiger Battlegear
+spec:RegisterGear( "tier14_lfr", 86679, 86680, 86681, 86682, 86683 ) -- LFR versions
+spec:RegisterGear( "tier14_heroic", 87099, 87100, 87101, 87102, 87103 ) -- Heroic versions
 
-spec:RegisterGear( "tier15", 95280, 95282, 95278, 95281, 95279 ) -- T15 Battleplate of Radiant Glory
-spec:RegisterGear( "tier15_lfr", 96677, 96678, 96679, 96680, 96681 ) -- LFR versions
-spec:RegisterGear( "tier15_heroic", 97298, 97299, 97300, 97301, 97302 ) -- Heroic versions
+spec:RegisterGear( "tier15", 95280, 95281, 95282, 95283, 95284 ) -- T15 Battlegear of the Lightning Emperor
+spec:RegisterGear( "tier15_lfr", 95910, 95911, 95912, 95913, 95914 ) -- LFR versions
+spec:RegisterGear( "tier15_heroic", 96654, 96655, 96656, 96657, 96658 ) -- Heroic versions
 
-spec:RegisterGear( "tier16", 99054, 99055, 99056, 99057, 99058 ) -- T16 Chrono-Lord Epochryion Regalia
-spec:RegisterGear( "tier16_lfr", 100871, 100872, 100873, 100874, 100875 ) -- LFR versions
-spec:RegisterGear( "tier16_heroic", 101594, 101595, 101596, 101597, 101598 ) -- Heroic versions
+spec:RegisterGear( "tier16", 99132, 99136, 99137, 99138, 99139 ) -- T16 Battlegear of Winged Triumph
+spec:RegisterGear( "tier16_lfr", 98985, 98986, 98987, 99002, 99052 ) -- LFR versions
+spec:RegisterGear( "tier16_heroic", 99372, 99373, 99374, 99379, 99380 ) -- Heroic versions
 
 -- Notable MoP Paladin items and legendary
 spec:RegisterGear( "legendary_cloak", 102249 ) -- Qian-Ying, Fortitude of Niuzao
@@ -223,38 +223,38 @@ spec:RegisterGear( "prideful_gladiator", 103823, 103824, 103825, 103826, 103827 
 
 -- Tier set bonuses as auras
 spec:RegisterAura( "ret_tier14_2pc", {
-    id = 105515,
+    id = 123108,
     duration = 3600,
     max_stack = 1,
 } )
 
 spec:RegisterAura( "ret_tier14_4pc", {
-    id = 105516,
-    duration = 15,
+    id = 70762,
+    duration = 3600,
     max_stack = 1,
 } )
 
 spec:RegisterAura( "ret_tier15_2pc", {
-    id = 138170,
-    duration = 3600,
-    max_stack = 1,
-} )
-
-spec:RegisterAura( "ret_tier15_4pc", {
-    id = 138171,
+    id = 138159,
     duration = 6,
     max_stack = 1,
 } )
 
-spec:RegisterAura( "ret_tier16_2pc", {
-    id = 144959,
+spec:RegisterAura( "ret_tier15_4pc", {
+    id = 138164,
     duration = 3600,
     max_stack = 1,
 } )
 
+spec:RegisterAura( "ret_tier16_2pc", {
+    id = 144586,
+    duration = 6,
+    max_stack = 1,
+} )
+
 spec:RegisterAura( "ret_tier16_4pc", {
-    id = 144960,
-    duration = 30,
+    id = 144593,
+    duration = 3600,
     max_stack = 1,
 } )
 
@@ -262,7 +262,7 @@ spec:RegisterAura( "ret_tier16_4pc", {
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Movement
     speed_of_light            = { 2199, 1, 85499  }, -- +70% movement speed for 8 sec
-    long_arm_of_the_law       = { 2200, 1, 114158 }, -- Judgments increase movement speed by 45% for 3 sec
+    long_arm_of_the_law       = { 2200, 1, 87172 }, -- Judgments increase movement speed by 45% for 3 sec
     pursuit_of_justice        = { 2201, 1, 26023  }, -- +15% movement speed per Holy Power charge
 
     -- Tier 2 (Level 30) - Control
@@ -294,53 +294,63 @@ spec:RegisterTalents( {
 -- Comprehensive Retribution Paladin Glyphs for MoP
 spec:RegisterGlyphs( {
     -- Major Glyphs
-    [56414] = "double_jeopardy",   -- Your Judgment deals 20% additional damage when striking a target already affected by your Judgment.
-    [56420] = "mass_exorcism",     -- Your Exorcism is now instant and hits all targets within 8 yards of your target, but has a 20 sec cooldown.
-    [56416] = "inquisition",       -- Increases the duration of your Inquisition by 30 sec.
-    [63219] = "final_wrath",       -- Avenging Wrath increases the damage of Hammer of Wrath by 50%.
-    [54935] = "templars_verdict",  -- Your Templar's Verdict automatically hits an additional nearby enemy for 50% damage.
-    [57937] = "divine_storm",      -- Increases the damage of Divine Storm by 20%, but removes the healing component of the ability.
-    [56417] = "zealotry",          -- Your Zealotry ability lasts 10 additional seconds.
-    [56421] = "consecration",      -- Increases the radius and damage of your Consecration by 20%.
-    [63220] = "word_of_glory",     -- Your Word of Glory can be used on any target, not just injured ones.
-    [56422] = "hammer_of_justice", -- Your Hammer of Justice is replaced by Hammer of the Righteous.
-    [56415] = "divine_protection", -- Reduces the cooldown of Divine Protection by 60 sec, but its damage reduction is reduced to 20%.
-    [54934] = "seal_of_light",     -- Your Seal of Light now affects up to 3 targets instead of 1.
-    [56419] = "turn_evil",         -- Your Turn Evil spell is now instant cast.
-    [63218] = "divine_favor",      -- Your Divine Favor now increases your spell critical strike chance by 25% for the next 3 spells.
-    [56418] = "cleanse",           -- Your Cleanse spell can be cast on hostile targets to remove beneficial magic effects.
-    [57955] = "devotion_aura",     -- Your Devotion Aura also reduces magical damage taken by party and raid members by 20%.
-    [57958] = "divine_storm_heal", -- Your Divine Storm heals you for 25% of total damage done.
-    [57956] = "blessing_of_kings", -- Your Blessing of Kings increases stats by an additional 5%.
-    [57957] = "blessing_of_might", -- Your Blessing of Might increases attack power by an additional 10%.
-    [63217] = "holy_light",        -- Reduces the cast time of your Holy Light by 0.5 sec.
-    [54936] = "lay_on_hands",      -- Your Lay on Hands grants forbearance for 30 sec less.
-    [56413] = "flash_of_light",    -- Your Flash of Light heals for 50% more, but costs 50% more mana.
-    [57959] = "retribution_aura",  -- Your Retribution Aura reflects 50% more damage.
-    [57960] = "concentration_aura", -- Your Concentration Aura also provides 15% resistance to interrupt effects.
-    [54937] = "divine_shield",     -- Reduces the cooldown of your Divine Shield by 60 sec, but also reduces its duration by 4 sec.
-    [63221] = "avenging_wrath",    -- Your Avenging Wrath increases movement speed by 20%.
-    [56423] = "guardian_spirit",   -- Your Guardian Spirit prevents the target from dying below 10% health.
-    [57961] = "shadow_resistance_aura", -- Your Shadow Resistance Aura also reduces shadow damage taken by 20%.
-    [57962] = "fire_resistance_aura",   -- Your Fire Resistance Aura also reduces fire damage taken by 20%.
-    [57963] = "frost_resistance_aura",  -- Your Frost Resistance Aura also reduces frost damage taken by 20%.
+    [54927] = "avenging_wrath",    -- While Avenging Wrath is active, you are healed for 1% of your maximum health every 2 sec.
+    [54943] = "blessed_life",      -- You have a 50% chance to gain a charge of Holy Power whenever you are affected by a Stun, Fear or Immobilize effect.
+    [54934] = "blinding_light",    -- Your Blinding Light now knocks down targets for 3 sec instead of Blinding them.
+    [54931] = "burden_of_guilt",   -- Your Judgment hits fill your target with doubt and remorse, reducing movement speed by 50% for 2 sec.
+    [146955] = "devotion_aura",     -- Devotion Aura no longer affects party or raid members, but the cooldown is reduced by 60 sec.
+    [54924] = "divine_protection", -- Reduces the magical damage reduction of your Divine Protection to 20% but adds 20% physical damage reduction.
+    [146956] = "divine_shield",     -- Removing harmful effects with Divine Shield heals you for 10% for each effect removed.  This heal cannot exceed 50% of your maximum health.
+    [63220] = "divine_storm",      -- Your Divine Storm also heals you for 5% of your maximum health.
+    [63220] = "divinity",      		-- Increases the cooldown of your Lay on Hands by 2 min but causes it to give you 10% of your maximum mana.
+    [54922] = "double_jeopardy",   -- Your Judgment deals 20% additional damage when striking a target already affected by your Judgment.	
+    [57955] = "flash_of_light",    -- When you Flash of Light a target, it increases your next heal done to that target within 7 sec by 10%.
+    [63219] = "hammer_of_the_righteous", -- The physical damage reduction caused by Hammer of the Righteous now lasts 50% longer.	
+    [146957] = "hand_of_sacrifice", -- Hand of Sacrifice no longer redirects damage to the Paladin.	
+    [54938] = "harsh_words", 		-- Your Word of Glory can now also be used on enemy targets, causing Holy damage approximately equal to the amount it would have healed.
+    [54938] = "immediate_truth", 		-- Increases the instant damage done by Seal of Truth by 40%, but decreases the damage done by Censure by 50%.
+    [63225] = "inquisition",       -- When you land a killing blow on an opponent that yields experience or honor, the duration of your Inquisition is increased by 30 sec.
+    [122028] = "mass_exorcism",     -- Reduces the range of Exorcism to melee range, but causes 25% damage to all enemies within 8 yards of the primary target.
+    [93466] = "protector_of_the_innocent",     -- When you use Word of Glory to heal another target, it also heals you for 20% of the amount.
+    [54926] = "templars_verdict",  -- You take 10% less damage for 6 sec after dealing damage with Templar's Verdict or Exorcism.
+	[119477] = "the_battle_healer",     -- Melee attacks from Seal of Insight heal the most wounded member of your raid or party for 30% of the normal heal instead of you.
+    [54936] = "word_of_glory",     -- Increases your damage by 3% per Holy Power spent after you cast Word of Glory or Eternal Flame on a friendly target. Lasts 6 sec.
 
-    -- Minor Glyphs
-    [57954] = "righteous_retreat", -- When you use Divine Shield, you also become immune to disarm effects, but the cooldown of Divine Shield is increased by 50%.
-    [57947] = "blessed_life",      -- You have a 50% chance to generate 1 charge of Holy Power when you take damage.
-    [43367] = "fire_from_heaven",  -- Your Holy Wrath is channeled, dealing 40% damage per second for 3 sec, and has a 15 sec cooldown.
-    [57948] = "insight",           -- Your spells and abilities reduce the remaining cooldown on your Lay on Hands by 5 sec when they critically hit.
-    [57949] = "justice",           -- Increases the range of your Hammer of Justice by 5 yards.
-    [57950] = "seal_of_blood",     -- Your melee attacks heal you for 2% of the damage dealt.
-    [57951] = "sense_undead",      -- Your Sense Undead ability also increases movement speed by 30% for 15 sec.
-    [57952] = "the_wise",          -- Reduces the mana cost of your Blessing spells by 50%.
-    [57953] = "truth",             -- Reduces the cooldown of your Hand of Reckoning by 2 sec.
-    [43340] = "blessing_of_wisdom", -- Your Blessing of Wisdom increases mana regeneration by an additional 50%.
-    [43355] = "blessing_of_sanctuary", -- Your Blessing of Sanctuary reduces damage taken by an additional 5%.
-    [43356] = "crusader_strike",   -- Your Crusader Strike heals a nearby injured ally for 30% of the damage dealt.
-    [43357] = "divine_storm_visual", -- Your Divine Storm creates a more dramatic visual effect.
-    [43358] = "hammer_of_wrath_range", -- Increases the range of your Hammer of Wrath by 5 yards.
-    [43359] = "seal_of_command",   -- Your Seal of Command has a 25% chance to not trigger its cooldown.
+	--	[54935] = "final_wrath",       -- Your Holy Wrath does an additional 50% damage to targets with less than 20% health.	
+    --	[56417] = "zealotry",          -- Your Zealotry ability lasts 10 additional seconds.
+	--	[54928] = "consecration",      -- You can now target Consecration anywhere within 25 yards.
+    --	[56419] = "turn_evil",         -- Your Turn Evil spell is now instant cast.
+    --	[63218] = "divine_favor",      -- Your Divine Favor now increases your spell critical strike chance by 25% for the next 3 spells.
+    --	[56418] = "cleanse",           -- Your Cleanse spell can be cast on hostile targets to remove beneficial magic effects.
+    --	[57958] = "divine_storm_heal", -- Your Divine Storm heals you for 25% of total damage done.
+    --	[57956] = "blessing_of_kings", -- Your Blessing of Kings increases stats by an additional 5%.
+    --	[57957] = "blessing_of_might", -- Your Blessing of Might increases attack power by an additional 10%.
+    --	[63217] = "holy_light",        -- Reduces the cast time of your Holy Light by 0.5 sec.
+	--	[54936] = "lay_on_hands",      -- Your Lay on Hands grants forbearance for 30 sec less.
+    --	[57959] = "retribution_aura",  -- Your Retribution Aura reflects 50% more damage.
+    --	[57960] = "concentration_aura", -- Your Concentration Aura also provides 15% resistance to interrupt effects.
+    --	[56423] = "guardian_spirit",   -- Your Guardian Spirit prevents the target from dying below 10% health.
+    --	[57961] = "shadow_resistance_aura", -- Your Shadow Resistance Aura also reduces shadow damage taken by 20%.
+    --	[57962] = "fire_resistance_aura",   -- Your Fire Resistance Aura also reduces fire damage taken by 20%.
+    --	[57963] = "frost_resistance_aura",  -- Your Frost Resistance Aura also reduces frost damage taken by 20%.
+
+    -- Minor Glyphs - all just comesmitc
+    --	[115934] = "bladed_judgment", -- Your Judgment spell depicts an axe or sword instead of a hammer, if you have an axe or sword equipped.
+    --	[125043] = "contemplation", -- Allows you a moment of peace as you kneel in quiet contemplation to ponder the nature of the Light.
+    --	[57954] = "fire_from_heaven",  -- Your Judgment and Hammer of Wrath criticals call down fire from the sky.	
+    --	[115933] = "righteous_retreat", -- During Divine Shield, you can invoke your Hearthstone 50% faster.
+    --	[57948] = "insight",           -- Your spells and abilities reduce the remaining cooldown on your Lay on Hands by 5 sec when they critically hit.
+    --	[57949] = "justice",           -- Increases the range of your Hammer of Justice by 5 yards.
+    --	[57950] = "seal_of_blood",     -- Your melee attacks heal you for 2% of the damage dealt.
+    --	[57951] = "sense_undead",      -- Your Sense Undead ability also increases movement speed by 30% for 15 sec.
+    --	[57952] = "the_wise",          -- Reduces the mana cost of your Blessing spells by 50%.
+    --	[57953] = "truth",             -- Reduces the cooldown of your Hand of Reckoning by 2 sec.
+    --	[43340] = "blessing_of_wisdom", -- Your Blessing of Wisdom increases mana regeneration by an additional 50%.
+    --	[43355] = "blessing_of_sanctuary", -- Your Blessing of Sanctuary reduces damage taken by an additional 5%.
+    --	[43356] = "crusader_strike",   -- Your Crusader Strike heals a nearby injured ally for 30% of the damage dealt.
+    --	[43357] = "divine_storm_visual", -- Your Divine Storm creates a more dramatic visual effect.
+    --	[43358] = "hammer_of_wrath_range", -- Increases the range of your Hammer of Wrath by 5 yards.
+    --	[43359] = "seal_of_command",   -- Your Seal of Command has a 25% chance to not trigger its cooldown.
 } )
 
 -- Helper function for consistent aura detection
@@ -405,7 +415,7 @@ spec:RegisterAuras( {
 
     -- Divine Purpose: Free and enhanced Holy Power ability
     divine_purpose = {
-        id = 86172,
+        id = 90174,
         duration = 8,
         max_stack = 1,
         generate = function( t )
@@ -464,12 +474,44 @@ spec:RegisterAuras( {
     },
 
     -- Zealotry: Enhanced Crusader Strike damage
-    zealotry = {
-        id = 85696,
-        duration = 20,
-        max_stack = 3,
+    --	zealotry = {
+    --	    id = 85696,
+    --	    duration = 20,
+    --	    max_stack = 3,
+    --	    generate = function( t )
+    --	        local name, icon, count, debuffType, duration, expirationTime, caster = GetPlayerAuraBySpellID(85696)
+	--
+    --	        if name then
+    --	            t.name = name
+    --	            t.count = count > 0 and count or 1
+    --	            t.expires = expirationTime
+    --	            t.applied = expirationTime - duration
+    --	            t.caster = caster
+    --	            t.stacks = count
+    --	            t.up = true
+    --	            t.down = false
+    --	            t.remains = expirationTime - GetTime()
+    --	            return
+    --	        end
+
+    --	        t.count = 0
+    --	        t.expires = 0
+    --	        t.applied = 0
+    --	        t.caster = "nobody"
+    --	        t.stacks = 0
+    --	        t.up = false
+    --	        t.down = true
+    --	        t.remains = 0
+    --	    end
+    --	},
+
+    -- Ancient Power: Guardian of the Kings Buff
+    ancient_power = {
+        id = 86700,
+        duration = 30,
+        max_stack = 12,
         generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = GetPlayerAuraBySpellID(85696)
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetPlayerAuraBySpellID(86700)
 
             if name then
                 t.name = name
@@ -494,7 +536,7 @@ spec:RegisterAuras( {
             t.remains = 0
         end
     },
-
+	
     -- Avenging Wrath: Wings!
     avenging_wrath = {
         id = 31884,
@@ -904,7 +946,7 @@ spec:RegisterAuras( {
 
     -- Tier set bonuses
     ret_tier14_2pc = {
-        id = 105515,
+        id = 123108,
         duration = 3600,
         max_stack = 1,
         generate = function( t )
@@ -931,21 +973,19 @@ spec:RegisterAuras( {
     },
 
     ret_tier14_4pc = {
-        id = 105516,
-        duration = 15,
+        id = 70762,
+        duration = 3600,
         max_stack = 1,
         generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = GetPlayerAuraBySpellID(105516)
-
-            if name and state.set_bonus.tier14_4pc > 0 then
-                t.name = name
+            if state.set_bonus.tier14_4pc > 0 then
+                t.name = "Retribution T14 4-Piece Bonus"
                 t.count = 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
+                t.expires = query_time + 3600
+                t.applied = query_time
+                t.caster = "player"
                 t.up = true
                 t.down = false
-                t.remains = expirationTime - GetTime()
+                t.remains = 3600
                 return
             end
 
@@ -959,20 +999,51 @@ spec:RegisterAuras( {
         end
     },
 
+--    ret_tier14_4pc = {
+--        id = 70762,
+--       duration = 3600,
+--        max_stack = 1,
+--        generate = function( t )
+--            local name, icon, count, debuffType, duration, expirationTime, caster = GetPlayerAuraBySpellID(105516)
+--
+--            if name and state.set_bonus.tier14_4pc > 0 then
+--                t.name = name
+--                t.count = 1
+--               t.expires = expirationTime
+--                t.applied = expirationTime - duration
+--                t.caster = caster
+--                t.up = true
+--                t.down = false
+--                t.remains = expirationTime - GetTime()
+--                return
+--            end
+--
+--            t.count = 0
+--            t.expires = 0
+--            t.applied = 0
+--            t.caster = "nobody"
+--            t.up = false
+--            t.down = true
+--            t.remains = 0
+--        end
+--    },
+
     ret_tier15_2pc = {
-        id = 138170,
-        duration = 3600,
+        id = 138159,
+        duration = 6,
         max_stack = 1,
         generate = function( t )
-            if state.set_bonus.tier15_2pc > 0 then
-                t.name = "Retribution T15 2-Piece Bonus"
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetPlayerAuraBySpellID(138159)
+
+            if name and state.set_bonus.tier15_2pc > 0 then
+                t.name = name
                 t.count = 1
-                t.expires = query_time + 3600
-                t.applied = query_time
-                t.caster = "player"
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
                 t.up = true
                 t.down = false
-                t.remains = 3600
+                t.remains = expirationTime - GetTime()
                 return
             end
 
@@ -987,41 +1058,12 @@ spec:RegisterAuras( {
     },
 
     ret_tier15_4pc = {
-        id = 138171,
-        duration = 6,
-        max_stack = 1,
-        generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = GetPlayerAuraBySpellID(138171)
-
-            if name and state.set_bonus.tier15_4pc > 0 then
-                t.name = name
-                t.count = 1
-                t.expires = expirationTime
-                t.applied = expirationTime - duration
-                t.caster = caster
-                t.up = true
-                t.down = false
-                t.remains = expirationTime - GetTime()
-                return
-            end
-
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-            t.up = false
-            t.down = true
-            t.remains = 0
-        end
-    },
-
-    ret_tier16_2pc = {
-        id = 144959,
+        id = 138164,
         duration = 3600,
         max_stack = 1,
         generate = function( t )
-            if state.set_bonus.tier16_2pc > 0 then
-                t.name = "Retribution T16 2-Piece Bonus"
+            if state.set_bonus.tier15_4pc > 0 then
+                t.name = "Retribution T15 4-Piece Bonus"
                 t.count = 1
                 t.expires = query_time + 3600
                 t.applied = query_time
@@ -1042,14 +1084,15 @@ spec:RegisterAuras( {
         end
     },
 
-    ret_tier16_4pc = {
-        id = 144960,
-        duration = 30,
+
+    ret_tier16_2pc = {
+        id = 144586,
+        duration = 6,
         max_stack = 1,
         generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = GetPlayerAuraBySpellID(144960)
+            local name, icon, count, debuffType, duration, expirationTime, caster = GetPlayerAuraBySpellID(144586)
 
-            if name and state.set_bonus.tier16_4pc > 0 then
+            if name and state.set_bonus.tier16_2pc > 0 then
                 t.name = name
                 t.count = 1
                 t.expires = expirationTime
@@ -1070,6 +1113,33 @@ spec:RegisterAuras( {
         end
     },
 } )
+
+    ret_tier16_4pc = {
+        id = 144586,
+        duration = 3600,
+        max_stack = 1,
+        generate = function( t )
+            if state.set_bonus.tier16_4pc > 0 then
+                t.name = "Retribution T16 4-Piece Bonus"
+                t.count = 1
+                t.expires = query_time + 3600
+                t.applied = query_time
+                t.caster = "player"
+                t.up = true
+                t.down = false
+                t.remains = 3600
+                return
+            end
+
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.up = false
+            t.down = true
+            t.remains = 0
+        end
+    },
 
 -- Abilities
 spec:RegisterAbilities( {
@@ -1225,11 +1295,11 @@ spec:RegisterAbilities( {
 
     -- Long Arm of the Law: Increased movement speed after Judgment
     long_arm_of_the_law = {
-        id = 114158,
+        id = 87173,
         duration = 3,
         max_stack = 1,
         generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 114158 )
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 87173 )
 
             if name then
                 t.name = name
@@ -1468,15 +1538,8 @@ spec:RegisterAbilities( {
 
     exorcism = {
         id = 879,
-        cast = function()
-            if state.buff.art_of_war.up then return 0 end
-            if state.glyph.mass_exorcism.enabled then return 0 end
-            return 1.5
-        end,
-        cooldown = function()
-            if state.glyph.mass_exorcism.enabled then return 20 end
-            return 15
-        end,
+        cast = 0,
+		cooldown = 15,
         gcd = "spell",
 
         spend = function()
@@ -1546,7 +1609,7 @@ spec:RegisterAbilities( {
         toggle = "cooldowns",
 
         startsCombat = false,
-        texture = 409594,
+        texture = 135919,
 
         handler = function()
             applyBuff("guardian_of_ancient_kings")
@@ -1588,7 +1651,7 @@ spec:RegisterAbilities( {
     },
 
     holy_prism = {
-        id = 114165,
+        id = 114852,
         cast = 0,
         cooldown = 20,
         gcd = "spell",
@@ -1620,7 +1683,7 @@ spec:RegisterAbilities( {
         talent = "lights_hammer",
 
         startsCombat = true,
-        texture = 613952,
+        texture = 613955,
 
         handler = function()
             -- Light's Hammer mechanic - ground target AoE that heals allies and damages enemies
@@ -1896,7 +1959,7 @@ spec:RegisterAbilities( {
         end,
 
         startsCombat = true,
-        texture = 138168,
+        texture = 613533,
 
         handler = function()
             gain(1, "holy_power")
