@@ -1,4 +1,4 @@
-local MinBuild, OverBuild = 50400, 0  -- MoP: Set to MoP build number
+local MinBuild, OverBuild = 50500, 0  -- MoP: Set to MoP build number
 local BuildStr, _, _, Build = GetBuildInfo()
 if BuildStr:match("^3.4.") then MinBuild = 30400 end
 -- MoP: Skip build checks for compatibility
