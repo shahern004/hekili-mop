@@ -1,5 +1,6 @@
 ## Monk: Mistweaver
-##actions.precombat+=/stance_of_the_wise_serpent
+##
+actions.precombat+=/stance_of_the_wise_serpent
 actions.precombat+=/chi_burst,if=talent.chi_burst.enabled
 actions.precombat+=/legacy_of_the_white_tiger
 actions.precombat+=/variable,name=tea_up,value=buff.thunder_focus_tea.up
