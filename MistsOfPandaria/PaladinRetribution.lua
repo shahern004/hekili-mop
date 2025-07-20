@@ -303,10 +303,10 @@ spec:RegisterGlyphs( {
     [146956] = "divine_shield",     -- Removing harmful effects with Divine Shield heals you for 10% for each effect removed.  This heal cannot exceed 50% of your maximum health.
     [63220] = "divine_storm",      -- Your Divine Storm also heals you for 5% of your maximum health.
     [63220] = "divinity",      		-- Increases the cooldown of your Lay on Hands by 2 min but causes it to give you 10% of your maximum mana.
-    [54922] = "double_jeopardy",   -- Your Judgment deals 20% additional damage when striking a target already affected by your Judgment.	
+    [54922] = "double_jeopardy",   -- Your Judgment deals 20% additional damage when striking a target already affected by your Judgment.
     [57955] = "flash_of_light",    -- When you Flash of Light a target, it increases your next heal done to that target within 7 sec by 10%.
-    [63219] = "hammer_of_the_righteous", -- The physical damage reduction caused by Hammer of the Righteous now lasts 50% longer.	
-    [146957] = "hand_of_sacrifice", -- Hand of Sacrifice no longer redirects damage to the Paladin.	
+    [63219] = "hammer_of_the_righteous", -- The physical damage reduction caused by Hammer of the Righteous now lasts 50% longer.
+    [146957] = "hand_of_sacrifice", -- Hand of Sacrifice no longer redirects damage to the Paladin.
     [54938] = "harsh_words", 		-- Your Word of Glory can now also be used on enemy targets, causing Holy damage approximately equal to the amount it would have healed.
     [54938] = "immediate_truth", 		-- Increases the instant damage done by Seal of Truth by 40%, but decreases the damage done by Censure by 50%.
     [63225] = "inquisition",       -- When you land a killing blow on an opponent that yields experience or honor, the duration of your Inquisition is increased by 30 sec.
@@ -316,7 +316,7 @@ spec:RegisterGlyphs( {
 	[119477] = "the_battle_healer",     -- Melee attacks from Seal of Insight heal the most wounded member of your raid or party for 30% of the normal heal instead of you.
     [54936] = "word_of_glory",     -- Increases your damage by 3% per Holy Power spent after you cast Word of Glory or Eternal Flame on a friendly target. Lasts 6 sec.
 
-	--	[54935] = "final_wrath",       -- Your Holy Wrath does an additional 50% damage to targets with less than 20% health.	
+	--	[54935] = "final_wrath",       -- Your Holy Wrath does an additional 50% damage to targets with less than 20% health.
     --	[56417] = "zealotry",          -- Your Zealotry ability lasts 10 additional seconds.
 	--	[54928] = "consecration",      -- You can now target Consecration anywhere within 25 yards.
     --	[56419] = "turn_evil",         -- Your Turn Evil spell is now instant cast.
@@ -337,7 +337,7 @@ spec:RegisterGlyphs( {
     -- Minor Glyphs - all just comesmitc
     --	[115934] = "bladed_judgment", -- Your Judgment spell depicts an axe or sword instead of a hammer, if you have an axe or sword equipped.
     --	[125043] = "contemplation", -- Allows you a moment of peace as you kneel in quiet contemplation to ponder the nature of the Light.
-    --	[57954] = "fire_from_heaven",  -- Your Judgment and Hammer of Wrath criticals call down fire from the sky.	
+    --	[57954] = "fire_from_heaven",  -- Your Judgment and Hammer of Wrath criticals call down fire from the sky.
     --	[115933] = "righteous_retreat", -- During Divine Shield, you can invoke your Hearthstone 50% faster.
     --	[57948] = "insight",           -- Your spells and abilities reduce the remaining cooldown on your Lay on Hands by 5 sec when they critically hit.
     --	[57949] = "justice",           -- Increases the range of your Hammer of Justice by 5 yards.
@@ -372,8 +372,55 @@ local function GetTargetDebuffByID(spellID, caster)
     return nil
 end
 
+-- Create custom Blessings aura
+spec:RegisterAuras({
+    blessing = {
+        id = 20217, -- Use Blessing of Kings as primary ID
+        duration = 3600,
+        max_stack = 1,
+        generate = function( t )
+            -- Blessing of Kings
+            local nameKings, iconKings, countKings, debuffTypeKings, durationKings, expirationTimeKings, casterKings = FindUnitBuffByID("player", 20217)
+            if nameKings then
+                t.name = nameKings
+                t.count = 1
+                t.expires = expirationTimeKings or 0
+                t.applied = (expirationTimeKings and durationKings) and (expirationTimeKings - durationKings) or 0
+                t.caster = casterKings
+                t.up = true
+                t.down = false
+                t.remains = expirationTimeKings and (expirationTimeKings - GetTime()) or 0
+                return
+            end
+
+            -- Blessing of Might
+            local nameMight, iconMight, countMight, debuffTypeMight, durationMight, expirationTimeMight, casterMight = FindUnitBuffByID("player", 19740)
+            if nameMight then
+                t.name = nameMight
+                t.count = 1
+                t.expires = expirationTimeMight or 0
+                t.applied = (expirationTimeMight and durationMight) and (expirationTimeMight - durationMight) or 0
+                t.caster = casterMight
+                t.up = true
+                t.down = false
+                t.remains = expirationTimeMight and (expirationTimeMight - GetTime()) or 0
+                return
+            end
+
+            -- No blessing found
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.up = false
+            t.down = true
+            t.remains = 0
+        end
+    }
+})
+
 -- Advanced Retribution Paladin Auras with Enhanced Generate Functions
-spec:RegisterAuras( {
+spec:RegisterAuras({
 
     -- Inquisition: Key damage buff with enhanced tracking
     inquisition = {
@@ -536,7 +583,7 @@ spec:RegisterAuras( {
             t.remains = 0
         end
     },
-	
+
     -- Avenging Wrath: Wings!
     avenging_wrath = {
         id = 31884,
@@ -2224,4 +2271,4 @@ spec:RegisterOptions( {
 } )
 
 -- Register default pack for MoP Retribution Paladin
-spec:RegisterPack( "Retribution", 20250715, [[Hekili:9M1wVTTnu4FlfdWOPRtZw2EjDikp09YAFOyyQpljAzABUOBJKkPgWq)23HuwwKuKsozB9H26sEU8DUYZbkAr0xJc3I44OV4p3F98BxS2ZF(6vl8Jc5hRWrHvO0hr7HFuGYH)(pXCkztnNuw0K87KCmQj5Jyosq4XSs0wHazL10uG4qs(Vrr74njRxD3pDxu4MAsg)tfrBSRuGZkCA0xUDEu4bY2T4wkXS0OWVEGWAse)b04zq1KuUd()PTOjJW4W17kPaYWpsYiEaQOL7izaw(HMK)aLH2sk(1MevR4ZT8Z8QO40Y8ni(pg8ZBYWmgPyFC5U4hH)L9EYUG3SPE3opghXzE1vtZyoz)bEpJ5ightp6KvggLjyJtR5heSji6jCmUaNtWS7xnoBuH2WL1Scabdz)Hah8xv26gUC7LZec5TsOVjRSCBwnJ7rXavNozECD1m5jONWf7fM)Zue)aC8nNoXr09yUhhswI5LXBj47dwn)gv9rk(7AcJORuLd92w(CXPtdoMIZrKc29b(3m7ThkZogxv(mM(qWsRQTNI35p)S42sEIuGJRQPvLmCR9PHnDtsaVbWqjIcmSVgr3sqfIGcQiLGl495qtWReHsnIPcY5OmGDp1J9WfiilB7SHEjik0BIcNIQORz4ychN)ErHCaK)x8iMVqOKNquIqKENpmMDSinMLvYdwmZMsmJ(krN(dH6K0hdwCfGWFcq4)FmiKxhVRMEu7umLHPIaLw0NMIkejqukeiuVb)nCQSdsmdUbxKIvcydVC8W2lZy0SMmrDpl(akpxlNr78)30(5Yhg4GYT10XxTUmy9ifDDnv0Y11YOHY6XvUQStP1m0wqesHptfeQIaYfRYquw8tyOOnv2U2cGhfutjpNM8m7302tBLwFbzuu0rr2fs9QNre(7z40G0YYmrKZZG4ojkGYu08W8ztrY9bZ98FLrb7VrCv(Vr5QhQ8d4(xch)vqGVo4bGNsEepUB1GyRUvh0O6wDqYa3k(BL0ucZrvL(jWdQZyqpZnLf1mqI8yobtxSo2VkD2(SJvhetFWI7Kzx7av99x1B3NB0JBOtOJkRwV5LQMT5D)lsJUQ8fB1B2CVJBUxCy2mxZlvnxZ7gyUobUs0BvvQOzJrSE1lR)RRHMEy1vbNj5STvi9CMQ6alYd7s1IcFgrleJbff(P8Qskhs)s8ngF3R5ZrHYFjxmbVdvNXHF(f5IkDI6JrHPuymcyIHOW32Ky8svBSo50PMKHxcnosMD(0H9usUPLVHdp2KCFqtYQ5ajrHTyg2UqoNCehwKzs8zooBRIC5JBvNVeqZK2r)tonjpa3TCeKQt97abnxrDwlnunlf8iSTLoTnldt0lfDVRqqREDcY5a1czU2Pmhz25oFQf1kVs171fh6XJQefq4xmGqhDDZyRck3J52KakArFYPfynmB2irYyATwr2c(213Vaja23ooS9FbW2)7dS9fW(obS7WA)O8QMcq1h0O6YO9guTyUkz6Z6BsQ7oqtoZ)uPBVEhKwE5qaibU7wtJTPW3jmRPBjCD3Tr)TT2UG(2ApcNVEY(DQppymE)GEaN73QdD1NELiFI2B2NLXuvcSpIoC3UBehWvzEknamMfqQyZMC2nodF8mxrGU34GxuNqV3QwHASsIzj6DgyegLda6e7Z0lDX4FQg2uCcoUMK5sRCAsfpJaJakX5hUkFPLef7tT4oDXF(4AAerzly47UhOTAZv2cCAlOjfQVAe2y7iJiSVzZb9iSJvRUIiSdoTfHDsQse23DRa3nXmVroVP8gxR2jVCK17uFAO9gj4wR6W72lZ0tBwVR7Pn3M7kCXMSyZ3oKgvNQ5alxtzZi1gMDlUIoAtuEOn0XfxUUJDPzjPUJ1CVXRWXAYInh7qAuCSlDxwl9ed2i1E66K9Yx6Ese3vfUxq6bnfAgEx(c2AXHiTAdURShz13lTbVCxKqAHx(omrwwXTJPnMFlQ2pjgLu1EV1pRLkWEZzVy3xUsMR60m6OU)ZvzhkYVUL0LC1rv9ueTV3LqqVSMMwKK2NatirToDNxwxRCugfqG(lPrHYpNP8OO)5p]] )
+spec:RegisterPack( "Retribution", 20250720, [[Hekili:9M1xVTTnq8plfdWOPRttw2ojDiYpS9sBEOyyQpljgjABoR)nsQKAad9zFKuwwKuKsQPOfdRnL3X7(D)L3ffUm8lHbPakm8ZEUEBCVZZ1z5TEBwVkmGEQcggubsoc2Z(Hcqo7p)hifJEQMIkl40oLvcs5YGuwJty0dq5)fgSJ2eVz99)29HbpvJYOFQi8PH6zZ6nRVJD1kys4NVZnm4aknf2YkKKeg8Ldistm))bnXxastC5o2)oHJGM4meHYiVRe3e)r4rugYHblC5ougdm)st8FdYaPOI)Ojwc5np2EFItfgMuM)eG(R()(tzqcbvSpQCx0r2FtEpAN)BEQE3ohcfqjo1vlA)NDCYozArLJ2FG2lQCaHcXN(gegbcY4cIIRPhKWK8XCXXV7ZWiybmhbjpSECPH5WcwwtkyQFOuvipu6B9Ti(Qs7o4)ToDFoSG28i))UWX17WXWBV4rkltZQjuhmKX15ZThdksqSBhvv(ceZHu7Ppdl2ZD1VGbc)WnNptb49qQdfLdJOLrPi4d(RDVrwNOI)RgrqQkw6qN0YxkoFEWXyyoavqEW37MfV9qz2Pw4S1FLr12ZX78CViUu0ZOcyuvnUQKaBTrfSPAsC4nags5kSlSVgGtrGcEGRZlDndEI7kqOqJqmNDkiJDDh5JDGfawwA6IHEjwuO3e5ofzrxtGrikm)98wh(SQVIJq6sUsEgGrCr6C5WiYPIKiswj1F5ctkXugGuesLaRAn5O)YzagVjaJ3piWiYWJ2vJpPCketGyEGtjBaNak4juySO2PNc8RWer)SicJcSibkfahsC8W4RZOuSQmEpds0bqEUsUKY5)WrXLYlcZHLZbHEJlp56w)nJuu214rPwqjJNv2pUYLLDcUMaszIqi8fYGqweSC0QmaMe9mKvuNiE6WaGhfutjpRM8cZuA75TwPVHiAY74i6sjt6faI(EcmXpPSmJh9C0yUtICOmfpBDxmflp47649kJcMFdzw(VrVvpuPhG9VMAkHuXT29g580sNXWmvm6iC8GGgZgdcw4roiyHLbbb4xlXjiILAq1typp3gjWS2VueeVCtKxvYI9zNQoWhzIe1jUU(hMCAJB)DCz0W1jkBX60(oY3MvILPcttE2Xn3RomtMRorzZvN2aZ1kWLIERRsgDM0z1O220xBxpl4m5nB7zIVKKkp5J4WUuTWaMKjS70T8YYnHbVaWf8rScd(uEvjMYYiJ90wmXP5XWaXpjwZcUduNrz)4NfRD1j9)mmibZgnHnfsyWBBIfyxBg4M4ZNBI7iQpjCt8Iokd6weFt7DhoCAt8d(nXRDzSeg0IB2UtIzXdPmtDsmQpUCRIS56BvNNaqle2s)twnXBz0wncsv5(Dmb5kPoJvmYMLeE422kR2MHHs6LIQ3LlO1VobzDGDUm3yvMJmBENp1GAfKK9EDXHE8ilroeU1keSpSCtmtSl7tfnacZ5VAPogMXRv0TqU9xdr3Ye9MW1tyW)Uxl89(5cFVbW3Jd)75WVJq)QcYMeJRpOW11vh04APRmBQ7sOZQ9UstUtXuPFF)UoL81Harya2Bzn2Mi)KXUcgeW2E3i1NeB7s6zQ9j78nt2pu(jeT1hg0J4s)yvOl)ITa5t0(Z8iq6QIJ9r0H92HJ4aML5jv9PncHqX2BcoIpEHTiq3BGSxCNqV3jxXQTYJEj79AyKnbidOtSVuV05tnkBytDtMJRj2vyLtZk)zg2KJcC(Hz5lnKOyEQg7PlEUJRPreLPGHN9EIMQnxBkWPSaOqO27tnfg7wfriMvYjkARLPLO4PxPQMOyzNUzKOy5MMsuSYQuIIN9QD79c1PigRTp7rDNsX5JSxP8JmTue46wzF91OGMtwFUdvNS(AKZW7QFftU1H8i7p1BqmNcVrQUMxDSspXXlWwPmFYvxUQJDLEvOQJvFH1z4y1VIjh7qEKCSRMOgEWQWMZuN81GvVMHdSVc2wffQhEx9nSoJfrA0gM3gnA7CFTr6vAHCPfC9lkfAyrA(3neJQAVPXV9NS2FZfxv3N3t48EZ1nWV(D5KMZw)BekQkSAEDYQ)J(9TPcX3ou4cNuf6FoWzKVPCfUwSh(11I(Nh0O20Er04D5QDJClGl)ciuBamJUVICdaZqkXHbFeLdbIJc))]] )

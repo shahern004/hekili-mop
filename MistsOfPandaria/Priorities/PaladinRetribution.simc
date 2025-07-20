@@ -1,6 +1,7 @@
 # Paladin: Retribution
-actions.precombat+=/blessing_of_kings,if=!buff.stats.up
-actions.precombat+=/blessing_of_might,if=!buff.mastery.up
+# SimCraft 548-8
+actions.precombat+=/blessing_of_kings,if=!buff.stats.up&!buff.blessing.up
+actions.precombat+=/blessing_of_might,if=!buff.mastery.up&!buff.blessing.up
 actions.precombat+=/seal_of_truth,if=!buff.seal_of_truth.up&active_enemies<4
 actions.precombat+=/seal_of_righteousness,if=!buff.seal_of_righteousness.up&active_enemies>=4
 actions.precombat+=/potion
