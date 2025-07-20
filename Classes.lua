@@ -337,7 +337,7 @@ local HekiliSpecMixin = {
         end
 
         self.auras[ aura ] = a
-        
+
         -- Always add to class.auras with the key for validation purposes
         class.auras[ aura ] = a
 
@@ -1832,93 +1832,147 @@ all:RegisterAuras({
 
     -- MoP Buff Categories
     stats = {
-        alias = {
-            "blessing_of_kings",
-            "embrace_of_the_shale_spider",
-            "legacy_of_the_emperor",
-            "mark_of_the_wild"
-        },
-        aliasMode = "latest",
-        aliasType = "buff",
-        shared = "target",
-        shared_aura = true
+        id = 20217, -- Use Blessing of Kings as primary ID
+        duration = 3600,
+        max_stack = 1,
+        generate = function( t )
+            -- Blessing of Kings
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 20217)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- Embrace of the Shale Spider
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 90363)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- Legacy of the Emperor
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 115921)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- Mark of the Wild
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 1126)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- No stats buff found
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.up = false
+            t.down = true
+            t.remains = 0
+        end
     },
 
     mastery = {
-        alias = {
-            "blessing_of_might",
-            "grace_of_air",
-            "roar_of_courage",
-            "spirit_beast_blessing"
-        },
-        aliasMode = "latest",
-        aliasType = "buff",
-        shared = "target",
-        shared_aura = true
-    },
-
-    blessing_of_kings = {
-        id = 20217,
+        id = 19740, -- Use Blessing of Might as primary ID
         duration = 3600,
         max_stack = 1,
-        shared = "target",
-        shared_aura = true
-    },
+        generate = function( t )
+            -- Blessing of Might
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 19740)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
 
-    embrace_of_the_shale_spider = {
-        id = 90363,
-        duration = 3600,
-        max_stack = 1,
-        shared = "target",
-        shared_aura = true
-    },
+            -- Grace of Air (Shaman)
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 116956)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
 
-    legacy_of_the_emperor = {
-        id = 115921,
-        duration = 3600,
-        max_stack = 1,
-        shared = "target",
-        shared_aura = true
-    },
+            -- Roar of Courage (Hunter pet)
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 93435)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
 
-    mark_of_the_wild = {
-        id = 1126,
-        duration = 3600,
-        max_stack = 1,
-        shared = "target",
-        shared_aura = true
-    },
+            -- Spirit Beast Blessing (Hunter pet)
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 128997)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
 
-    blessing_of_might = {
-        id = 19740,
-        duration = 3600,
-        max_stack = 1,
-        shared = "target",
-        shared_aura = true
-    },
-
-    grace_of_air = {
-        id = 116956,
-        duration = 3600,
-        max_stack = 1,
-        shared = "target",
-        shared_aura = true
-    },
-
-    roar_of_courage = {
-        id = 93435,
-        duration = 3600,
-        max_stack = 1,
-        shared = "target",
-        shared_aura = true
-    },
-
-    spirit_beast_blessing = {
-        id = 128997,
-        duration = 3600,
-        max_stack = 1,
-        shared = "target",
-        shared_aura = true
+            -- No mastery buff found
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.up = false
+            t.down = true
+            t.remains = 0
+        end
     },
 
     out_of_range = {
