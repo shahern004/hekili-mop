@@ -1479,10 +1479,7 @@ RegisterUnitEvent( "UNIT_POWER_FREQUENT", "player", nil, UNIT_POWER_FREQUENT )
 local autoAuraKey = setmetatable( {}, {
     __index = function( t, k )
         local name = GetSpellInfo( k )
-
-        if not name then return end
-
-        local key = formatKey( name )
+        local key = name and formatKey( name ) or k
 
         if class.auras[ key ] then
             local i = 1
@@ -1521,101 +1518,12 @@ do
         local model = class.auras[ id ]
 
         instanceDB[ aura.auraInstanceID ] = aura.isBossAura or aura.isStealable or model and ( model.shared or model.used and aura.isFromPlayerOrPlayerPet )
-    end    RegisterUnitEvent( "UNIT_AURA", "player", "target", function( event, unit, data )
-        -- MoP: Modern aura API not available, skip instance tracking
-        --[[ Original retail code:
-        if not AuraUtil or not AuraUtil.ForEachAura or not data then return end
-        
-        local isPlayer = ( unit == "player" )
-        instanceDB = isPlayer and playerInstances or targetInstances
-
-        if data.isFullUpdate then
-            wipe( instanceDB )
-
-            AuraUtil.ForEachAura( unit, "HELPFUL", nil, StoreInstanceInfo, true )
-            AuraUtil.ForEachAura( unit, "HARMFUL", nil, StoreInstanceInfo, true )
-
-            state[ unit ].updated = true
-            Hekili:ForceUpdate( "UNIT_AURA_FULL", true )
-            return
-        end
-        ]]
-        
-        -- MoP: Simple fallback without instance tracking or cache updates
-        if unit == "player" or unit == "target" then
-            state[ unit ].updated = true
-            -- Force aura rescan for MoP compatibility
-            if ns.scanAuras then
-                ns.scanAuras( unit )
-            end
-            Hekili:ForceUpdate( "UNIT_AURA_MOP", true )
-        end        --[[ MoP: Rest of modern aura code disabled
-        local forceUpdateNeeded = false
-
-        if data.addedAuras and #data.addedAuras > 0 then
-            for _, aura in ipairs( data.addedAuras ) do
-                local id = aura.spellId
-                local model = class.auras[ id ]
-
-                local ofConcern = aura.isBossAura or aura.isStealable or model and ( model.shared or model.used and aura.isFromPlayerOrPlayerPet )
-                instanceDB[ aura.auraInstanceID ] = ofConcern
-
-                if ofConcern then
-                    forceUpdateNeeded = true
-                end
-            end
-        end
-
-        if data.updatedAuraInstanceIDs and #data.updatedAuraInstanceIDs > 0 then
-            for _, instance in ipairs( data.updatedAuraInstanceIDs ) do
-                local aura = GetAuraDataByAuraInstanceID( unit, instance )
-                local ofConcern = false
-
-                if aura then
-                    local id = aura.spellId
-                    local model = class.auras[ id ]
-
-                    ofConcern = aura.isBossAura or aura.isStealable or model and ( model.shared or model.used and aura.isFromPlayerOrPlayerPet )
-                    instanceDB[ instance ] = ofConcern
-                end
-
-                if ofConcern then
-                    forceUpdateNeeded = true
-                end
-            end
-        end
-
-        if data.removedAuraInstanceIDs and #data.removedAuraInstanceIDs > 0 then
-            for _, instance in ipairs( data.removedAuraInstanceIDs ) do
-                if instanceDB[ instance ] then forceUpdateNeeded = true end
-                instanceDB[ instance ] = nil
-            end
-        end
-
+    end    RegisterUnitEvent( "UNIT_AURA", "player", "target", function( event, unit )
+        -- Cataclysm-style UNIT_AURA handling - simple and direct
         state[ unit ].updated = true
-
-        if forceUpdateNeeded then Hekili:ForceUpdate( "UNIT_AURA_ITER" ) end
-        ]]
+        Hekili:ForceUpdate( event, true )
     end )    RegisterEvent( "PLAYER_TARGET_CHANGED", function( event )
-        -- MoP: Simplified target change handling without instance tracking
-        --[[ Original retail code:
-        instanceDB = targetInstances
-        wipe( instanceDB )        if UnitExists( "target" ) then
-            if AuraUtil and AuraUtil.ForEachAura then
-                AuraUtil.ForEachAura( "target", "HELPFUL", nil, StoreInstanceInfo, true )
-                AuraUtil.ForEachAura( "target", "HARMFUL", nil, StoreInstanceInfo, true )
-            end        end
-        ]]
-        
-        -- MoP: Simple target change handling
-        if UnitExists( "target" ) then
-            state.target.updated = true
-            Hekili:ForceUpdate( "PLAYER_TARGET_CHANGED_MOP", true )
-        end
-
-        if state.target then
-            state.target.updated = true
-        end
+        state.target.updated = true
         Hekili:ForceUpdate( event, true )
     end )
 end

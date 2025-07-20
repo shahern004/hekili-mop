@@ -1,6 +1,14 @@
 # Hunter: Beast Mastery
 # Updated July 06, 2025 
 
+# Settings
+# pet_healing=0 - Pet healing threshold (0-100, 0 disables)
+# avoid_bw_overlap=false - Avoid Bestial Wrath overlap
+# mark_any=false - Hunter's Mark any target
+# check_pet_range=false - Check pet range for Kill Command
+# thrill_of_the_hunt_priority=true - Prioritize Thrill of the Hunt usage
+# focus_dump_threshold=80 - Focus dump threshold (50-120)
+
 # Pre-combat setup and pet management
 actions.precombat+=/flask,type=spring_blossoms
 actions.precombat+=/food,type=sea_mist_rice_noodles
@@ -38,8 +46,9 @@ actions.focus_fire_management+=/focus_fire,if=pet.alive&buff.frenzy.stack>=3&(bu
 actions.focus_fire_management+=/bestial_wrath,if=pet.alive&(focus>=50|buff.dire_beast.up)&cooldown.focus_fire.ready&buff.frenzy.stack>=5
 actions.focus_fire_management+=/bestial_wrath,if=pet.alive&(focus>=50|buff.dire_beast.up)&buff.frenzy.stack<=2
 
-# Core rotation priorities
-actions.core_rotation+=/serpent_sting,if=!debuff.serpent_sting.up|(debuff.serpent_sting.remains<=4.5&target.time_to_die>6)
+# Core rotation priorities (updated based on interface)
+actions.core_rotation+=/serpent_sting,if=!debuff.serpent_sting.up
+actions.core_rotation+=/serpent_sting,if=debuff.serpent_sting.remains<=6&target.time_to_die>6
 actions.core_rotation+=/kill_command,if=pet.alive&(buff.bestial_wrath.up|focus>=60|buff.dire_beast.up)
 actions.core_rotation+=/kill_shot,if=target.health_pct<=20
 actions.core_rotation+=/rapid_fire,if=!buff.rapid_fire.up&focus>=25

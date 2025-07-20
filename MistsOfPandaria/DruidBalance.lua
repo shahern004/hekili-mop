@@ -1,8 +1,4 @@
-print( "DruidBalance.lua: Loading... Hekili=" .. tostring(Hekili) .. ", NewSpecialization=" .. tostring(Hekili and Hekili.NewSpecialization) )
-if not Hekili or not Hekili.NewSpecialization then 
-    print( "DruidBalance.lua: ABORTING - Hekili or NewSpecialization not available" )
-    return 
-end
+
 -- DruidBalance.lua
 -- Updated May 28, 2025 - Modern Structure
 -- Mists of Pandaria module for Druid: Balance spec

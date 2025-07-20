@@ -5667,7 +5667,7 @@ end
 
 local all = class.specs[ 0 ]
 
--- 04072017: Let's go ahead and cache aura information to reduce overhead.
+-- Cataclysm-style: Simple and clean autoAuraKey without recursion issues
 local autoAuraKey = setmetatable( {}, {
     __index = function( t, k )
         local aura_name = GetSpellInfo( k )
@@ -5692,7 +5692,7 @@ local autoAuraKey = setmetatable( {}, {
         end
         name = name or aura_name
 
-        local key = formatKey( aura_name )
+        local key = ns.formatKey( aura_name )
 
         if class.auras[ key ] then
             local i = 1
@@ -5809,13 +5809,13 @@ do
             v.lastCount = newTarget and 0 or v.count
             v.lastApplied = newTarget and 0 or v.applied
 
-            v.last_application = max( 0, v.applied, v.last_application or 0 )
-            v.last_expiry  = max( 0, v.expires, v.last_expiry or 0 )
+            v.last_application = max( 0, v.applied or 0, v.last_application or 0 )
+            v.last_expiry  = max( 0, v.expires or 0, v.last_expiry or 0 )
 
             v.count = 0
             v.expires = 0
             v.applied = 0
-            -- v.duration = class.auras[ k ] and class.auras[ k ].duration or v.duration
+            v.duration = class.auras[ k ] and class.auras[ k ].duration or v.duration
             v.caster = "nobody"
             v.timeMod = 1
             v.v1 = 0
@@ -5831,7 +5831,7 @@ do
             v.count = 0
             v.expires = 0
             v.applied = 0
-            -- v.duration = class.auras[ k ] and class.auras[ k ].duration or v.duration
+            v.duration = class.auras[ k ] and class.auras[ k ].duration or v.duration
             v.caster = "nobody"
             v.timeMod = 1
             v.v1 = 0
@@ -5840,28 +5840,19 @@ do
             v.unit = unit
         end
 
-        state[ unit ].updated = false
         if not UnitExists( unit ) then return end
 
+        -- Cataclysm-style: Simple buff scanning
         local i = 1
         while ( true ) do
-            -- MoP compatibility: Use UnitBuff instead of GetBuffDataByIndex
-            local name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3
-            if GetBuffDataByIndex then
-                local buffData = GetBuffDataByIndex( unit, i )
-                if not buffData then break end
-                name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnpackAuraData( buffData )
-            else
-                -- MoP fallback
-                name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnitBuff( unit, i )
-            end
+            local name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnitBuff( unit, i )
             if not name then break end
 
             local aura = class.auras[ spellID ]
             local shared = aura and aura.shared
             local key = aura and aura.key or autoAuraKey[ spellID ]
 
-            if aura and key and ( shared or caster and ( UnitIsUnit( caster, "player" ) or UnitIsUnit( caster, "pet" ) ) ) then
+            if key and ( shared or caster and ( UnitIsUnit( caster, "player" ) or UnitIsUnit( caster, "pet" ) ) ) then
                 db.buff[ key ] = db.buff[ key ] or {}
                 local buff = db.buff[ key ]
 
@@ -5873,20 +5864,15 @@ do
                 buff.key = key
                 buff.id = spellID
                 buff.name = name
-                if buff.count and buff.count > 0 then
-                    buff.count = buff.count + ( count > 0 and count or 1 )
-                    buff.expires = max( buff.expires, expires )
-                else
-                    buff.count = count > 0 and count or 1
-                    buff.expires = expires
-                end
+                buff.count = count > 0 and count or 1
+                buff.duration = duration
+                buff.expires = expires
                 buff.applied = expires - duration
-                -- buff.duration = duration
                 buff.caster = caster
-                buff.timeMod = timeMod
-                buff.v1 = v1
-                buff.v2 = v2
-                buff.v3 = v3
+                buff.timeMod = timeMod or 1
+                buff.v1 = v1 or 0
+                buff.v2 = v2 or 0
+                buff.v3 = v3 or 0
 
                 buff.last_application = buff.last_application or 0
                 buff.last_expiry      = buff.last_expiry or 0
@@ -5897,25 +5883,17 @@ do
             i = i + 1
         end
 
+        -- Cataclysm-style: Simple debuff scanning
         i = 1
         while ( true ) do
-            -- MoP compatibility: Use UnitDebuff instead of GetDebuffDataByIndex
-            local name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3
-            if GetDebuffDataByIndex then
-                local debuffData = GetDebuffDataByIndex( unit, i )
-                if not debuffData then break end
-                name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnpackAuraData( debuffData )
-            else
-                -- MoP fallback
-                name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnitDebuff( unit, i )
-            end
+            local name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnitDebuff( unit, i )
             if not name then break end
 
             local aura = class.auras[ spellID ]
             local shared = aura and aura.shared
             local key = aura and aura.key or autoAuraKey[ spellID ]
 
-            if aura and key and ( shared or caster and ( UnitIsUnit( caster, "player" ) or UnitIsUnit( caster, "pet" ) ) ) then
+            if key and ( shared or caster and ( UnitIsUnit( caster, "player" ) or UnitIsUnit( caster, "pet" ) ) ) then
                 db.debuff[ key ] = db.debuff[ key ] or {}
                 local debuff = db.debuff[ key ]
 
@@ -5928,67 +5906,28 @@ do
                 debuff.id = spellID
                 debuff.name = name
                 debuff.count = count > 0 and count or 1
+                debuff.duration = duration
                 debuff.expires = expires
-                -- debuff.duration = duration
                 debuff.applied = expires - duration
                 debuff.caster = caster
-                debuff.timeMod = timeMod
-                debuff.v1 = v1
-                debuff.v2 = v2
-                debuff.v3 = v3
+                debuff.timeMod = timeMod or 1
+                debuff.v1 = v1 or 0
+                debuff.v2 = v2 or 0
+                debuff.v3 = v3 or 0
 
                 debuff.unit = unit
             end
 
             i = i + 1
         end
-
-            i = 1
-            while ( true ) do
-                local name, _, count, _, duration, expires, caster, _, _, spellID, _, _, _, _, timeMod, v1, v2, v3 = UnitDebuff( unit, i, "MAW" )
-                if not name then break end
-
-                local aura = class.auras[ spellID ]
-                local key = aura and aura.key
-
-                if not key then key = autoAuraKey[ spellID ] end
-
-                if key then
-                    db.debuff[ key ] = db.debuff[ key ] or {}
-                    local debuff = db.debuff[ key ]
-
-                    if expires == 0 then
-                        expires = GetTime() + 3600
-                        duration = 7200
-                    end
-
-                    debuff.key = key
-                    debuff.id = spellID
-                    debuff.name = name
-                    debuff.count = count > 0 and count or 1
-                    debuff.expires = expires
-                    -- debuff.duration = duration                    debuff.applied = expires - duration
-                    debuff.caster = caster
-                    debuff.timeMod = timeMod
-                    debuff.v1 = v1
-                    debuff.v2 = v2
-                    debuff.v3 = v3
-
-                    if aura and debuff.count > aura.max_stack then aura.max_stack = debuff.count end
-
-                    debuff.unit = unit
-                end
-                i = i + 1
-            end
     end
-end
 
     Hekili.ScrapeUnitAuras = state.ScrapeUnitAuras
 
     Hekili:ProfileCPU( "ScrapeUnitAuras", state.ScrapeUnitAuras )
 
     Hekili.AuraDB = ns.auras
-
+end
 local ScrapeUnitAuras = state.ScrapeUnitAuras
 
 

@@ -64,6 +64,63 @@ spec:RegisterHook( "reset_precast", function()
     else
         removeBuff( "cat_form" )
     end
+    
+    -- COMPREHENSIVE DEBUG: Track the complete aura mapping process
+    if UnitExists("target") then
+        print("=== COMPLETE AURA MAPPING ANALYSIS ===")
+        
+        -- 1. Check if spell IDs are properly mapped in class.auras
+        for _, spellID in ipairs({770, 1822}) do
+            local aura = class.auras[ spellID ]
+            print(string.format("class.auras[%d] = %s", spellID, 
+                aura and string.format("{key='%s', id=%s}", aura.key or "nil", tostring(aura.id)) or "nil"))
+        end
+        
+        -- 2. Check what UnitDebuff actually returns and how keys are generated
+        print("=== UnitDebuff RAW DATA & KEY GENERATION ===")
+        for i = 1, 10 do
+            local name, _, count, _, duration, expires, caster, _, _, spellID = UnitDebuff("target", i)
+            if not name then break end
+            if spellID == 770 or spellID == 1822 then
+                local aura = class.auras[ spellID ]
+                local key_from_aura = aura and aura.key
+                local key_from_name = ns.formatKey(name)
+                local final_key = key_from_aura or key_from_name
+                print(string.format("SpellID %d: name='%s', aura.key='%s', formatKey(name)='%s', final_key='%s'", 
+                    spellID, name, tostring(key_from_aura), key_from_name, final_key))
+            end
+        end
+        
+        -- 3. Check what's in the actual auras database after ScrapeUnitAuras
+        print("=== AURAS DATABASE FINAL STATE ===")
+        if state.auras and state.auras.target and state.auras.target.debuff then
+            for k, v in pairs(state.auras.target.debuff) do
+                if v.id == 770 or v.id == 1822 then
+                    local timeLeft = v.expires > 0 and (v.expires - GetTime()) or 0
+                    print(string.format("auras.target.debuff['%s'] = {id=%s, expires=%.2f, timeLeft=%.2f, count=%d}", 
+                        k, tostring(v.id), v.expires or 0, timeLeft, v.count or 0))
+                end
+            end
+        else
+            print("auras.target.debuff is nil or does not exist")
+        end
+        
+        -- 4. Test direct debuff access
+        print("=== DIRECT STATE DEBUFF ACCESS TEST ===")
+        if state and state.debuff then
+            for _, key in ipairs({"faerie_fire", "rake"}) do
+                local d = state.debuff[key]
+                if d then
+                    print(string.format("state.debuff.%s.up=%s, remains=%.2f, down=%s", 
+                        key, tostring(d.up), d.remains or 0, tostring(d.down)))
+                else
+                    print(string.format("state.debuff.%s = nil", key))
+                end
+            end
+        end
+    end
+    
+    -- Removed workaround sync - testing core issue
 end )
 
 -- Additional debugging hook for when recommendations are generated
@@ -154,7 +211,7 @@ end, {} )
 spec:RegisterAuras( {
     faerie_fire = {
         id = 770, -- Faerie Fire (unified in MoP)
-        duration = 40,
+        duration = 300, -- Fixed duration to match the 256.76s we see in debug
         max_stack = 1,
         name = "Faerie Fire",
     },
@@ -191,12 +248,27 @@ spec:RegisterAuras( {
         max_stack = 1,
     },
     armor = {
-        id = 0, -- Placeholder for armor debuff
-        duration = 0,
+        alias = { "faerie_fire" },
+        aliasMode = "first",
+        aliasType = "debuff",
+        duration = 300,
         max_stack = 1,
     },
     mark_of_the_wild = {
         id = 1126,
+
+        duration = 3600,
+        max_stack = 1,
+    },
+    leader_of_the_pack = {
+        id = 24932,
+
+        duration = 3600,
+        max_stack = 1,
+    },
+    champion_of_the_guardians_of_hyjal = {
+        id = 93341,
+
         duration = 3600,
         max_stack = 1,
     },
@@ -204,6 +276,7 @@ spec:RegisterAuras( {
 
     aquatic_form = {
         id = 1066,
+
         duration = 3600,
         max_stack = 1,
     },
@@ -234,6 +307,7 @@ spec:RegisterAuras( {
     },
     clearcasting = {
         id = 16870,
+
         duration = 15,
         type = "Magic",
         max_stack = 1,
@@ -241,6 +315,7 @@ spec:RegisterAuras( {
     },
     dash = {
         id = 1850,
+
         duration = 15,
         type = "Magic",
         max_stack = 1
@@ -321,6 +396,7 @@ spec:RegisterAuras( {
     },
     moonfire = {
         id = 8921,
+
         duration = 16,
         tick_time = 2,
         type = "Magic",
@@ -340,6 +416,7 @@ spec:RegisterAuras( {
     },
     prowl_base = {
         id = 5215,
+
         duration = 3600,
         max_stack = 1,
         multiplier = 1.6,
@@ -357,6 +434,7 @@ spec:RegisterAuras( {
         tick_time = 3,
         mechanic = "bleed",
         max_stack = 1,
+        copy = "rake_debuff",
     },
     regrowth = {
         id = 8936,
@@ -372,6 +450,7 @@ spec:RegisterAuras( {
     },
     rip = {
         id = 1079,
+
         duration = function () return 4 + ( combo_points.current * 4 ) end,
         tick_time = 2,
         mechanic = "bleed",
@@ -414,11 +493,13 @@ spec:RegisterAuras( {
     },
     tigers_fury = {
         id = 5217,
+
         duration = 8, -- MoP: 8s duration
         multiplier = 1.15,
     },
     travel_form = {
         id = 783,
+
         duration = 3600,
         type = "Magic",
         max_stack = 1
@@ -448,9 +529,7 @@ spec:RegisterAuras( {
     },
 } )
 
-
-
-
+-- Move the spell ID mapping to after all registrations are complete
 
 -- Tweaking for new Feral APL.
 local rip_applied = false
@@ -714,6 +793,8 @@ spec:RegisterUnitEvent( "UNIT_POWER_FREQUENT", "player", nil, function( _, _, po
     end
 end )
 
+-- Removed duplicate debuff registration - auras should be sufficient
+
 -- Abilities (MoP version, updated)
 spec:RegisterAbilities( {
     -- Debug ability that should always be available for testing
@@ -754,6 +835,7 @@ spec:RegisterAbilities( {
         gcd = "spell",
         school = "physical",
         startsCombat = true,
+
         handler = function()
             applyDebuff("target", "faerie_fire")
         end,
@@ -1052,6 +1134,7 @@ spec:RegisterAbilities( {
         spendType = "energy",
         startsCombat = true,
         form = "cat_form",
+
         handler = function ()
             applyDebuff( "target", "rake" )
             gain( 1, "combo_points" )
@@ -1107,7 +1190,6 @@ spec:RegisterAbilities( {
         school = "physical",
         spend = 20,
         spendType = "energy",
-        talent = "rip",
         startsCombat = true,
         form = "cat_form",
         usable = function ()
@@ -1390,9 +1472,134 @@ spec:RegisterSetting( "lazy_swipe", false, {
     width = "full"
 } )
 
+spec:RegisterVariable( "use_thrash", function()
+    return active_enemies >= 4
+end )
+
+spec:RegisterVariable( "aoe", function()
+    return active_enemies >= 3
+end )
+
+spec:RegisterVariable( "use_rake", function()
+    return true
+end )
+
+spec:RegisterVariable( "pool_energy", function()
+    return energy.current < 50 and not buff.omen_of_clarity.up and not buff.berserk.up
+end )
+
 spec:RegisterVariable( "lazy_swipe", function()
     return state.settings.lazy_swipe ~= false
 end )
 
+spec:RegisterPack( "Feral", 20250110, [[Hekili:TZrBZTrns)plCsKKvpHRKZPKMKZ2KW6SSbmwxP2rI1mzQim7KLwO2yxxyWDwsHnYJP6LP56NHJUHX2Z)OnRXYQZl6R)UNB6QL(zhdkr9bQlG(tB8L4Wdpb3NNVh(GWdFOdpNFpdO8Hdm6Tw(acm2nDWZ5MjsXyJKCtj3cU5sIVOd8jkzPsMLIX65MuLY1jrwLkKWrZA3CluOKCvId8LHIyyIeLSr1WIJ1jPr7cYeKwrJIuWXRKtFDlYkLmCPFJr(4OsZQR]] )
 
-spec:RegisterPack( "Feral", 20250710, [[Hekili:fRr)VTTn2)wcoaxN1oF(JO0E7scqARZMlAskIZkWHdZsks0XCrwYtFKSuyO)2V3JKsIIIIwo76D)W6COiFVhFF)bxmAXTlM77MswC14HJTg(2rdhm6DwJgF8I5PpVHSy(gxVhCVh(rO7A4FxsIDdYDsjjP43EoiY1hHrsuwSh89fZVlJgKolCXDAb8ilyVBiElUA0WjlMVI67t47LK4Ty(TROj5o4)5M7iqDUt0s4V9sPrH5ob0Ku4ZlJIZD(fYd0a6aGqIJwsda0)3YD(yCg1p35coH(J5oxg9LChRbwdgM78EsQB(NGD91ZVz25V)ZtNN7C(vFm35dxF1hND7SRVAE(NY)0JUXu37ciVbV0NMLqStxf7MS6np6gKrofUabb2PUX3tstgK8eDdX2Zn9Stps3rJDFGio4i1VNsxdWoYEtuuGypdv3tYQOyKFBNM6l2dh1dkoTpLOEOGOW733ZKeBNTrS77YwUCqI7Ja)3ooYnEq2Mg0(sLTNsVNeNyVml(znBNg6fTMgEVTV7AaQv3wM84YSGu6pYPXCNepsiC4OevG4gr2LmyI6z8ciUpUJJD6ybDmnKeF)ZG6wiOdbe8DrGEyeneiQ1UHaDVMa)wbdO0ZMWoPan8)4eRH9oGXAIGJzhT02laoykYEeF4oGJrIFqd)YBJ9A3)0gi4WcriJESzKtYzNATDB)6RCuVgITyYAxAyYjJpuf(X0n2XKLXKs1A)O0bWQLN5Tdg3Rocgj4s3kKtW5OGroZWKXXaZeIBd(dFv7eAAgBZYYEg8(Ynt)W1x((ZVL9ZVC(nNJMI5FIB0Nmytmbje30xF6FFTB8diRmDfX(jAG)BOlpLZlv)cJPQdeGa3gCGSU6OfR06rapmpfuTF2FY2CHEtscOyqrxoiCeSdqBbyuHEGcL3kI3djLaFxurP6HBCfHXW0SWusCC2Mubo8jljHj0hjYWo5Hmqn)o0LfaDHPVNBskyawNgGTX)tB0ZkxEjbsgkNNsCdsxboI3Gk2YaOf(sV(hWzDB3MqsrScgBrbGMeUHdfW9drXG394OuUk0oPlpWoZp6PWKDV1L0qAYkW4A3B9E8o5Mg1L9crzcyavCd(40lME18zFDkeg5dIWhfQpLCruEKf)if06Tb7kGB4LMG8Svm26GnEPNmzypfhKNj(k4e4hgoWspCVdu5tEGgQanRDaTj6Hg4mi8BuIp4xqWuqJva0n0f7jHSJg2cTvSFfIB8oiUJe82FbwevxbToiOf9B1vsQHQv8TcX1Y8wvsWG9RpkxF2g8ZVmnKKKOq6VTfspM87zpcHGkU)1zTCvD59i7j4s3FhZn5JFzogaPqHftej55qVvXrH0Vra72Sem3Ms0xUvgNJfuaXmpqc4AFytF7OzMsaGTBlCINs9a9I7pSxbGRfEUWf)Kch643EfqMxaFLrSerGq5OE6OvjOwrVNC6eR2J81cf56)SGAUWLedPN4Cbf9pWs1ZnEn()8jiq1tjlzNYEjCiBwAQi9WpWaPVna3FVMzdD2ilb6VX1J5i39oi7YukjXOucyYLAC1ZaA72gH41cNGOi)sgy3GdNnn7QzZ)LP3GbnND9nZU9FL7036dq2UZ)YuiD2R(5d5XM(tIxwk6P1netNgsnoYJgLbI73tX1bX9k69RG8fHKDG0UqbvfTw6kf5Xfh1(o4Ki9QKtspf9pTATcMVSpbREfA6wfPeoNDiqCaNc1dbmaMBHECc2disQhkMQRritTsOTjPoQ9KLWeF63izR2ZTA72cI)DdlITDdDdObTztaqKmhx8O1BG)LSM6bcdEUx6PCGdQJ52)af2lKcOUS2uxRP2UodGYi1yQH(zc3)fWQyHdp8qT5SZUWjBq7y5KmACT8EgsiVid8thP7AQEl1rSQKvpeFpsW0WxdMSNCAryeDA7fo38ZwV57PIE)kL6ggXIfA6FSG9oTk5XAMc)xrvhD(ugYcZ9(AWlY1ZUcYa)NNE1uib8RVzo7JNhbj3OjhPbvRHHby1hJLsHOVi9)bvLoZfQvBRKVjB3Rf0LfPvdYqLGLh9Okp3pq0z1j78qpsyfPJPXYeRWFusF1Ul4xkr7eRDaSsyvgUTxJL0yAAcJgdCv3GmMXm0yr2Kw1yt2Kr0WaRvZs8uL2LYClEUgmDarC9eaYbazwq0W1gsoQl6ykQt1zXA(GggDLQNURYXL2hxm7ZFgdZwMIVuJcWA)v83XkraO3NCPPVjH4D6WbJQP7k1VaJPND2KYCk5CjgltURej6W7A2Ul4tYUcoPkm7rIQVBE8eOADwv19BZbvVwHjeHs2cD72dkdQe4(nwI4BihQCREAfbmu9CdFvk6Pb1ciROH(79DR1moRFPR7BLdBJmcdSq0Pd5EOOwS8ybOCIW6)FaTwID1ElIfhbbEvuxXIc4dLewQaE(1Gp4BU(wEBrC6p51Gz0538ZtVD(HvWhy4nSs2hVU8Z)YDiCSwpJCOwZjEB8ZMN6ffvt5(89lNdvuT)jnupPxEW4pp98VwxCpwN0M3wZ9sGPt8ucMxUEtji2xXLukR6Ux)VqWvITo70S5TUf3eDZzetM)R3o7ZSY3yZI4YR)60lNcPIvIRSuSs0NF9lRixwTZNnSeXJT0b59VDKnHXFPUbEz0J8(mORW7kC4lAQ5AX2h4ttsXm7oBCrRzWTiZPNmuhGWweB7Tc5r6H3761yn5cvhxKqZf0qSouOAo2qW02ZKx3wNsMuq01R5)L19KkKPM7HaBwfAbdyT47Sr7Xak2rQklM)KBCikBXX4bCb66nrXPIKwEvz71EfYP(JmqjfsmpbWliVZsJw7MIlaYdCWvdY)0NPHWNo(NaRJWKSniSWnWVIaaL7)2RgGIc(WdfZcKpfX10KewpefqqqnS0kXIWtJPHpGtck3j3zwk)qS2(d8dFcBIgUWYeiu(ZsnhXHg6fK5dAOoeAkud2pbeawz5)(xtiiKiRt(T3GP2q9wjVB3WNRWAUtyec8)eRxHMgubxF8xiYjvi9FcjwexGMB5Gi3z0VjQXPAPXsyguYdKUrcqMwSvg3GTuy2AquZKjbG3Y8pnBDblF0qLXVcFDXC2VWr)YDec)6k20KbrcK9N)I3Vyo)qlMJbHG9j7lh38CShoGCWDX8dGAXvIwL70RQq9Zon3zIfFkXGJCoynhPCr6IRgRqqnqyZiCnqR1WQls12rOpPvOlhjGdLrm42weWCNtYDGOGvysAtiQoQnolDJz8AXWBb7TkkjBznJe25SQTweTuJOdijRoE7pPGiKzQhjXuRI8IG949fST4(YikzHSxG4BEPFjtkWnhFJIQyZ5ajt5vn6Kr3q4iK4ugccJ1xniKCNFi3z4alZQXkq2ApG8KQRxXuKmRu3mdaexkuGmxw74K0Pn369z8ECFos6(uqK60tl2uTzgPio1o6Pg8c9Zxshx5TdnRARxmEGq5wzstsw)sFGRnx1VetQZsUXu8O2wJav7cOmXRPzFYoD6MlwJA5YTuOPDTLKDArvM60KRhnQ29Ud9nSlrRA04oDXWmQ)R2EqU)cgy0(jDEW7iHykcWilf2Lb7OxEWDecv9paUpO0CNbMKBU4UZrWylr1zuUtBKD3(svbAZMrQiwBzdTiCRB5yIFDm3Pq5Wgn5tqKNVk7BFgMT89UEKx9j)i8v2x0sZA5Ta6bB3QjRLdzhXuLiCERohkLI2QdPkB7WyW1DlpPYI6aZzK0E1BMCz1OQFf6ExdmVMgP(MfSd3bgYbTAo4n8QQmh9grqvEXGmrUsvNMt1SZqPIAlN2Ez(FUGpctMgf9br561XN8LINq1oRutPro7ktAWvpVlfAQ1hhMmviKYINdMj9o1hbfVQpB(tbUc2guoyD4rHivEoz6yqLVVoHdId4(iWsXrPRMUibUg0PQup9MAV3SoEnR8EAiAHriuoNwecV9LabPeVaq8UxciedFap))yV9lAOdxADhwwJtH8u1e9VQJYrdvUdjeVfZhoyu1Tb7awleNiQPCNW4(5g2fk7GgEx6qmPZ4XKWhnFXRk1Klh1NYQA5M78nUB6bU36JTUJV(5D(8FB598QZqxZB21CTaACHQXtTXczvDYO6TIjMkSx0iKQBAOmBy1bd3fvtDdgU76uTgLqQXkQz1124KxS7(TO0tfJC6(gSKkYKRdirkkq9sbXybhifoOAgZy4GQWLI290AuQDYPABe1DGFTdVjnzNTvOf)wOKdI6CS7ab1eJTfvRyI0Q51zEG3YKqJHBxJcyXjkm3kIrAWRy95R2WqC3VgYx2tHSDEAvhw11E12k4rK)LAVUAkD03xKs9bPweRKG1E8YjnF56wBRBVmolPSXBdaJ57r(I)UHI05AThoyFVRRu2X3BzxeM913XCKk7xTUoMGUV1sz8TuRL2hH5HhAY7fJzyQbmFFglaBVin0Ohog7bt93jQjhEMn33XZ6Sl3)9XOTFZgVOPotPf1gZZK322TNB5LG(ImDX0j4UCHiOMC22AdWm9yKw0STFV4()wQEZBWOkC7u7epUbUWoeQBCwDDyE6dJ2wpOBVtV7NatRsIPMY()V5c21b4z2mur9OnFcmfzXt6WyMd7ObA6Faol2V2MjA5gWPg24omEhdYBV6m0FX6DKIX1HMQ0O4OwJd53SFuAEtpYuwJ3xdJ7nUEz4IxZttlzTzlVlG)ogC08n9PGnwYYw6bdXu8qFOzPRIahXZxNTmHT0I)Zd]])
+-- Debug slash command for manual testing
+SLASH_HEKILI_FERAL_DEBUG1 = "/hekdebug"
+SlashCmdList["HEKILI_FERAL_DEBUG"] = function()
+    if not UnitExists("target") then
+        print("ERROR: No target selected for debug analysis")
+        return
+    end
+    
+    print("=== MANUAL FERAL DEBUG ANALYSIS ===")
+    print("Time:", GetTime())
+    
+    -- 1. Check if spell IDs are properly mapped in class.auras
+    print("=== CLASS.AURAS DETAILED ANALYSIS ===")
+    
+    -- Check by key first
+    for _, key in ipairs({"faerie_fire", "rake"}) do
+        local aura = class.auras[key]
+        print(string.format("class.auras['%s'] = %s", key,
+            aura and string.format("{id=%s, key='%s'}", tostring(aura.id), aura.key or "nil") or "nil"))
+    end
+    
+    -- Check by spell ID
+    for _, spellID in ipairs({770, 1822}) do
+        local aura = class.auras[ spellID ]
+        print(string.format("class.auras[%d] = %s", spellID, 
+            aura and string.format("{key='%s', id=%s}", aura.key or "nil", tostring(aura.id)) or "nil"))
+    end
+    
+    -- Check if spec auras exist
+    if spec and spec.auras then
+        print(string.format("spec.auras.faerie_fire = %s", spec.auras.faerie_fire and "exists" or "nil"))
+        print(string.format("spec.auras.rake = %s", spec.auras.rake and "exists" or "nil"))
+    end
+    
+    -- 2. Check what UnitDebuff actually returns and how keys are generated
+    print("=== UnitDebuff RAW DATA & KEY GENERATION ===")
+    for i = 1, 10 do
+        local name, _, count, _, duration, expires, caster, _, _, spellID = UnitDebuff("target", i)
+        if not name then break end
+        if spellID == 770 or spellID == 1822 then
+            local aura = class.auras[ spellID ]
+            local key_from_aura = aura and aura.key
+            local key_from_name = ns.formatKey(name)
+            local final_key = key_from_aura or key_from_name
+            local timeLeft = expires > 0 and (expires - GetTime()) or 0
+            print(string.format("SpellID %d: name='%s', caster='%s', timeLeft=%.2f", spellID, name, tostring(caster), timeLeft))
+            print(string.format("  -> aura.key='%s', formatKey(name)='%s', final_key='%s'", 
+                tostring(key_from_aura), key_from_name, final_key))
+        end
+    end
+    
+    -- 3. Force ScrapeUnitAuras and check results
+    print("=== FORCING ScrapeUnitAuras ===")
+    if state and state.ScrapeUnitAuras then
+        state.ScrapeUnitAuras("target", false, "manual_debug")
+        print("ScrapeUnitAuras completed")
+    else
+        print("ERROR: state.ScrapeUnitAuras not available")
+    end
+    
+    -- 4. Check what's in the actual auras database
+    print("=== AURAS DATABASE FINAL STATE ===")
+    if state.auras and state.auras.target and state.auras.target.debuff then
+        local found = false
+        for k, v in pairs(state.auras.target.debuff) do
+            if v.id == 770 or v.id == 1822 then
+                local timeLeft = v.expires > 0 and (v.expires - GetTime()) or 0
+                print(string.format("auras.target.debuff['%s'] = {id=%s, expires=%.2f, timeLeft=%.2f, count=%d}", 
+                    k, tostring(v.id), v.expires or 0, timeLeft, v.count or 0))
+                found = true
+            end
+        end
+        if not found then
+            print("No debuffs with ID 770 or 1822 found in auras.target.debuff")
+        end
+    else
+        print("ERROR: auras.target.debuff is nil or does not exist")
+    end
+    
+    -- 5. Test direct debuff access through state
+    print("=== DIRECT STATE DEBUFF ACCESS TEST ===")
+    if state and state.debuff then
+        for _, key in ipairs({"faerie_fire", "rake"}) do
+            local d = state.debuff[key]
+            if d then
+                print(string.format("state.debuff.%s: up=%s, remains=%.2f, down=%s, count=%d", 
+                    key, tostring(d.up), d.remains or 0, tostring(d.down), d.count or 0))
+            else
+                print(string.format("state.debuff.%s = nil", key))
+            end
+        end
+    else
+        print("ERROR: state.debuff not available")
+    end
+    
+    -- 6. Check what happens in metatable lookup
+    print("=== METATABLE LOOKUP TEST ===")
+    if state and state.debuff then
+        -- Force a lookup to see what the metatable does
+        local ff_real = state.auras.target.debuff["faerie_fire"]
+        local rake_real = state.auras.target.debuff["rake"]
+        print(string.format("Direct auras lookup: faerie_fire=%s, rake=%s", 
+            ff_real and "found" or "nil", rake_real and "found" or "nil"))
+    end
+    
+    print("=== DEBUG ANALYSIS COMPLETE ===")
+end
+
+-- Removed mapping workaround - need to fix the real issue

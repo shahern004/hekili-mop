@@ -18,21 +18,21 @@ if not _G.GetSpecializationInfo then
         if not specIndex or specIndex < 1 then
             return nil
         end
-        
+
         local _, class = UnitClass("player")
         if not class then
             return nil
         end
-        
+
         -- Map spec indices to actual MoP spec IDs based on class and abilities
         local specID = 0
         local specName = "Unknown"
-        
+
         if class == "HUNTER" then
             if IsPlayerSpell(19574) then specID = 253; specName = "Beast Mastery"  -- Bestial Wrath
             elseif IsPlayerSpell(19506) then specID = 254; specName = "Marksmanship"  -- Improved Tracking
             elseif IsPlayerSpell(53301) then specID = 255; specName = "Survival"  -- Explosive Shot
-            else 
+            else
                 -- Fallback detection based on other abilities
                 if IsPlayerSpell(34026) then specID = 253; specName = "Beast Mastery"  -- Kill Command
                 elseif IsPlayerSpell(82928) then specID = 254; specName = "Marksmanship"  -- Aimed Shot
@@ -48,7 +48,7 @@ if not _G.GetSpecializationInfo then
         else
             specID = 1; specName = "Unknown"
         end
-        
+
         -- Return: specID, name, description, icon, role, class
         return specID, specName, specName, nil, nil, class
     end
@@ -69,8 +69,8 @@ local insert, concat = table.insert, table.concat
 
 -- MoP API compatibility
 local GetBuffDataByIndex = function(unit, index)
-    local name, icon, count, debuffType, duration, expirationTime, source, isStealable, 
-          nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, 
+    local name, icon, count, debuffType, duration, expirationTime, source, isStealable,
+          nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer,
           nameplateShowAll, timeMod = UnitBuff(unit, index)
     if name then
         return {
@@ -94,8 +94,8 @@ local GetBuffDataByIndex = function(unit, index)
 end
 
 local GetDebuffDataByIndex = function(unit, index)
-    local name, icon, count, debuffType, duration, expirationTime, source, isStealable, 
-          nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, 
+    local name, icon, count, debuffType, duration, expirationTime, source, isStealable,
+          nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer,
           nameplateShowAll, timeMod = UnitDebuff(unit, index)
     if name then
         return {
@@ -129,60 +129,115 @@ local UnpackAuraData = function(auraData)
     end
 end
 
--- MoP AuraUtil compatibility
-if not AuraUtil then
-    AuraUtil = {}
-    -- Created AuraUtil table for MoP Classic compatibility
-end
+-- MoP AuraUtil compatibility - avoid conflicts with ElvUI
+if _G.ElvUI then
+    -- ElvUI detected - don't create global AuraUtil to avoid conflicts
+    print("DEBUG: ElvUI detected - skipping global AuraUtil creation to prevent conflicts")
 
-if not AuraUtil.ForEachAura then
-    -- Creating AuraUtil.ForEachAura for MoP Classic
-    AuraUtil.ForEachAura = function(unit, filter, maxCount, func)
-        local i = 1
-        while true do
-            local name, icon, count, dispelType, duration, expirationTime, source, isStealable, 
-                  nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, 
-                  nameplateShowAll, timeMod
-            
-            if filter == "HELPFUL" then
-                name, icon, count, dispelType, duration, expirationTime, source, isStealable, 
-                nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, 
-                nameplateShowAll, timeMod = UnitBuff(unit, i)
-            else
-                name, icon, count, dispelType, duration, expirationTime, source, isStealable, 
-                nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, 
-                nameplateShowAll, timeMod = UnitDebuff(unit, i)
+    -- Create internal AuraUtil for Hekili's own use only
+    if not ns.AuraUtil then
+        ns.AuraUtil = {}
+        ns.AuraUtil.ForEachAura = function(unit, filter, maxCount, func)
+            -- Internal Hekili-only aura processing
+            local i = 1
+            while true do
+                local name, icon, count, dispelType, duration, expirationTime, source, isStealable,
+                      nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer,
+                      nameplateShowAll, timeMod
+
+                if filter == "HELPFUL" then
+                    name, icon, count, dispelType, duration, expirationTime, source, isStealable,
+                    nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer,
+                    nameplateShowAll, timeMod = UnitBuff(unit, i)
+                else
+                    name, icon, count, dispelType, duration, expirationTime, source, isStealable,
+                    nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer,
+                    nameplateShowAll, timeMod = UnitDebuff(unit, i)
+                end
+
+                if not name then break end
+
+                local aura = {
+                    name = name,
+                    icon = icon,
+                    applications = count or 1,
+                    dispelType = dispelType,
+                    duration = duration or 0,
+                    expirationTime = expirationTime or 0,
+                    sourceUnit = source,
+                    isStealable = isStealable,
+                    nameplateShowPersonal = nameplateShowPersonal,
+                    spellId = spellId,
+                    canApplyAura = canApplyAura,
+                    isBossAura = isBossDebuff,
+                    isFromPlayerOrPlayerPet = castByPlayer,
+                    nameplateShowAll = nameplateShowAll,
+                    timeMod = timeMod or 1
+                }
+
+                func(aura)
+                i = i + 1
+
+                if maxCount and i > maxCount then break end
             end
-            
-            if not name then break end
-            
-            local aura = {
-                name = name,
-                icon = icon,
-                applications = count or 1,
-                dispelType = dispelType,
-                duration = duration or 0,
-                expirationTime = expirationTime or 0,
-                sourceUnit = source,
-                isStealable = isStealable,
-                nameplateShowPersonal = nameplateShowPersonal,
-                spellId = spellId,
-                canApplyAura = canApplyAura,
-                isBossAura = isBossDebuff,
-                isFromPlayerOrPlayerPet = castByPlayer,
-                nameplateShowAll = nameplateShowAll,
-                timeMod = timeMod
-            }
-            
-            func(aura)
-            i = i + 1
-            
-            if maxCount and i > maxCount then break end
         end
+        print("DEBUG: Created internal ns.AuraUtil for Hekili (ElvUI compatibility mode)")
     end
-    print("DEBUG: AuraUtil.ForEachAura created successfully")
 else
-    print("DEBUG: AuraUtil.ForEachAura already exists")
+    -- No ElvUI detected - safe to create global AuraUtil
+    if not AuraUtil then
+        AuraUtil = {}
+        print("DEBUG: Created global AuraUtil (no ElvUI detected)")
+    end
+
+    if not AuraUtil.ForEachAura then
+        AuraUtil.ForEachAura = function(unit, filter, maxCount, func)
+            local i = 1
+            while true do
+                local name, icon, count, dispelType, duration, expirationTime, source, isStealable,
+                      nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer,
+                      nameplateShowAll, timeMod
+
+                if filter == "HELPFUL" then
+                    name, icon, count, dispelType, duration, expirationTime, source, isStealable,
+                    nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer,
+                    nameplateShowAll, timeMod = UnitBuff(unit, i)
+                else
+                    name, icon, count, dispelType, duration, expirationTime, source, isStealable,
+                    nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer,
+                    nameplateShowAll, timeMod = UnitDebuff(unit, i)
+                end
+
+                if not name then break end
+
+                local aura = {
+                    name = name,
+                    icon = icon,
+                    applications = count or 1,
+                    dispelType = dispelType,
+                    duration = duration or 0,
+                    expirationTime = expirationTime or 0,
+                    sourceUnit = source,
+                    isStealable = isStealable,
+                    nameplateShowPersonal = nameplateShowPersonal,
+                    spellId = spellId,
+                    canApplyAura = canApplyAura,
+                    isBossAura = isBossDebuff,
+                    isFromPlayerOrPlayerPet = castByPlayer,
+                    nameplateShowAll = nameplateShowAll,
+                    timeMod = timeMod or 1
+                }
+
+                func(aura)
+                i = i + 1
+
+                if maxCount and i > maxCount then break end
+            end
+        end
+        print("DEBUG: Created global AuraUtil.ForEachAura (no ElvUI detected)")
+    else
+        print("DEBUG: AuraUtil.ForEachAura already exists")
+    end
 end
 
 local buildStr, _, _, buildNum = GetBuildInfo()
@@ -452,8 +507,8 @@ function Hekili:SaveDebugSnapshot( dispName )
 
                 local aura = class.auras[ spellId ]
                 local key = aura and aura.key
-                if key and state.auras and state.auras.player and state.auras.player.buff and not state.auras.player.buff[ key ] then 
-                    key = key .. " [MISSING]" 
+                if key and state.auras and state.auras.player and state.auras.player.buff and not state.auras.player.buff[ key ] then
+                    key = key .. " [MISSING]"
                 end
 
                 auraString = format( "%s\n   %6d - %-40s - %3d - %-6.2f", auraString, spellId or 0, key or ( "*" .. formatKey( name ) ), count > 0 and count or 1, expirationTime > 0 and ( expirationTime - now ) or 3600 )
@@ -468,8 +523,8 @@ function Hekili:SaveDebugSnapshot( dispName )
 
                 local aura = class.auras[ spellId ]
                 local key = aura and aura.key
-                if key and state.auras and state.auras.player and state.auras.player.debuff and not state.auras.player.debuff[ key ] then 
-                    key = key .. " [MISSING]" 
+                if key and state.auras and state.auras.player and state.auras.player.debuff and not state.auras.player.debuff[ key ] then
+                    key = key .. " [MISSING]"
                 end
 
                 auraString = format( "%s\n   %6d - %-40s - %3d - %-6.2f", auraString, spellId or 0, key or ( "*" .. formatKey( name ) ), count > 0 and count or 1, expirationTime > 0 and ( expirationTime - now ) or 3600 )
@@ -488,8 +543,8 @@ function Hekili:SaveDebugSnapshot( dispName )
 
                     local aura = class.auras[ spellId ]
                     local key = aura and aura.key
-                    if key and state.auras and state.auras.target and state.auras.target.buff and not state.auras.target.buff[ key ] then 
-                        key = key .. " [MISSING]" 
+                    if key and state.auras and state.auras.target and state.auras.target.buff and not state.auras.target.buff[ key ] then
+                        key = key .. " [MISSING]"
                     end
 
                     auraString = format( "%s\n   %6d - %-40s - %3d - %-6.2f", auraString, spellId or 0, key or ( "*" .. formatKey( name ) ), count > 0 and count or 1, expirationTime > 0 and ( expirationTime - now ) or 3600 )
@@ -504,8 +559,8 @@ function Hekili:SaveDebugSnapshot( dispName )
 
                     local aura = class.auras[ spellId ]
                     local key = aura and aura.key
-                    if key and state.auras and state.auras.target and state.auras.target.debuff and not state.auras.target.debuff[ key ] then 
-                        key = key .. " [MISSING]" 
+                    if key and state.auras and state.auras.target and state.auras.target.debuff and not state.auras.target.debuff[ key ] then
+                        key = key .. " [MISSING]"
                     end
 
                     auraString = format( "%s\n   %6d - %-40s - %3d - %-6.2f", auraString, spellId or 0, key or ( "*" .. formatKey( name ) ), count > 0 and count or 1, expirationTime > 0 and ( expirationTime - now ) or 3600 )
@@ -523,7 +578,7 @@ function Hekili:SaveDebugSnapshot( dispName )
             local custom = ""
             local packName = state.system and state.system.packName or "Unknown"
             local pack = self.DB and self.DB.profile and self.DB.profile.packs and self.DB.profile.packs[packName]
-            
+
             if pack and not pack.builtIn then
                 custom = format( " |cFFFFA700(Custom: %s[%d])|r", state.spec and state.spec.name or "Unknown", state.spec and state.spec.id or 0 )
             end
@@ -614,7 +669,7 @@ function Hekili:OnEnable()
     if ns.Events and ns.Events.Register then
         ns.Events:Register()
     end
-    
+
     -- Start UI updates if not paused
     if ns.UI and ns.UI.StartUpdates then
         ns.UI:StartUpdates()
@@ -666,7 +721,7 @@ function Hekili:GetMoPSpecialization()
     if not class then
         return nil, nil
     end
-    
+
     -- Try LibClassicSpecs first if available
     if LibClassicSpecs and LibClassicSpecs.GetSpecialization and LibClassicSpecs.GetSpecializationInfo then
         local currentSpec = LibClassicSpecs.GetSpecialization()
@@ -678,7 +733,7 @@ function Hekili:GetMoPSpecialization()
             end
         end
     end
-    
+
     -- Fallback to manual detection if LibClassicSpecs fails
     local specID = 0
     local specName = "Unknown"
@@ -686,7 +741,7 @@ function Hekili:GetMoPSpecialization()
         if IsPlayerSpell(19574) then specID = 253; specName = "Beast Mastery"  -- Bestial Wrath
         elseif IsPlayerSpell(19506) then specID = 254; specName = "Marksmanship"  -- Improved Tracking
         elseif IsPlayerSpell(53301) then specID = 255; specName = "Survival"  -- Explosive Shot
-        else 
+        else
             -- Fallback detection based on other abilities
             if IsPlayerSpell(34026) then specID = 253; specName = "Beast Mastery"  -- Kill Command
             elseif IsPlayerSpell(82928) then specID = 254; specName = "Marksmanship"  -- Aimed Shot
@@ -695,49 +750,49 @@ function Hekili:GetMoPSpecialization()
         end
     elseif class == "DRUID" then
         -- Druid spec detection for MoP Classic - Prioritize specific specs first
-        
+
         -- Check for Restoration-specific spells FIRST (highest priority for healers)
         if IsPlayerSpell(18562) then -- Swiftmend - Restoration specific
             specID = 105; specName = "Restoration"
         elseif IsPlayerSpell(33763) then -- Lifebloom - Restoration specific
             specID = 105; specName = "Restoration"
-        
+
         -- Check for Feral-specific spells (higher priority than shared spells)
-        elseif IsPlayerSpell(52610) then -- Savage Roar - Feral specific  
+        elseif IsPlayerSpell(52610) then -- Savage Roar - Feral specific
             specID = 103; specName = "Feral"
         elseif IsPlayerSpell(22568) then -- Ferocious Bite - Feral specific
             specID = 103; specName = "Feral"
         elseif IsPlayerSpell(33876) then -- Mangle (Cat) - Feral specific
             specID = 103; specName = "Feral"
         elseif IsPlayerSpell(5221) then -- Shred - Core Feral ability
-            specID = 103; specName = "Feral"  
+            specID = 103; specName = "Feral"
         elseif IsPlayerSpell(1822) then -- Rake - Core Feral ability
             specID = 103; specName = "Feral"
-        
+
         -- Check for Guardian-specific spells
         elseif IsPlayerSpell(33878) then -- Mangle (Bear) - Guardian specific
             specID = 104; specName = "Guardian"
         elseif IsPlayerSpell(6807) then -- Maul - Guardian specific
             specID = 104; specName = "Guardian"
-        
+
         -- Check for Balance-specific spells (lower priority since some are shared)
         elseif IsPlayerSpell(78674) then -- Starsurge - Balance specific
             specID = 102; specName = "Balance"
         elseif IsPlayerSpell(8921) then -- Moonfire - Available to all but assume Balance
             specID = 102; specName = "Balance"
-        
-        else 
+
+        else
             -- If no specific spells found, try to detect based on current form or basic abilities
-            
+
             -- Check if player is in Cat Form or has Cat Form ability
             if GetShapeshiftForm and (GetShapeshiftForm() == 1 or IsPlayerSpell(768)) then -- Cat Form
                 specID = 103; specName = "Feral"
-            elseif GetShapeshiftForm and (GetShapeshiftForm() == 2 or IsPlayerSpell(5487)) then -- Bear Form  
+            elseif GetShapeshiftForm and (GetShapeshiftForm() == 2 or IsPlayerSpell(5487)) then -- Bear Form
                 specID = 104; specName = "Guardian"
             -- Check for basic healing spells that suggest Restoration
             elseif IsPlayerSpell(5185) then -- Healing Touch - Available to Restoration
                 specID = 105; specName = "Restoration"
-            elseif IsPlayerSpell(774) then -- Rejuvenation - Available to Restoration  
+            elseif IsPlayerSpell(774) then -- Rejuvenation - Available to Restoration
                 specID = 105; specName = "Restoration"
             -- Check for Balance spells
             elseif IsPlayerSpell(5176) then -- Wrath - Balance spell
@@ -752,7 +807,7 @@ function Hekili:GetMoPSpecialization()
         -- Rogue spec detection for MoP Classic
         if IsPlayerSpell(1943) then -- Rupture - Core Assassination ability
             specID = 259; specName = "Assassination"
-        elseif IsPlayerSpell(2098) then -- Eviscerate - Core Combat ability  
+        elseif IsPlayerSpell(2098) then -- Eviscerate - Core Combat ability
             specID = 260; specName = "Combat"
         elseif IsPlayerSpell(36554) then -- Shadowstep - Subtlety specific
             specID = 261; specName = "Subtlety"
@@ -775,21 +830,21 @@ function Hekili:GetMoPSpecialization()
     else
         specID = 1; specName = "Unknown"
     end
-    
+
     -- Safety check: Ensure we never return 0 or invalid spec IDs for known classes
     if class == "DRUID" and (specID == 0 or specID == 1) then
         specID = 103; specName = "Feral"
     elseif class == "ROGUE" and (specID == 0 or specID == 1) then
         specID = 260; specName = "Combat"
     end
-    
+
     return specID, specName
 end
 
 -- Manual function to force spec detection and update
 function Hekili:ForceSpecDetection()
     local specID, specName = self:GetMoPSpecialization()
-    
+
     if specID and specID > 0 then
         -- Manually set state.spec values
         if not self.State then
@@ -798,10 +853,10 @@ function Hekili:ForceSpecDetection()
         if not self.State.spec then
             self.State.spec = {}
         end
-        
+
         self.State.spec.id = specID
         self.State.spec.name = specName
-        
+
         -- Try to get spec key using the getSpecializationKey function from Constants.lua
         if ns.getSpecializationKey then
             self.State.spec.key = ns.getSpecializationKey(specID)
@@ -809,7 +864,7 @@ function Hekili:ForceSpecDetection()
             -- Fallback spec key generation
             self.State.spec.key = specName and specName:lower():gsub("%s+", "_") or "unknown"
         end
-        
+
         -- Try to get role from LibClassicSpecs if available
         if LibClassicSpecs and LibClassicSpecs.GetSpecializationRole then
             local currentSpec = LibClassicSpecs.GetSpecialization and LibClassicSpecs.GetSpecialization()
@@ -820,17 +875,17 @@ function Hekili:ForceSpecDetection()
                 end
             end
         end
-        
+
         print("DEBUG: state.spec.id:", self.State.spec.id)
         print("DEBUG: state.spec.name:", self.State.spec.name)
         print("DEBUG: state.spec.key:", self.State.spec.key)
         print("DEBUG: state.role:", self.State.role)
-        
+
         -- Force a spec change event
         if self.SpecializationChanged then
             self:SpecializationChanged()
         end
-        
+
         return true
     else
         print("DEBUG: ForceSpecDetection failed - invalid spec ID")
@@ -842,7 +897,7 @@ end
 SLASH_HEKILISPEC1 = "/hekilispec"
 SlashCmdList["HEKILISPEC"] = function(msg)
     print("=== Hekili Spec Detection Debug ===")
-    
+
     -- Show current state before any detection
     print("\n--- Current State (Before Detection) ---")
     if Hekili and Hekili.State and Hekili.State.spec then
@@ -852,12 +907,12 @@ SlashCmdList["HEKILISPEC"] = function(msg)
     else
         print("No current state available")
     end
-    
+
     -- Check PendingSpecializationChange
     if Hekili then
         print("PendingSpecializationChange:", Hekili.PendingSpecializationChange)
     end
-    
+
     -- Show LibClassicSpecs detection
     print("\n--- LibClassicSpecs Status ---")
     local LCS = LibStub("LibClassicSpecs-1.0", true)
@@ -872,12 +927,12 @@ SlashCmdList["HEKILISPEC"] = function(msg)
     else
         print("LibClassicSpecs loaded: NO")
     end
-    
+
     -- Show Blizzard API values
     print("\n--- Blizzard API Values ---")
     local spec = GetSpecialization and GetSpecialization()
     print("GetSpecialization():", spec)
-    
+
     if spec then
         local id, name, desc, icon, bg, role, class = GetSpecializationInfo(spec)
         print("GetSpecializationInfo(" .. spec .. "):")
@@ -886,14 +941,14 @@ SlashCmdList["HEKILISPEC"] = function(msg)
         print("  role:", role)
         print("  class:", class)
     end
-    
+
     -- Show our fallback detection
     print("\n--- Fallback Detection ---")
     if ns and ns.getSpecializationID then
         local fallbackID = ns.getSpecializationID(spec)
         print("ns.getSpecializationID(" .. (spec or "nil") .. "):", fallbackID)
     end
-    
+
     -- Test specific spells for Druid
     if UnitClass("player") == "Druid" then
         print("\n--- Druid Spell Detection ---")
@@ -907,13 +962,13 @@ SlashCmdList["HEKILISPEC"] = function(msg)
         print("  IsPlayerSpell(8921) [Moonfire - Balance]:", IsPlayerSpell(8921))
         print("  IsPlayerSpell(33878) [Mangle Bear - Guardian]:", IsPlayerSpell(33878))
         print("  IsPlayerSpell(6807) [Maul - Guardian]:", IsPlayerSpell(6807))
-        
+
         -- Check current form
         if GetShapeshiftForm then
             print("  GetShapeshiftForm():", GetShapeshiftForm())
         end
     end
-    
+
     print("\n--- Force Spec Detection ---")
     if Hekili and Hekili.ForceSpecDetection then
         local success = Hekili:ForceSpecDetection()
@@ -925,7 +980,7 @@ SlashCmdList["HEKILISPEC"] = function(msg)
     else
         print("Hekili not loaded or ForceSpecDetection not available")
     end
-    
+
     print("\n--- Final State (After Detection) ---")
     if Hekili and Hekili.State and Hekili.State.spec then
         print("Final state.spec.id:", Hekili.State.spec.id)
@@ -940,24 +995,24 @@ SlashCmdList["HEKILISPEC"] = function(msg)
     else
         print("No final state available")
     end
-    
+
     -- Trigger a specialization change to see if that affects things
     print("\n--- Triggering SpecializationChanged ---")
     if Hekili and Hekili.SpecializationChanged then
         local beforeID = Hekili.State and Hekili.State.spec and Hekili.State.spec.id
         print("Before SpecializationChanged - state.spec.id:", beforeID)
-        
+
         Hekili:SpecializationChanged()
         print("SpecializationChanged called")
-        
+
         -- Show state after SpecializationChanged
         local afterID = Hekili.State and Hekili.State.spec and Hekili.State.spec.id
         print("After SpecializationChanged - state.spec.id:", afterID)
-        
+
         if beforeID and afterID and beforeID ~= afterID then
             print("WARNING: state.spec.id changed from", beforeID, "to", afterID)
         end
     end
-    
+
     print("=== End Debug ===")
 end
