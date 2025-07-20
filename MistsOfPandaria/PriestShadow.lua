@@ -894,34 +894,34 @@ spec:RegisterGear( "black_blood_of_yshaarj", 104810, {
 -- Comprehensive Talent System (MoP Talent Trees + Mastery Talents)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Crowd Control
-    void_tendrils             = { 2295, 1, 108920 }, -- Shadowy tendrils immobilize all enemies within 8 yards for 8 sec, but can be broken by damage.
-    psyfiend                  = { 2296, 1, 108921 }, -- Summons a Psyfiend with 20% of your health that attacks your target for 12 sec. Each time it attacks, it inflicts Fear for 4 sec.
-    dominate_mind             = { 2297, 1, 108968 }, -- Controls an enemy mind up to level 90 for 8 sec while channeling. Generates no threat.
+    void_tendrils             = { 1, 1, 108920 }, -- Shadowy tendrils immobilize all enemies within 8 yards for 8 sec, but can be broken by damage.
+    psyfiend                  = { 1, 2, 108921 }, -- Summons a Psyfiend with 20% of your health that attacks your target for 12 sec. Each time it attacks, it inflicts Fear for 4 sec.
+    dominate_mind             = { 1, 3, 108968 }, -- Controls an enemy mind up to level 90 for 8 sec while channeling. Generates no threat.
 
     -- Tier 2 (Level 30) - Movement Enhancement
-    body_and_soul             = { 2298, 1, 64129  }, -- When you cast Power Word: Shield or Leap of Faith, you increase the target's movement speed by 60% for 4 sec.
-    angelic_feather           = { 2299, 1, 121536 }, -- Places a feather at the target location that grants the first ally to walk through it 80% movement speed for 6 sec. Maximum of 3 charges.
-    phantasm                  = { 2300, 1, 108942 }, -- When you receive a fear effect, you activate Fade and remove all harmful magic effects. This effect can only occur once every 30 sec.
+    body_and_soul             = { 2, 1, 64129  }, -- When you cast Power Word: Shield or Leap of Faith, you increase the target's movement speed by 60% for 4 sec.
+    angelic_feather           = { 2, 2, 121536 }, -- Places a feather at the target location that grants the first ally to walk through it 80% movement speed for 6 sec. Maximum of 3 charges.
+    phantasm                  = { 2, 3, 108942 }, -- When you receive a fear effect, you activate Fade and remove all harmful magic effects. This effect can only occur once every 30 sec.
 
     -- Tier 3 (Level 45) - Mana and Healing
-    from_darkness_comes_light = { 2301, 1, 109186 }, -- When you deal damage with Mind Flay, Mind Blast, or Shadow Word: Death, there is a 15% chance your next Flash Heal will not trigger a global cooldown and will cast 50% faster.
-    mindbender                = { 2302, 1, 123040 }, -- Replaces your Shadowfiend. The Mindbender's attacks restore 0.75% mana and have a 100% chance to trigger Replenishment.
-    archangel                 = { 2303, 1, 81700  }, -- Consumes your Dark Evangelism effects to instantly restore 1% mana per stack consumed and increase your healing done by 5% per stack for 18 sec.
+    from_darkness_comes_light = { 3, 1, 109186 }, -- When you deal damage with Mind Flay, Mind Blast, or Shadow Word: Death, there is a 15% chance your next Flash Heal will not trigger a global cooldown and will cast 50% faster.
+    mindbender                = { 3, 2, 123040 }, -- Replaces your Shadowfiend. The Mindbender's attacks restore 0.75% mana and have a 100% chance to trigger Replenishment.
+    archangel                 = { 3, 3, 81700  }, -- Consumes your Dark Evangelism effects to instantly restore 1% mana per stack consumed and increase your healing done by 5% per stack for 18 sec.
 
     -- Tier 4 (Level 60) - Survivability
-    desperate_prayer          = { 2304, 1, 19236  }, -- Instantly heals the caster for 30% of their maximum health. 90 sec cooldown.
-    spectral_guise            = { 2305, 1, 112833 }, -- You become translucent for 6 sec, threat is ignored for 2 sec, and each time you take damage the duration is reduced by 1 sec.
-    angelic_bulwark           = { 2306, 1, 108945 }, -- When an attack brings you below 30% health, you gain an absorption shield equal to 20% of your maximum health for 20 sec.
+    desperate_prayer          = { 4, 1, 19236  }, -- Instantly heals the caster for 30% of their maximum health. 90 sec cooldown.
+    spectral_guise            = { 4, 2, 112833 }, -- You become translucent for 6 sec, threat is ignored for 2 sec, and each time you take damage the duration is reduced by 1 sec.
+    angelic_bulwark           = { 4, 3, 108945 }, -- When an attack brings you below 30% health, you gain an absorption shield equal to 20% of your maximum health for 20 sec.
 
     -- Tier 5 (Level 75) - DPS Enhancement
-    twist_of_fate             = { 2307, 1, 109142 }, -- Your damage and healing is increased by 20% on targets below 35% health.
-    power_infusion            = { 2308, 1, 10060  }, -- Infuses the target with power for 15 sec, increasing spell casting speed by 40% and reducing the mana cost of all spells by 25%.
-    divine_insight            = { 2309, 1, 109175 }, -- Your Shadow Word: Pain periodic damage has a 40% chance to reset the cooldown on Mind Blast and cause your next Mind Blast within 8 sec to not trigger a global cooldown.
+    twist_of_fate             = { 5, 1, 109142 }, -- Your damage and healing is increased by 20% on targets below 35% health.
+    power_infusion            = { 5, 2, 10060  }, -- Infuses the target with power for 15 sec, increasing spell casting speed by 40% and reducing the mana cost of all spells by 25%.
+    divine_insight            = { 5, 3, 109175 }, -- Your Shadow Word: Pain periodic damage has a 40% chance to reset the cooldown on Mind Blast and cause your next Mind Blast within 8 sec to not trigger a global cooldown.
 
     -- Tier 6 (Level 90) - Ultimate Abilities
-    cascade                   = { 2310, 1, 121135 }, -- Fire a shadowy bolt that jumps to the nearest enemy within 15 yards, preferring targets with no DoTs. Jumps up to 4 times and deals increasing damage.
-    divine_star               = { 2311, 1, 110744 }, -- A star travels 24 yards forward, then returns to you, dealing Shadow damage to enemies and healing allies in its path.
-    halo                      = { 2312, 1, 120517 }  -- Creates a ring of Shadow energy around you that grows outward to 30 yards, dealing damage to enemies and healing allies. Damage and healing increases with distance from the caster.
+    cascade                   = { 6, 1, 121135 }, -- Fire a shadowy bolt that jumps to the nearest enemy within 15 yards, preferring targets with no DoTs. Jumps up to 4 times and deals increasing damage.
+    divine_star               = { 6, 2, 110744 }, -- A star travels 24 yards forward, then returns to you, dealing Shadow damage to enemies and healing allies in its path.
+    halo                      = { 6, 3, 120517 }  -- Creates a ring of Shadow energy around you that grows outward to 30 yards, dealing damage to enemies and healing allies. Damage and healing increases with distance from the caster.
 } )
 
 -- Enhanced Glyphs System for Shadow Priest

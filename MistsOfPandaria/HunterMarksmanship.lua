@@ -201,34 +201,34 @@ spec:RegisterGear( "heroic_weapon", 87164, 87183, 89678 )
 -- Enhanced Talent System - MoP Complete Integration
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Movement/Escape Talents
-    posthaste              = { 109248, 109248, 1 }, -- Disengage also frees you from all movement impairing effects and increases your movement speed by 50% for 4 sec.
-    narrow_escape          = { 109259, 109259, 1 }, -- When you Disengage, you leave behind a web trap that snares all targets within 8 yards, reducing their movement speed by 70% for 8 sec.
-    crouching_tiger        = { 120679, 120679, 1 }, -- Reduces the cooldown of Disengage by 6 sec and reduces the cooldown of Deterrence by 10 sec.
+    posthaste              = { 1, 1, 109248 }, -- Disengage also frees you from all movement impairing effects and increases your movement speed by 50% for 4 sec.
+    narrow_escape          = { 1, 2, 109259 }, -- When you Disengage, you leave behind a web trap that snares all targets within 8 yards, reducing their movement speed by 70% for 8 sec.
+    crouching_tiger        = { 1, 3, 120679 }, -- Reduces the cooldown of Disengage by 6 sec and reduces the cooldown of Deterrence by 10 sec.
     
     -- Tier 2 (Level 30) - Crowd Control Talents
-    silencing_shot         = { 109297, 34490, 1 }, -- Silences the target, preventing any spellcasting for 3 sec.
-    wyvern_sting           = { 109304, 19386, 1 }, -- A stinging shot that puts the target to sleep for 30 sec. Any damage will cancel the effect. When the target wakes up, the Sting causes 2,345 Nature damage over 6 sec. Only one Sting can be active on the target at a time.
-    binding_shot           = { 109301, 109248, 1 }, -- Fires a magical projectile, tethering the enemy and any other enemies within 5 yds for 10 sec, stunning them for 5 sec if they move more than 5 yds from the arrow.
+    silencing_shot         = { 2, 1, 34490 }, -- Silences the target, preventing any spellcasting for 3 sec.
+    wyvern_sting           = { 2, 2, 19386 }, -- A stinging shot that puts the target to sleep for 30 sec. Any damage will cancel the effect. When the target wakes up, the Sting causes 2,345 Nature damage over 6 sec. Only one Sting can be active on the target at a time.
+    binding_shot           = { 2, 3, 109248 }, -- Fires a magical projectile, tethering the enemy and any other enemies within 5 yds for 10 sec, stunning them for 5 sec if they move more than 5 yds from the arrow.
     
     -- Tier 3 (Level 45) - Defensive/Utility Talents
-    exhilaration           = { 109298, 109304, 1 }, -- Instantly heals you and your pet for 22% of total health.
-    aspect_of_the_iron_hawk = { 109260, 109260, 1 }, -- You take 15% less damage and your Aspect of the Hawk increases attack power by an additional 10%.
-    spirit_bond            = { 120361, 117902, 1 }, -- You and your pet heal for 2% of total health every 10 sec. This effect persists for 10 sec after your pet dies.
+    exhilaration           = { 3, 1, 109304 }, -- Instantly heals you and your pet for 22% of total health.
+    aspect_of_the_iron_hawk = { 3, 2, 109260 }, -- You take 15% less damage and your Aspect of the Hawk increases attack power by an additional 10%.
+    spirit_bond            = { 3, 3, 117902 }, -- You and your pet heal for 2% of total health every 10 sec. This effect persists for 10 sec after your pet dies.
     
     -- Tier 4 (Level 60) - Pet Enhancement Talents
-    murder_of_crows        = { 131894, 131894, 1 }, -- Summons a murder of crows to attack your target over the next 30 sec. If your target dies while under attack, the cooldown on this ability will reset.
-    blink_strikes          = { 117050, 130392, 1 }, -- Your pet's Basic Attacks deal 50% more damage, have a 30 yard range, and instantly teleport your pet behind the target.
-    lynx_rush              = { 120697, 120697, 1 }, -- Commands your pet to attack your target 9 times over 4 sec for 115% normal damage.
+    murder_of_crows        = { 4, 1, 131894 }, -- Summons a murder of crows to attack your target over the next 30 sec. If your target dies while under attack, the cooldown on this ability will reset.
+    blink_strikes          = { 4, 2, 130392 }, -- Your pet's Basic Attacks deal 50% more damage, have a 30 yard range, and instantly teleport your pet behind the target.
+    lynx_rush              = { 4, 3, 120697 }, -- Commands your pet to attack your target 9 times over 4 sec for 115% normal damage.
     
     -- Tier 5 (Level 75) - Focus Management Talents
-    fervor                 = { 109306, 82726, 1 }, -- Instantly restores 50 Focus to you and your pet, and then an additional 50 Focus over 10 sec.
-    dire_beast             = { 120364, 120679, 1 }, -- Summons a powerful wild beast that attacks the target for 15 sec. Each time the beast deals damage, you gain 2 Focus.
-    thrill_of_the_hunt     = { 118455, 34720, 1 }, -- Your Arcane Shot and Multi-Shot have a 30% chance to instantly restore 20 Focus.
+    fervor                 = { 5, 1, 82726 }, -- Instantly restores 50 Focus to you and your pet, and then an additional 50 Focus over 10 sec.
+    dire_beast             = { 5, 2, 120679 }, -- Summons a powerful wild beast that attacks the target for 15 sec. Each time the beast deals damage, you gain 2 Focus.
+    thrill_of_the_hunt     = { 5, 3, 34720 }, -- Your Arcane Shot and Multi-Shot have a 30% chance to instantly restore 20 Focus.
     
     -- Tier 6 (Level 90) - AoE/Ranged Talents
-    glaive_toss            = { 109215, 109215, 1 }, -- Throw a glaive at your target and another nearby enemy within 10 yards for 7,750 to 8,750 damage, and reduce their movement speed by 70% for 3 sec.
-    powershot              = { 117049, 109259, 1 }, -- A powerful attack that deals 100% weapon damage to all targets in front of you, knocking them back.
-    barrage                = { 121818, 120360, 1 }, -- Rapidly fires a spray of shots for 3 sec, dealing 60% weapon damage to all enemies in front of you.
+    glaive_toss            = { 6, 1, 109215 }, -- Throw a glaive at your target and another nearby enemy within 10 yards for 7,750 to 8,750 damage, and reduce their movement speed by 70% for 3 sec.
+    powershot              = { 6, 2, 109259 }, -- A powerful attack that deals 100% weapon damage to all targets in front of you, knocking them back.
+    barrage                = { 6, 3, 120360 }, -- Rapidly fires a spray of shots for 3 sec, dealing 60% weapon damage to all enemies in front of you.
 } )
 
 -- Enhanced Glyphs System (MoP Complete)

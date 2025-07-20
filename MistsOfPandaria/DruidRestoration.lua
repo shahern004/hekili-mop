@@ -148,42 +148,34 @@ spec:RegisterGear( "tier16_4pc", function() return set_bonus.tier16_4pc end )
 -- Talents (MoP 6-tier talent system + Restoration specialization)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Mobility
-    feline_swiftness        = { 4908, 1, 131768 },  -- 15% movement speed
-    displacer_beast         = { 4909, 1, 102280 },  -- Teleport + cat form
-    wild_charge             = { 4910, 1, 102401 },  -- Form-specific charges
+    feline_swiftness        = { 1, 1, 131768 },  -- Tier 1, Column 1, SpellID
+    displacer_beast         = { 1, 2, 102280 },  -- Tier 1, Column 2, SpellID
+    wild_charge             = { 1, 3, 102401 },  -- Tier 1, Column 3, SpellID
     
     -- Tier 2 (Level 30) - Healing utility
-    natures_swiftness       = { 4911, 1, 132158 },  -- Instant cast next heal
-    renewal                 = { 4912, 1, 108238 },  -- Instant 30% health
-    cenarion_ward           = { 4913, 1, 102351 },  -- Absorption shield
+    yseras_gift             = { 2, 1, 145108 },  -- Tier 2, Column 1, SpellID (Note: Restoration uses Ysera's Gift instead of Nature's Swiftness)
+    renewal                 = { 2, 2, 108238 },  -- Tier 2, Column 2, SpellID
+    cenarion_ward           = { 2, 3, 102351 },  -- Tier 2, Column 3, SpellID
     
     -- Tier 3 (Level 45) - Crowd control
-    faerie_swarm            = { 4914, 1, 102355 },  -- Slow + decreased damage
-    mass_entanglement       = { 4915, 1, 102359 },  -- AoE root
-    typhoon                 = { 4916, 1, 132469 },  -- Knockback + slow
+    faerie_swarm            = { 3, 1, 102355 },  -- Tier 3, Column 1, SpellID
+    mass_entanglement       = { 3, 2, 102359 },  -- Tier 3, Column 2, SpellID
+    typhoon                 = { 3, 3, 132469 },  -- Tier 3, Column 3, SpellID
     
     -- Tier 4 (Level 60) - Healing enhancement  
-    soul_of_the_forest      = { 4917, 1, 114107 },  -- Swiftmend enhances Wild Growth
-    incarnation             = { 4918, 1, 33891 },   -- Tree of Life form
-    force_of_nature         = { 4919, 1, 106737 },  -- Healing treants
+    soul_of_the_forest      = { 4, 1, 114107 },  -- Tier 4, Column 1, SpellID
+    incarnation             = { 4, 2, 33891 },   -- Tier 4, Column 2, SpellID (Tree of Life for Restoration)
+    force_of_nature         = { 4, 3, 106737 },  -- Tier 4, Column 3, SpellID
     
     -- Tier 5 (Level 75) - Disruption
-    disorienting_roar       = { 4920, 1, 99 },      -- AoE disorient 
-    ursols_vortex           = { 4921, 1, 102793 },  -- AoE pull + slow
-    mighty_bash             = { 4922, 1, 5211 },    -- Stun
+    disorienting_roar       = { 5, 1, 99 },      -- Tier 5, Column 1, SpellID 
+    ursols_vortex           = { 5, 2, 102793 },  -- Tier 5, Column 2, SpellID
+    mighty_bash             = { 5, 3, 5211 },    -- Tier 5, Column 3, SpellID
     
     -- Tier 6 (Level 90) - Major cooldowns
-    heart_of_the_wild       = { 4923, 1, 108288 },  -- Stat boost + spec abilities
-    dream_of_cenarius       = { 4924, 1, 108373 },  -- Damage/healing synergy  
-    natures_vigil           = { 4925, 1, 124974 },  -- Healing/damage link
-    
-    -- Restoration specialization talents (not in regular tree)
-    omen_of_clarity         = { 5001, 1, 113043 },  -- Clearcasting procs
-    natures_cure            = { 5002, 1, 88423 },   -- Dispel magic/curse/poison
-    swiftmend               = { 5003, 1, 18562 },   -- Instant heal consuming HoT
-    master_shapeshifter     = { 5004, 1, 48420 },   -- Form bonuses
-    naturalist              = { 5005, 1, 17069 },   -- Nature resistance + casting
-    meditation              = { 5006, 1, 9093 },    -- Mana regeneration while casting
+    heart_of_the_wild       = { 6, 1, 108292 },  -- Tier 6, Column 1, SpellID
+    dream_of_cenarius       = { 6, 2, 108373 },  -- Tier 6, Column 2, SpellID
+    natures_vigil           = { 6, 3, 124974 },  -- Tier 6, Column 3, SpellID
 } )
 
 -- Glyphs (Enhanced System - authentic MoP 5.4.8 glyph system)

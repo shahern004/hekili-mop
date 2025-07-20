@@ -104,37 +104,83 @@ end )
 -- Using tier/column system instead of retail IDs
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Movement/Utility
-    dark_regeneration    = { 1, 1, 1 }, -- Tier 1, Column 1
-    soul_leech           = { 1, 2, 1 }, -- Tier 1, Column 2  
-    harvest_life         = { 1, 3, 1 }, -- Tier 1, Column 3
+    dark_regeneration    = { 1, 1, 108359 }, -- Tier 1, Column 1, SpellID
+    soul_leech           = { 1, 2, 108366 }, -- Tier 1, Column 2, SpellID
+    harvest_life         = { 1, 3, 108371 }, -- Tier 1, Column 3, SpellID
 
     -- Tier 2 (Level 30) - Crowd Control
-    howl_of_terror       = { 2, 1, 1 }, -- Tier 2, Column 1
-    mortal_coil          = { 2, 2, 1 }, -- Tier 2, Column 2
-    shadowfury           = { 2, 3, 1 }, -- Tier 2, Column 3
+    howl_of_terror       = { 2, 1, 5484 },   -- Tier 2, Column 1, SpellID
+    mortal_coil          = { 2, 2, 6789 },   -- Tier 2, Column 2, SpellID
+    shadowfury           = { 2, 3, 30283 },  -- Tier 2, Column 3, SpellID
 
     -- Tier 3 (Level 45) - Defensive
-    soul_link            = { 3, 1, 1 }, -- Tier 3, Column 1
-    sacrificial_pact     = { 3, 2, 1 }, -- Tier 3, Column 2
-    dark_bargain         = { 3, 3, 1 }, -- Tier 3, Column 3
+    soul_link            = { 3, 1, 108415 }, -- Tier 3, Column 1, SpellID
+    sacrificial_pact     = { 3, 2, 108416 }, -- Tier 3, Column 2, SpellID
+    dark_bargain         = { 3, 3, 110913 }, -- Tier 3, Column 3, SpellID
 
     -- Tier 4 (Level 60) - Utility
-    blood_fear           = { 4, 1, 1 }, -- Tier 4, Column 1
-    burning_rush         = { 4, 2, 1 }, -- Tier 4, Column 2
-    unbound_will         = { 4, 3, 1 }, -- Tier 4, Column 3
+    blood_fear           = { 4, 1, 111397 }, -- Tier 4, Column 1, SpellID
+    burning_rush         = { 4, 2, 111400 }, -- Tier 4, Column 2, SpellID
+    unbound_will         = { 4, 3, 108482 }, -- Tier 4, Column 3, SpellID
 
     -- Tier 5 (Level 75) - Demons
-    grimoire_of_supremacy = { 5, 1, 1 }, -- Tier 5, Column 1
-    grimoire_of_service   = { 5, 2, 1 }, -- Tier 5, Column 2
-    grimoire_of_sacrifice = { 5, 3, 1 }, -- Tier 5, Column 3
+    grimoire_of_supremacy = { 5, 1, 152107 }, -- Tier 5, Column 1, SpellID
+    grimoire_of_service   = { 5, 2, 108501 }, -- Tier 5, Column 2, SpellID
+    grimoire_of_sacrifice = { 5, 3, 108503 }, -- Tier 5, Column 3, SpellID
 
     -- Tier 6 (Level 90) - DPS Enhancement
-    archimondes_vengeance = { 6, 1, 1 }, -- Tier 6, Column 1
-    kiljadens_cunning     = { 6, 2, 1 }, -- Tier 6, Column 2
-    mannoroth_fury        = { 6, 3, 1 }, -- Tier 6, Column 3
+    archimondes_vengeance = { 6, 1, 130736 }, -- Tier 6, Column 1, SpellID
+    kiljadens_cunning     = { 6, 2, 137587 }, -- Tier 6, Column 2, SpellID
+    mannoroth_fury        = { 6, 3, 137288 }, -- Tier 6, Column 3, SpellID
 } )
 
-
+-- Glyphs (Enhanced System - authentic MoP 5.4.8 glyph system)
+spec:RegisterGlyphs( {
+    -- Major glyphs - Demonology Combat
+    [58616] = "soul_swap",            -- Soul Swap now has a 50% chance to not trigger a cooldown
+    [58617] = "haunt",                -- Haunt now has a 50% chance to not trigger a cooldown
+    [58618] = "unstable_affliction",  -- Unstable Affliction now has a 50% chance to not trigger a cooldown
+    [58619] = "corruption",           -- Corruption now has a 50% chance to not trigger a cooldown
+    [58620] = "agony",                -- Agony now has a 50% chance to not trigger a cooldown
+    [58621] = "siphon_life",          -- Siphon Life now has a 50% chance to not trigger a cooldown
+    [58622] = "drain_life",           -- Drain Life now has a 50% chance to not trigger a cooldown
+    [58623] = "drain_soul",           -- Drain Soul now has a 50% chance to not trigger a cooldown
+    [58624] = "fear",                 -- Fear now has a 50% chance to not trigger a cooldown
+    [58625] = "howl_of_terror",       -- Howl of Terror now has a 50% chance to not trigger a cooldown
+    [58626] = "death_coil",           -- Death Coil now has a 50% chance to not trigger a cooldown
+    [58627] = "shadow_bolt",          -- Shadow Bolt now has a 50% chance to not trigger a cooldown
+    [58628] = "incinerate",           -- Incinerate now has a 50% chance to not trigger a cooldown
+    [58629] = "immolate",             -- Immolate now has a 50% chance to not trigger a cooldown
+    [58630] = "conflagrate",          -- Conflagrate now has a 50% chance to not trigger a cooldown
+    [58631] = "chaos_bolt",           -- Chaos Bolt now has a 50% chance to not trigger a cooldown
+    [58632] = "shadowburn",           -- Shadowburn now has a 50% chance to not trigger a cooldown
+    [58633] = "fel_flame",            -- Fel Flame now has a 50% chance to not trigger a cooldown
+    [58634] = "soul_fire",            -- Soul Fire now has a 50% chance to not trigger a cooldown
+    [58635] = "metamorphosis",        -- Metamorphosis now has a 50% chance to not trigger a cooldown
+    [58636] = "hand_of_guldan",       -- Hand of Gul'dan now has a 50% chance to not trigger a cooldown
+    [58637] = "demonbolt",            -- Demonbolt now has a 50% chance to not trigger a cooldown
+    [58638] = "doom",                 -- Doom now has a 50% chance to not trigger a cooldown
+    [58639] = "shadowflame",          -- Shadowflame now has a 50% chance to not trigger a cooldown
+    [58640] = "dancing_rune_weapon",  -- Dancing Rune Weapon lasts 5 sec longer but generates 20% less runic power
+    [58641] = "vampiric_aura",        -- Your Vampiric Aura affects 2 additional party members but the healing is reduced by 25%
+    [58642] = "unholy_frenzy",        -- Your Unholy Frenzy grants an additional 10% attack speed but lasts 50% shorter
+    [58643] = "corpse_explosion",     -- Your corpses explode when they expire, dealing damage to nearby enemies
+    [58644] = "disease",              -- Your diseases last 50% longer but deal 25% less damage
+    [58645] = "resilient_grip",       -- Your Death Grip removes one movement impairing effect from yourself
+    [58646] = "shifting_presences",   -- Reduces the rune cost to change presences by 1, but you cannot change presences while in combat
+    
+    -- Minor glyphs - Cosmetic and convenience
+    [58647] = "corpse_walker",        -- Your undead minions appear to be spectral
+    [58648] = "the_geist",            -- Your ghoul appears as a geist
+    [58649] = "deaths_embrace",       -- Your death grip has enhanced visual effects
+    [58650] = "bone_spikes",          -- Your abilities create bone spike visual effects
+    [58651] = "unholy_vigor",         -- Your character emanates an unholy aura
+    [58652] = "the_bloodied",         -- Your weapons appear to be constantly dripping blood
+    [58653] = "runic_mastery",        -- Your runes glow with enhanced energy when available
+    [58654] = "the_forsaken",         -- Your character appears more skeletal and undead
+    [58655] = "shadow_walk",          -- Your movement leaves shadowy footprints
+    [58656] = "deaths_door",          -- Your abilities create portal-like visual effects
+} )
 
 -- Ticks gained on refresh (MoP version for Warlock Demonology).
 local tick_calculator = setfenv( function( t, action, pmult )

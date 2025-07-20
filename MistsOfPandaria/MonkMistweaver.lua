@@ -396,33 +396,34 @@ spec:RegisterAura( "tier16_4pc_heal", {
 -- Talents (MoP 6-tier talent system)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Mobility
-    celerity                  = { 2645, 1, 115173 }, -- Reduces Roll cooldown by 5 sec, adds 1 charge
-    tigers_lust               = { 2646, 1, 116841 }, -- Increases ally movement speed by 70% for 6 sec
-    momentum                  = { 2647, 1, 115294 }, -- Rolling increases movement speed by 25% for 10 sec
+    celerity                  = { 1, 1, 115173 }, -- Reduces Roll cooldown by 5 sec, adds 1 charge
+    tigers_lust               = { 1, 2, 116841 }, -- Increases ally movement speed by 70% for 6 sec
+    momentum                  = { 1, 3, 115294 }, -- Rolling increases movement speed by 25% for 10 sec
     
     -- Tier 2 (Level 30) - Healing
-    chi_wave                  = { 2648, 1, 115098 }, -- Chi energy bounces between friends and foes
-    zen_sphere                = { 2649, 1, 124081 }, -- Healing sphere around target, explodes on expire
-    chi_burst                 = { 2650, 1, 123986 }, -- Chi torrent damages enemies, heals allies
+    chi_wave                  = { 2, 1, 115098 }, -- Chi energy bounces between friends and foes
+    zen_sphere                = { 2, 2, 124081 }, -- Healing sphere around target, explodes on expire
+    chi_burst                 = { 2, 3, 123986 }, -- Chi torrent damages enemies, heals allies
     
     -- Tier 3 (Level 45) - Resource
-    power_strikes             = { 2651, 1, 121817 }, -- Every 20 sec, Tiger Palm grants 1 additional Chi
-    ascension                 = { 2652, 1, 115396 }, -- +1 max Chi, +15% Energy regeneration
-    chi_brew                  = { 2653, 1, 115399 }, -- Restores 2 Chi, 45 sec cooldown
+    power_strikes             = { 3, 1, 121817 }, -- Every 20 sec, Tiger Palm grants 1 additional Chi
+    ascension                 = { 3, 2, 115396 }, -- +1 max Chi, +15% Energy regeneration
+    chi_brew                  = { 3, 3, 115399 }, -- Restores 2 Chi, 45 sec cooldown
     
     -- Tier 4 (Level 60) - Control
-    deadly_reach              = { 2654, 1, 126679 }, -- Increases Paralysis range by 10 yds
-    charging_ox_wave          = { 2655, 1, 119392 }, -- Ox wave stuns enemies for 3 sec
-    leg_sweep                 = { 2656, 1, 119381 }, -- Stuns nearby enemies for 5 sec
+    deadly_reach              = { 4, 1, 126679 }, -- Increases Paralysis range by 10 yds
+    charging_ox_wave          = { 4, 2, 119392 }, -- Ox wave stuns enemies for 3 sec
+    leg_sweep                 = { 4, 3, 119381 }, -- Stuns nearby enemies for 5 sec
     
-    -- Tier 5 (Level 75) - Defense    healing_elixirs           = { 2657, 1, 122280 }, -- Potions heal for +10% max health
-    dampen_harm               = { 2658, 1, 122278 }, -- Reduces next 3 large attacks by 50%
-    diffuse_magic             = { 2659, 1, 122783 }, -- Transfers debuffs, 90% magic damage reduction
+    -- Tier 5 (Level 75) - Defense   
+    healing_elixirs           = { 5, 1, 122280 }, -- Potions heal for +10% max health
+    dampen_harm               = { 5, 2, 122278 }, -- Reduces next 3 large attacks by 50%
+    diffuse_magic             = { 5, 3, 122783 }, -- Transfers debuffs, 90% magic damage reduction
     
     -- Tier 6 (Level 90) - Ultimate
-    rushing_jade_wind         = { 2660, 1, 116847 }, -- Whirling tornado damages nearby enemies
-    invoke_xuen               = { 2661, 1, 123904 }, -- Summons White Tiger Xuen for 45 sec
-    chi_torpedo               = { 2662, 1, 119085 }  -- Torpedo forward, +30% movement speed
+    rushing_jade_wind         = { 6, 1, 116847 }, -- Whirling tornado damages nearby enemies
+    invoke_xuen               = { 6, 2, 123904 }, -- Summons White Tiger Xuen for 45 sec
+    chi_torpedo               = { 6, 3, 119085 }  -- Torpedo forward, +30% movement speed
 } )
 
 -- Comprehensive Glyph System for MoP Mistweaver Monk

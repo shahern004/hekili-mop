@@ -149,34 +149,34 @@ end )
 -- Using tier/column system instead of retail IDs
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Mobility
-    feline_swiftness = { 1, 1, 1 }, -- Tier 1, Column 1
-    displacer_beast  = { 1, 2, 1 }, -- Tier 1, Column 2  
-    wild_charge      = { 1, 3, 1 }, -- Tier 1, Column 3
+    feline_swiftness = { 1, 1, 131768 }, -- Tier 1, Column 1, SpellID
+    displacer_beast  = { 1, 2, 102280 }, -- Tier 1, Column 2, SpellID  
+    wild_charge      = { 1, 3, 102401 }, -- Tier 1, Column 3, SpellID
 
     -- Tier 2 (Level 30) - Healing/Utility
-    yseras_gift      = { 2, 1, 1 }, -- Tier 2, Column 1
-    renewal          = { 2, 2, 1 }, -- Tier 2, Column 2
-    cenarion_ward    = { 2, 3, 1 }, -- Tier 2, Column 3
+    yseras_gift      = { 2, 1, 145108 }, -- Tier 2, Column 1, SpellID
+    renewal          = { 2, 2, 108238 }, -- Tier 2, Column 2, SpellID
+    cenarion_ward    = { 2, 3, 102351 }, -- Tier 2, Column 3, SpellID
 
     -- Tier 3 (Level 45) - Crowd Control
-    faerie_swarm         = { 3, 1, 1 }, -- Tier 3, Column 1
-    mass_entanglement    = { 3, 2, 1 }, -- Tier 3, Column 2
-    typhoon              = { 3, 3, 1 }, -- Tier 3, Column 3
+    faerie_swarm         = { 3, 1, 102355 }, -- Tier 3, Column 1, SpellID
+    mass_entanglement    = { 3, 2, 102359 }, -- Tier 3, Column 2, SpellID
+    typhoon              = { 3, 3, 132469 }, -- Tier 3, Column 3, SpellID
 
     -- Tier 4 (Level 60) - Specialization Enhancement
-    soul_of_the_forest   = { 4, 1, 1 }, -- Tier 4, Column 1
-    incarnation_king_of_the_jungle = { 4, 2, 1 }, -- Tier 4, Column 2
-    force_of_nature      = { 4, 3, 1 }, -- Tier 4, Column 3
+    soul_of_the_forest   = { 4, 1, 102543 }, -- Tier 4, Column 1, SpellID (FIXED: was 114107)
+    incarnation_king_of_the_jungle = { 4, 2, 114107 }, -- Tier 4, Column 2, SpellID (FIXED: was 102543)
+    force_of_nature      = { 4, 3, 106737 }, -- Tier 4, Column 3, SpellID
 
     -- Tier 5 (Level 75) - Disruption
-    disorienting_roar    = { 5, 1, 1 }, -- Tier 5, Column 1
-    ursols_vortex        = { 5, 2, 1 }, -- Tier 5, Column 2
-    mighty_bash          = { 5, 3, 1 }, -- Tier 5, Column 3
+    disorienting_roar    = { 5, 1, 99 },      -- Tier 5, Column 1, SpellID
+    ursols_vortex        = { 5, 2, 108292 },  -- Tier 5, Column 2, SpellID (FIXED: was 102793)
+    mighty_bash          = { 5, 3, 5211 },    -- Tier 5, Column 3, SpellID
 
     -- Tier 6 (Level 90) - Major Enhancement
-    heart_of_the_wild    = { 6, 1, 1 }, -- Tier 6, Column 1
-    dream_of_cenarius    = { 6, 2, 1 }, -- Tier 6, Column 2
-    natures_vigil        = { 6, 3, 1 }, -- Tier 6, Column 3
+    heart_of_the_wild    = { 6, 1, 102793 }, -- Tier 6, Column 1, SpellID (FIXED: was 108292)
+    dream_of_cenarius    = { 6, 2, 108373 }, -- Tier 6, Column 2, SpellID
+    natures_vigil        = { 6, 3, 124974 }, -- Tier 6, Column 3, SpellID
 } )
 
 
@@ -503,6 +503,12 @@ spec:RegisterAuras( {
         duration = 3600,
         type = "Magic",
         max_stack = 1
+    },
+    stag_form = {
+        id = 165962, -- Stag Form spell ID (MoP)
+        duration = 3600,
+        type = "Magic",
+        max_stack = 1,
     },
     typhoon = {
         id = 61391,

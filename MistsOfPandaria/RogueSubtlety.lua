@@ -28,69 +28,41 @@ spec:RegisterResource( 3, { -- Energy
   }
 } )
 
-spec:RegisterResource( 4 ) -- ComboPoints
+spec:RegisterResource( 3 ) -- Energy
+spec:RegisterResource( 4 ) -- ComboPoints 
 
 -- Talents
 spec:RegisterTalents( {
   -- Tier 1
-  nightstalker          = { 1181, 14062, 1 }, -- While Stealth or Vanish is active, your abilities deal 25% more damage.
-  subterfuge            = { 1182, 108208, 1 }, -- Your abilities requiring Stealth can still be used for 3 sec after Stealth breaks.
-  shadow_focus          = { 1183, 108209, 1 }, -- Abilities used while in Stealth cost 75% less energy.
+  nightstalker          = { 1, 1, 14062 }, -- While Stealth or Vanish is active, your abilities deal 25% more damage.
+  subterfuge            = { 1, 2, 108208 }, -- Your abilities requiring Stealth can still be used for 3 sec after Stealth breaks.
+  shadow_focus          = { 1, 3, 108209 }, -- Abilities used while in Stealth cost 75% less energy.
   
   -- Tier 2
-  deadly_throw          = { 1184, 26679, 1 }, -- Finishing move that throws a deadly blade at the target, dealing damage and reducing movement speed by 70% for 6 sec. 1 point: 12 damage 2 points: 24 damage 3 points: 36 damage 4 points: 48 damage 5 points: 60 damage
-  nerve_strike          = { 1185, 108210, 1 }, -- Kidney Shot and Cheap Shot also reduce the damage dealt by the target by 50% for 6 sec after the effect ends.
-  combat_readiness      = { 1186, 74001, 1 }, -- Reduces all damage taken by 50% for 10 sec. Each time you are struck while Combat Readiness is active, the damage reduction decreases by 10%.
+  deadly_throw          = { 2, 1, 26679 }, -- Finishing move that throws a deadly blade at the target, dealing damage and reducing movement speed by 70% for 6 sec. 1 point: 12 damage 2 points: 24 damage 3 points: 36 damage 4 points: 48 damage 5 points: 60 damage
+  nerve_strike          = { 2, 2, 108210 }, -- Kidney Shot and Cheap Shot also reduce the damage dealt by the target by 50% for 6 sec after the effect ends.
+  combat_readiness      = { 2, 3, 74001 }, -- Reduces all damage taken by 50% for 10 sec. Each time you are struck while Combat Readiness is active, the damage reduction decreases by 10%.
   
   -- Tier 3
-  cheat_death           = { 1187, 31230, 1 }, -- Fatal attacks instead bring you to 10% of your maximum health. For 3 sec afterward, you take 90% reduced damage. Cannot occur more than once per 90 sec.
-  leeching_poison       = { 1188, 108211, 1 }, -- Your Deadly Poison also causes your Poison abilities to heal you for 10% of the damage they deal.
-  elusiveness           = { 1189, 79008, 1 }, -- Feint also reduces all damage you take by 30% for 5 sec.
+  cheat_death           = { 3, 1, 31230 }, -- Fatal attacks instead bring you to 10% of your maximum health. For 3 sec afterward, you take 90% reduced damage. Cannot occur more than once per 90 sec.
+  leeching_poison       = { 3, 2, 108211 }, -- Your Deadly Poison also causes your Poison abilities to heal you for 10% of the damage they deal.
+  elusiveness           = { 3, 3, 79008 }, -- Feint also reduces all damage you take by 30% for 5 sec.
   
   -- Tier 4
-  prep                  = { 1190, 14185, 1 }, -- When activated, the cooldown on your Vanish, Sprint, and Shadowstep abilities are reset.
-  shadowstep            = { 1191, 36554, 1 }, -- Step through the shadows to appear behind your target and gain 70% increased movement speed for 2 sec. Cooldown reset by Preparation.
-  burst_of_speed        = { 1192, 108212, 1 }, -- Increases your movement speed by 70% for 4 sec. Usable while stealthed. Removes all snare and root effects.
+  prep                  = { 4, 1, 14185 }, -- When activated, the cooldown on your Vanish, Sprint, and Shadowstep abilities are reset.
+  shadowstep            = { 4, 2, 36554 }, -- Step through the shadows to appear behind your target and gain 70% increased movement speed for 2 sec. Cooldown reset by Preparation.
+  burst_of_speed        = { 4, 3, 108212 }, -- Increases your movement speed by 70% for 4 sec. Usable while stealthed. Removes all snare and root effects.
   
   -- Tier 5
-  prey_on_the_weak      = { 1193, 51685, 1 }, -- Targets you disable with Cheap Shot, Kidney Shot, Sap, or Gouge take 10% additional damage for 6 sec.
-  paralytic_poison      = { 1194, 108215, 1 }, -- Your Crippling Poison has a 4% chance to paralyze the target for 4 sec. Only one poison per weapon.
-  dirty_tricks          = { 1195, 108216, 1 }, -- Cheap Shot, Gouge, and Blind no longer cost energy.
+  prey_on_the_weak      = { 5, 1, 51685 }, -- Targets you disable with Cheap Shot, Kidney Shot, Sap, or Gouge take 10% additional damage for 6 sec.
+  paralytic_poison      = { 5, 2, 108215 }, -- Your Crippling Poison has a 4% chance to paralyze the target for 4 sec. Only one poison per weapon.
+  dirty_tricks          = { 5, 3, 108216 }, -- Cheap Shot, Gouge, and Blind no longer cost energy.
   
   -- Tier 6
-  shuriken_toss         = { 1196, 114014, 1 }, -- Throws a shuriken at an enemy target, dealing 400% weapon damage (based on weapon damage) as Physical damage. Awards 1 combo point.
-  versatility           = { 1197, 108214, 1 }, -- You can apply both Wound Poison and Deadly Poison to your weapons.
-  anticipation          = { 1198, 114015, 1 }, -- You can build combo points beyond the normal 5. Combo points generated beyond 5 are stored (up to 5) and applied when your combo points reset to 0.
+  shuriken_toss         = { 6, 1, 114014 }, -- Throws a shuriken at an enemy target, dealing 400% weapon damage (based on weapon damage) as Physical damage. Awards 1 combo point.
+  versatility           = { 6, 2, 108214 }, -- You can apply both Wound Poison and Deadly Poison to your weapons.
+  anticipation          = { 6, 3, 114015 }, -- You can build combo points beyond the normal 5. Combo points generated beyond 5 are stored (up to 5) and applied when your combo points reset to 0.
   
-  -- Subtlety Specific Talents (1-45 talents)
-  master_of_subtlety    = { 243, 31223, 3 }, -- Attacks made while stealthed and for 6 sec after breaking stealth do 10/20/30% additional damage.
-  opportunity           = { 244, 1477, 3 }, -- Increases the damage dealt by your Backstab, Ambush, Garrote, and Eviscerate by 10/20/30%.
-  initiative            = { 245, 13979, 2 }, -- Your Ambush, Garrote, and Cheap Shot abilities generate 1/2 additional combo point.
-  
-  -- 46-60 talents
-  improved_ambush       = { 246, 14079, 2 }, -- Increases the critical strike chance of your Ambush ability by 25/50%.
-  heightened_senses     = { 247, 30895, 1 }, -- Increases your Stealth detection and reduces the chance you are hit by spells and ranged attacks by 2%.
-  premeditation         = { 248, 14183, 1 }, -- When you Ambush, you generate 2 additional combo points that can only be used on Eviscerate, Slice and Dice, or Rupture. These combo points cannot be used on other finishing moves. Lasts 20 sec.
-  
-  -- 61-75 talents
-  hemorrhage           = { 249, 16511, 1 }, -- An instant strike that damages the target and causes the target to hemorrhage, dealing additional damage over time. Each strike of the Rogue's weapons has a chance to expose a flaw in their target's defenses, causing all attacks against the target to bypass 35% of that target's armor for 10 sec. Awards 1 combo point.
-  honor_among_thieves  = { 250, 51701, 3 }, -- When anyone in your group critically hits with a spell or ability, you have a 33/66/100% chance to gain a combo point on your current target. This effect cannot occur more than once every 2 sec.
-  waylay               = { 251, 51692, 2 }, -- Your Ambush and Backstab critical hits have a 50/100% chance to reduce the target's movement speed by 70% for 8 sec.
-  
-  -- 76-90 talents
-  sanguinary_vein      = { 252, 79147, 2 }, -- Increases damage caused against targets with bleed effects by 8/16%.
-  energetic_recovery   = { 253, 79152, 2 }, -- Your Slice and Dice ability also increases your Energy regeneration rate by 5/10%.
-  find_weakness        = { 254, 91023, 2 }, -- Your Ambush, Garrote, and Cheap Shot abilities bypass 35/70% of your target's armor for 10 sec.
-  
-  -- 91+ talents
-  slaughter_from_shadows = { 255, 51708, 3 }, -- Reduces the energy cost of your Ambush by 5/10/15, Backstab by 4/8/12, and Hemorrhage by 3/6/9.
-  serrated_blades        = { 256, 14171, 2 }, -- Your attacks that apply your Deadly Poison also have a 10/20% chance to extend the duration of Rupture on the target by 2 sec.
-  shadow_dance            = { 257, 51713, 1 }, -- Allows use of abilities that require Stealth for 8 sec, and increases damage by 20%. Does not break Stealth if already active.
-} )
-
--- PvP Talents
-spec:RegisterPvpTalents( {
-  smoke_bomb           = 1209, -- (359053) Creates a cloud of thick smoke in an 8 yard radius around the Rogue for 5 sec. Enemies are unable to target into or out of the smoke cloud.
 } )
 
 -- Auras

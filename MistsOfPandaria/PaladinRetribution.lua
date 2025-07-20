@@ -261,34 +261,34 @@ spec:RegisterAura( "ret_tier16_4pc", {
 -- Talents (MoP 6-tier talent system)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Movement
-    speed_of_light            = { 2199, 1, 85499  }, -- +70% movement speed for 8 sec
-    long_arm_of_the_law       = { 2200, 1, 87172 }, -- Judgments increase movement speed by 45% for 3 sec
-    pursuit_of_justice        = { 2201, 1, 26023  }, -- +15% movement speed per Holy Power charge
+    speed_of_light            = { 1, 1, 85499  }, -- +70% movement speed for 8 sec
+    long_arm_of_the_law       = { 1, 2, 87172 }, -- Judgments increase movement speed by 45% for 3 sec
+    pursuit_of_justice        = { 1, 3, 26023  }, -- +15% movement speed per Holy Power charge
 
     -- Tier 2 (Level 30) - Control
-    fist_of_justice           = { 2202, 1, 105593 }, -- Reduces Hammer of Justice cooldown by 50%
-    repentance                = { 2203, 1, 20066  }, -- Puts the enemy target in a state of meditation, incapacitating them for up to 1 min.
-    blinding_light            = { 2204, 1, 115750 }, -- Emits dazzling light in all directions, blinding enemies within 10 yards for 6 sec.
+    fist_of_justice           = { 2, 1, 105593 }, -- Reduces Hammer of Justice cooldown by 50%
+    repentance                = { 2, 2, 20066  }, -- Puts the enemy target in a state of meditation, incapacitating them for up to 1 min.
+    blinding_light            = { 2, 3, 115750 }, -- Emits dazzling light in all directions, blinding enemies within 10 yards for 6 sec.
 
     -- Tier 3 (Level 45) - Healing
-    selfless_healer           = { 2205, 1, 85804  }, -- Your Holy power spending abilities reduce the cast time and mana cost of your next Flash of Light.
-    eternal_flame             = { 2206, 1, 114163 }, -- Consumes all Holy Power to place a protective Holy flame on a friendly target, which heals over 30 sec.
-    sacred_shield             = { 2207, 1, 20925  }, -- Places a Sacred Shield on a friendly target, absorbing damage every 6 sec for 30 sec.
+    selfless_healer           = { 3, 1, 85804  }, -- Your Holy power spending abilities reduce the cast time and mana cost of your next Flash of Light.
+    eternal_flame             = { 3, 2, 114163 }, -- Consumes all Holy Power to place a protective Holy flame on a friendly target, which heals over 30 sec.
+    sacred_shield             = { 3, 3, 20925  }, -- Places a Sacred Shield on a friendly target, absorbing damage every 6 sec for 30 sec.
 
     -- Tier 4 (Level 60) - Utility/CC
-    hand_of_purity            = { 2208, 1, 114039 }, -- Protects a party or raid member, reducing harmful periodic effects by 70% for 6 sec.
-    unbreakable_spirit        = { 2209, 1, 114154 }, -- Reduces the cooldown of your Divine Shield, Divine Protection, and Lay on Hands by 50%.
-    clemency                  = { 2210, 1, 105622 }, -- Increases the number of charges on your Hand spells by 1.
+    hand_of_purity            = { 4, 1, 114039 }, -- Protects a party or raid member, reducing harmful periodic effects by 70% for 6 sec.
+    unbreakable_spirit        = { 4, 2, 114154 }, -- Reduces the cooldown of your Divine Shield, Divine Protection, and Lay on Hands by 50%.
+    clemency                  = { 4, 3, 105622 }, -- Increases the number of charges on your Hand spells by 1.
 
     -- Tier 5 (Level 75) - DPS
-    divine_purpose            = { 2211, 1, 86172  }, -- Your Holy Power abilities have a 15% chance to make your next Holy Power ability free and more effective.
-    holy_avenger              = { 2212, 1, 105809 }, -- Your Holy power generating abilities generate 3 charges of Holy Power for 18 sec.
-    sanctified_wrath          = { 2213, 1, 53376  }, -- Increases the duration of Avenging Wrath by 5 sec and causes your Judgment to generate 1 additional Holy Power during Avenging Wrath.
+    divine_purpose            = { 5, 1, 86172  }, -- Your Holy Power abilities have a 15% chance to make your next Holy Power ability free and more effective.
+    holy_avenger              = { 5, 2, 105809 }, -- Your Holy power generating abilities generate 3 charges of Holy Power for 18 sec.
+    sanctified_wrath          = { 5, 3, 53376  }, -- Increases the duration of Avenging Wrath by 5 sec and causes your Judgment to generate 1 additional Holy Power during Avenging Wrath.
 
     -- Tier 6 (Level 90) - DPS/Utility
-    holy_prism                = { 2214, 1, 114165 }, -- Fires a beam of light that hits a target for Holy damage or healing.
-    lights_hammer             = { 2215, 1, 114158 }, -- Hurls a Light-infused hammer to the ground, dealing Holy damage to enemies and healing allies.
-    execution_sentence        = { 2216, 1, 114157 }  -- A hammer slowly falls from the sky, dealing Holy damage to an enemy or healing an ally.
+    holy_prism                = { 6, 1, 114165 }, -- Fires a beam of light that hits a target for Holy damage or healing.
+    lights_hammer             = { 6, 2, 114158 }, -- Hurls a Light-infused hammer to the ground, dealing Holy damage to enemies and healing allies.
+    execution_sentence        = { 6, 3, 114157 }  -- A hammer slowly falls from the sky, dealing Holy damage to an enemy or healing an ally.
 } )
 
 -- Comprehensive Retribution Paladin Glyphs for MoP

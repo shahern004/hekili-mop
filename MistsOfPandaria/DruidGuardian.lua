@@ -61,6 +61,72 @@ spec:RegisterTalents( {
     disentanglement       = { 6, 3, 108280 }
 } )
 
+-- Glyphs (Enhanced System - authentic MoP 5.4.8 glyph system)
+spec:RegisterGlyphs( {
+    -- Major glyphs - Guardian Combat
+    [54825] = "savage_roar",           -- Savage Roar increases damage by 3% instead of 30%
+    [54760] = "feral_charge",          -- Feral Charge (Bear) now also stuns the target for 3 sec
+    [54821] = "maul",                  -- Maul now hits 2 additional targets
+    [54832] = "mangle",                -- Mangle generates 5 additional rage
+    [54743] = "lacerate",              -- Lacerate now has a 50% chance to refresh its duration
+    [54829] = "swipe",                 -- Swipe now hits 2 additional targets
+    [54754] = "shred",                 -- Shred now deals 20% additional damage to bleeding targets
+    [54755] = "rip",                   -- Rip now has a 50% chance to not consume combo points
+    [116218] = "ferocious_bite",       -- Ferocious Bite now heals you for 1% of your maximum health per combo point
+    [125390] = "tigers_fury",          -- Tiger's Fury now also increases your movement speed by 15%
+    [125391] = "berserk",              -- Berserk now lasts 5 sec longer but has a 30 sec longer cooldown
+    [125392] = "incarnation",          -- Incarnation now also grants 50% increased movement speed
+    [125393] = "survival_instincts",   -- Survival Instincts now also grants immunity to movement impairing effects
+    [125394] = "frenzied_regeneration", -- Frenzied Regeneration now also increases your dodge chance by 30%
+    [125395] = "barkskin",             -- Barkskin now also grants immunity to silence and interrupt effects
+    
+    -- Major glyphs - Mobility/Utility
+    [94388] = "wild_charge",           -- Wild Charge now has 2 charges
+    [59219] = "displacer_beast",       -- Displacer Beast now also grants stealth for 4 sec
+    [114235] = "stampeding_roar",      -- Stampeding Roar cooldown reduced by 60 seconds
+    [125396] = "dash",                 -- Dash now also increases your swimming speed by 100%
+    [125397] = "wild_charge",          -- Wild Charge now has 2 charges
+    [125398] = "displacer_beast",      -- Displacer Beast now also grants stealth for 4 sec
+    [125399] = "typhoon",              -- Typhoon now also silences affected enemies for 3 sec
+    [125400] = "ursols_vortex",        -- Ursol's Vortex now lasts 50% longer
+    [125401] = "mighty_bash",          -- Mighty Bash now also reduces the target's movement speed by 50% for 8 sec
+    [54828] = "rebirth",               -- Rebirth gives 100% health/mana instead of 60%
+    
+    -- Major glyphs - Defensive/Survivability
+    [125402] = "renewal",              -- Renewal now also grants immunity to movement impairing effects for 4 sec
+    [125403] = "cenarion_ward",        -- Cenarion Ward now lasts 50% longer
+    [125404] = "survival_instincts",   -- Survival Instincts can now be cast in any form
+    [125405] = "frenzied_regeneration", -- Frenzied Regeneration now also increases your dodge chance by 30%
+    [125406] = "bear_form",            -- Bear Form now also increases your movement speed by 15%
+    [125407] = "cat_form",             -- Cat Form now also increases your energy regeneration by 20%
+    [125408] = "travel_form",          -- Travel Form now also grants water walking
+    [125409] = "aquatic_form",         -- Aquatic Form now also increases your movement speed on land by 25%
+    [125410] = "moonkin_form",         -- Moonkin Form now also increases your spell critical strike chance by 5%
+    [125411] = "treant_form",          -- Treant Form now also increases your healing done by 15%
+    
+    -- Major glyphs - Control/CC
+    [125412] = "hibernate",            -- Hibernate can now affect Dragonkin and Undead
+    [125413] = "entangling_roots",     -- Entangling Roots can now affect flying enemies
+    [125414] = "cyclone",              -- Cyclone now lasts 2 sec longer but has a 10 sec longer cooldown
+    [125415] = "solar_beam",           -- Solar Beam now also reduces the movement speed of affected enemies by 50%
+    [125416] = "mass_entanglement",    -- Mass Entanglement now affects 3 additional targets
+    [125417] = "faerie_fire",          -- Faerie Fire now also increases the target's damage taken by magic spells by 15%
+    
+    -- Minor glyphs - Visual/Convenience
+    [57856] = "aquatic_form",          -- Walk on water in Aquatic Form
+    [57862] = "challenging_roar",      -- Roar matches shapeshift form
+    [57863] = "charm_woodland_creature", -- Charm critters for 10 minutes
+    [57855] = "dash",                  -- Dash leaves glowing trail
+    [57861] = "grace",                 -- Death causes enemies to flee
+    [57857] = "mark_of_the_wild",      -- Transform into stag when self-buffing
+    [57858] = "treant",                -- Force of Nature treants resemble trees
+    [57860] = "unburdened_rebirth",    -- Rebirth requires no reagent
+    [121840] = "stars",                -- Moonfire and Sunfire appear as stars
+    [125418] = "blooming",             -- Lifebloom causes flowers to bloom around the target
+    [125419] = "floating",             -- Spells cause you to hover slightly above the ground
+    [125420] = "glow",                 -- Healing spells cause you to glow with natural energy
+} )
+
 -- Gear Sets
 spec:RegisterGear( "tier13", 78699, 78700, 78701, 78702, 78703, 78704, 78705, 78706, 78707, 78708 )
 spec:RegisterGear( "tier14", 85304, 85305, 85306, 85307, 85308 )

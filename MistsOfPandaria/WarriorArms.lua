@@ -334,34 +334,33 @@ spec:RegisterGear( "gorehowl", 105531, {
 -- Comprehensive Talent System (MoP Talent Trees)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Mobility
-    juggernaut                 = { 2047, 1, 103156 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and generates 15 Rage.
-    double_time                = { 2048, 1, 103827 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and no longer generates Rage.
-    warbringer                 = { 2049, 1, 103828 }, -- Charge also roots the target for 4 sec, and Hamstring generates more Rage.
+    juggernaut                 = { 1, 1, 103156 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and generates 15 Rage.
+    double_time                = { 1, 2, 103827 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and no longer generates Rage.
+    warbringer                 = { 1, 3, 103828 }, -- Charge also roots the target for 4 sec, and Hamstring generates more Rage.
 
     -- Tier 2 (Level 30) - Healing/Survival
-    second_wind                = { 2050, 1, 29838 },  -- While below 35% health, you regenerate 3% of your maximum health every 1 sec.
-    enraged_regeneration       = { 2051, 1, 55694 },  -- Instantly heals you for 10% of your total health and regenerates an additional 10% over 5 sec.
-    impending_victory          = { 2052, 1, 103840 }, -- Instantly attack the target causing damage and healing you for 10% of your maximum health.
+    second_wind                = { 2, 1, 29838 },  -- While below 35% health, you regenerate 3% of your maximum health every 1 sec.
+    enraged_regeneration       = { 2, 2, 55694 },  -- Instantly heals you for 10% of your total health and regenerates an additional 10% over 5 sec.
+    impending_victory          = { 2, 3, 103840 }, -- Instantly attack the target causing damage and healing you for 10% of your maximum health.
 
     -- Tier 3 (Level 45) - Utility
-    staggering_shout           = { 2053, 1, 107566 }, -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec.
-    piercing_howl              = { 2054, 1, 12323 },  -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec.
-    disrupting_shout           = { 2055, 1, 102060 }, -- Interrupts all enemy spell casts and prevents any spell in that school from being cast for 4 sec.
+    staggering_shout           = { 3, 1, 107566 }, -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec.
+    piercing_howl              = { 3, 2, 12323 },  -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec.
+    disrupting_shout           = { 3, 3, 102060 }, -- Interrupts all enemy spell casts and prevents any spell in that school from being cast for 4 sec.
 
     -- Tier 4 (Level 60) - Survivability
-    bladestorm                 = { 2056, 1, 46924 },  -- Become a whirling maelstrom of steel, striking all nearby enemies for weapon damage over 6 sec.
-    shockwave                  = { 2057, 1, 46968 },  -- Sends a wave through the ground, causing damage and stunning all enemies within 10 yards for 4 sec.
-    dragon_roar                = { 2058, 1, 118000 }, -- Roar with the fury of a dragon, dealing damage to all enemies within 8 yards.
+    bladestorm                 = { 4, 1, 46924 },  -- Become a whirling maelstrom of steel, striking all nearby enemies for weapon damage over 6 sec.
+    shockwave                  = { 4, 2, 46968 },  -- Sends a wave through the ground, causing damage and stunning all enemies within 10 yards for 4 sec.
+    dragon_roar                = { 4, 3, 118000 }, -- Roar with the fury of a dragon, dealing damage to all enemies within 8 yards.
 
     -- Tier 5 (Level 75) - Berserker Powers
-    mass_spell_reflection      = { 2059, 1, 114028 }, -- Reflects the next spell cast on you or your party members back at its caster.
-    safeguard                  = { 2060, 1, 114029 }, -- Intervene now removes all movement impairing effects and provides 30% damage reduction.
-    vigilance                  = { 2061, 1, 114030 }, -- Focus your protective instincts on a party member, reducing their damage taken by 30%.
+    mass_spell_reflection      = { 5, 1, 114028 }, -- Reflects the next spell cast on you or your party members back at its caster.
+    safeguard                  = { 5, 2, 114029 }, -- Intervene now removes all movement impairing effects and provides 30% damage reduction.
+    vigilance                  = { 5, 3, 114030 }, -- Focus your protective instincts on a party member, reducing their damage taken by 30%.
 
     -- Tier 6 (Level 90) - Ultimate Abilities
-    avatar                     = { 2062, 1, 107574 }, -- Transform into a colossus for 24 sec, becoming immune to movement effects and increasing damage by 20%.
-    bloodbath                  = { 2063, 1, 12292 },  -- Your attacks trigger a bleeding DoT that lasts 1 min and stacks up to 3 times.
-    storm_bolt                 = { 2064, 1, 107570 }  -- Hurl your weapon at an enemy, causing damage and stunning for 4 sec. 1.5 sec cast, 30 sec cooldown.
+    avatar                     = { 6, 1, 107574 }, -- Transform into a colossus for 24 sec, becoming immune to movement effects and increasing damage by 20%.
+    bloodbath                  = { 6, 2, 12292 },  -- Your attacks trigger a bleeding DoT that lasts 1 min and stacks up to 3
 } )
 
 -- Enhanced Glyphs System for Arms Warrior (following Hunter Survival comprehensiveness)

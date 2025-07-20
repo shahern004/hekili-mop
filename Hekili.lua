@@ -804,22 +804,32 @@ function Hekili:GetMoPSpecialization()
             end
         end
     elseif class == "ROGUE" then
-        -- Rogue spec detection for MoP Classic
-        if IsPlayerSpell(1943) then -- Rupture - Core Assassination ability
+        -- Rogue spec detection for MoP Classic - Check for spec-specific abilities first
+        if IsPlayerSpell(13750) then -- Adrenaline Rush - Combat specific
+            specID = 260; specName = "Combat"
+        elseif IsPlayerSpell(51690) then -- Killing Spree - Combat specific
+            specID = 260; specName = "Combat"
+        elseif IsPlayerSpell(13877) then -- Blade Flurry - Combat specific
+            specID = 260; specName = "Combat"
+        elseif IsPlayerSpell(84617) then -- Revealing Strike - Combat specific
+            specID = 260; specName = "Combat"
+        elseif IsPlayerSpell(79140) then -- Vendetta - Assassination specific
             specID = 259; specName = "Assassination"
-        elseif IsPlayerSpell(2098) then -- Eviscerate - Core Combat ability
-            specID = 260; specName = "Combat"
-        elseif IsPlayerSpell(36554) then -- Shadowstep - Subtlety specific
-            specID = 261; specName = "Subtlety"
-        elseif IsPlayerSpell(13750) then -- Adrenaline Rush - Combat specific
-            specID = 260; specName = "Combat"
         elseif IsPlayerSpell(14177) then -- Cold Blood - Assassination specific
             specID = 259; specName = "Assassination"
-        elseif IsPlayerSpell(31224) then -- Cloak of Shadows - Available to all, check other abilities
-            -- Default to Combat if no specific spec abilities detected
-            specID = 260; specName = "Combat"
+        elseif IsPlayerSpell(51713) then -- Shadow Dance - Subtlety specific
+            specID = 261; specName = "Subtlety"
+        elseif IsPlayerSpell(36554) then -- Shadowstep - Subtlety specific
+            specID = 261; specName = "Subtlety"
         else
-            specID = 260; specName = "Combat" -- Default to Combat for Rogues
+            -- Fallback: check for basic abilities that are more common in certain specs
+            if IsPlayerSpell(2098) then -- Eviscerate - Available to all but more common in Combat
+                specID = 260; specName = "Combat"
+            elseif IsPlayerSpell(1943) then -- Rupture - Available to all but more common in Assassination
+                specID = 259; specName = "Assassination"
+            else
+                specID = 260; specName = "Combat" -- Default to Combat for Rogues
+            end
         end
     elseif class == "WARRIOR" then
         -- Add warrior detection as needed

@@ -191,34 +191,34 @@ spec:RegisterAura( "tier16_4pc_restoration", {
 -- Talents (MoP 6-tier talent system)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Survivability
-    nature_guardian            = { 2260, 1, 30884  }, -- Instant heal for 20% health when below 30%
-    stone_bulwark_totem        = { 2261, 1, 108270 }, -- Absorb totem that regenerates shield
-    astral_shift               = { 2262, 1, 108271 }, -- 40% damage shifted to DoT for 6 sec
+    nature_guardian            = { 1, 1, 30884  }, -- Instant heal for 20% health when below 30%
+    stone_bulwark_totem        = { 1, 2, 108270 }, -- Absorb totem that regenerates shield
+    astral_shift               = { 1, 3, 108271 }, -- 40% damage shifted to DoT for 6 sec
 
     -- Tier 2 (Level 30) - Utility/Control
-    frozen_power               = { 2263, 1, 108196 }, -- Frost Shock roots targets for 5 sec
-    earthgrab_totem            = { 2264, 1, 51485  }, -- Totem roots nearby enemies
-    windwalk_totem             = { 2265, 1, 108273 }, -- Removes movement impairing effects
+    frozen_power               = { 2, 1, 108196 }, -- Frost Shock roots targets for 5 sec
+    earthgrab_totem            = { 2, 2, 51485  }, -- Totem roots nearby enemies
+    windwalk_totem             = { 2, 3, 108273 }, -- Removes movement impairing effects
 
     -- Tier 3 (Level 45) - Totem Enhancement
-    call_of_the_elements       = { 2266, 1, 108285 }, -- Reduces totem cooldowns by 50% for 1 min
-    totemic_restoration        = { 2267, 1, 108284 }, -- Destroyed totems get 50% cooldown reduction
-    totemic_projection         = { 2268, 1, 108287 }, -- Relocate totems to target location
+    call_of_the_elements       = { 3, 1, 108285 }, -- Reduces totem cooldowns by 50% for 1 min
+    totemic_restoration        = { 3, 2, 108284 }, -- Destroyed totems get 50% cooldown reduction
+    totemic_projection         = { 3, 3, 108287 }, -- Relocate totems to target location
 
     -- Tier 4 (Level 60) - Healing Enhancement
-    elemental_mastery          = { 2269, 1, 16166  }, -- Instant cast and 30% spell damage buff
-    ancestral_swiftness        = { 2270, 1, 16188  }, -- 5% haste passive, instant cast active
-    echo_of_the_elements       = { 2271, 1, 108283 }, -- 6% chance to cast spell twice
+    elemental_mastery          = { 4, 1, 16166  }, -- Instant cast and 30% spell damage buff
+    ancestral_swiftness        = { 4, 2, 16188  }, -- 5% haste passive, instant cast active
+    echo_of_the_elements       = { 4, 3, 108283 }, -- 6% chance to cast spell twice
 
     -- Tier 5 (Level 75) - Healing/Support
-    healing_tide_totem         = { 2272, 1, 108280 }, -- Raid healing totem for 10 sec
-    ancestral_guidance         = { 2273, 1, 108281 }, -- Heals lowest health ally for 25% of damage dealt
-    conductivity               = { 2274, 1, 108282 }, -- When you cast Healing Rain, you may cast Lightning Bolt, Chain Lightning, Lava Burst, or Elemental Blast on enemies standing in the area to heal all allies in the Healing Rain for 20% of the damage dealt.    conductivity               = { 2274, 1, 108282 }, -- Chain Lightning spread to 2 additional targets
+    healing_tide_totem         = { 5, 1, 108280 }, -- Raid healing totem for 10 sec
+    ancestral_guidance         = { 5, 2, 108281 }, -- Heals lowest health ally for 25% of damage dealt
+    conductivity               = { 5, 3, 108282 }, -- When you cast Healing Rain, you may cast Lightning Bolt, Chain Lightning, Lava Burst, or Elemental Blast on enemies standing in the area to heal all allies in the Healing Rain for 20% of the damage dealt.    conductivity               = { 2274, 1, 108282 }, -- Chain Lightning spread to 2 additional targets
     
     -- Tier 6 (Level 90) - Ultimate
-    unleashed_fury             = { 2275, 1, 117012 }, -- Enhances Unleash Elements effects
-    primal_elementalist        = { 2276, 1, 117013 }, -- Gain control over elementals, 10% more damage
-    elemental_blast            = { 2277, 1, 117014 }  -- High damage + random stat buff
+    unleashed_fury             = { 6, 1, 117012 }, -- Enhances Unleash Elements effects
+    primal_elementalist        = { 6, 2, 117013 }, -- Gain control over elementals, 10% more damage
+    elemental_blast            = { 6, 3, 117014 }  -- High damage + random stat buff
 } )
 
 -- ===================

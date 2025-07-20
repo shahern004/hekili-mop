@@ -293,33 +293,33 @@ spec:RegisterGear( "meta_effulgent", 76881 )          -- Effulgent Shadowspirit 
 spec:RegisterTalents( {
     -- Common MoP talent system (Tier 1-6)
     -- Tier 1 (Level 56) - Mobility
-    unholy_presence      = { 4923, 1, 48265 },
-    frost_presence       = { 4924, 1, 48266 },
-    blood_presence       = { 4925, 1, 48263 },
+    unholy_presence      = { 1, 1, 48265 },
+    frost_presence       = { 1, 2, 48266 },
+    blood_presence       = { 1, 3, 48263 },
     
     -- Tier 2 (Level 57)
-    lichborne            = { 4926, 1, 49039 },
-    anti_magic_zone      = { 4927, 1, 51052 },
-    purgatory            = { 4928, 1, 114556 },
+    lichborne            = { 2, 1, 49039 },
+    anti_magic_zone      = { 2, 2, 51052 },
+    purgatory            = { 2, 3, 114556 },
     
     -- Tier 3 (Level 58)
-    deaths_advance       = { 4929, 1, 96268 },
-    chilblains           = { 4930, 1, 50041 },
-    asphyxiate          = { 4931, 1, 108194 },
+    deaths_advance       = { 3, 1, 96268 },
+    chilblains           = { 3, 2, 50041 },
+    asphyxiate          = { 3, 3, 108194 },
     
     -- Tier 4 (Level 59)
-    death_pact           = { 4932, 1, 48743 },
-    death_siphon         = { 4933, 1, 108196 },
-    conversion           = { 4934, 1, 119975 },
+    death_pact           = { 4, 1, 48743 },
+    death_siphon         = { 4, 2, 108196 },
+    conversion           = { 4, 3, 119975 },
     
     -- Tier 5 (Level 60)
-    blood_tap            = { 4935, 1, 45529 },
-    runic_empowerment    = { 4936, 1, 81229 },
-    runic_corruption     = { 4937, 1, 51460 },
+    blood_tap            = { 5, 1, 45529 },
+    runic_empowerment    = { 5, 2, 81229 },
+    runic_corruption     = { 5, 3, 51460 },
       -- Tier 6 (Level 75)
-    gorefiends_grasp     = { 4938, 1, 108199 },
-    remorseless_winter   = { 4939, 1, 108200 },
-    desecrated_ground    = { 4940, 1, 108201 },
+    gorefiends_grasp     = { 6, 1, 108199 },
+    remorseless_winter   = { 6, 2, 108200 },
+    desecrated_ground    = { 6, 3, 108201 },
 } )
 
 -- Enhanced Glyph System for Frost Death Knight

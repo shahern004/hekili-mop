@@ -350,34 +350,34 @@ spec:RegisterGear( "armageddon", 105531, {
 spec:RegisterTalents( {
     -- Common MoP talent system (Tier 1-6)
     -- Tier 1 (Level 56) - Presence
-    blood_presence           = { 4923, 1, 48263 }, -- Increases armor by 25%, damage reduction by 8%, and threat generation.
-    frost_presence           = { 4924, 1, 48266 }, -- Increases runic power generation by 20% and movement speed by 15%.
-    unholy_presence          = { 4925, 1, 48265 }, -- Increases attack speed by 15% and rune regeneration by 15%.
+    blood_presence           = { 1, 1, 48263 }, -- Increases armor by 25%, damage reduction by 8%, and threat generation.
+    frost_presence           = { 1, 2, 48266 }, -- Increases runic power generation by 20% and movement speed by 15%.
+    unholy_presence          = { 1, 3, 48265 }, -- Increases attack speed by 15% and rune regeneration by 15%.
     
     -- Tier 2 (Level 57) - Survival
-    lichborne                = { 4926, 1, 49039 }, -- Draw upon unholy energy to become undead for 10 sec, immune to charm, fear, and sleep effects.
-    anti_magic_zone          = { 4927, 1, 51052 }, -- Places an Anti-Magic Zone that reduces spell damage taken by party members by 40%.
-    purgatory                = { 4928, 1, 114556 }, -- An unholy pact that prevents fatal damage, instead absorbing incoming healing.
+    lichborne                = { 2, 1  , 49039 }, -- Draw upon unholy energy to become undead for 10 sec, immune to charm, fear, and sleep effects.
+    anti_magic_zone          = { 2, 2, 51052 }, -- Places an Anti-Magic Zone that reduces spell damage taken by party members by 40%.
+    purgatory                = { 2, 3, 114556 }, -- An unholy pact that prevents fatal damage, instead absorbing incoming healing.
     
     -- Tier 3 (Level 58) - Utility
-    deaths_advance           = { 4929, 1, 96268 }, -- For 8 sec, you are immune to movement impairing effects and take 50% less damage from area of effect abilities.
-    chilblains               = { 4930, 1, 50041 }, -- Victims of your Chains of Ice, Howling Blast, or Remorseless Winter are Chilblained, reducing movement speed by 50% for 10 sec.
-    asphyxiate              = { 4931, 1, 108194 }, -- Lifts an enemy target off the ground and crushes their throat, silencing them for 5 sec.
+    deaths_advance           = { 3, 1, 96268 }, -- For 8 sec, you are immune to movement impairing effects and take 50% less damage from area of effect abilities.
+    chilblains               = { 3, 2, 50041 }, -- Victims of your Chains of Ice, Howling Blast, or Remorseless Winter are Chilblained, reducing movement speed by 50% for 10 sec.
+    asphyxiate              = { 3, 3, 108194 }, -- Lifts an enemy target off the ground and crushes their throat, silencing them for 5 sec.
     
     -- Tier 4 (Level 59) - Healing
-    death_pact               = { 4932, 1, 48743 }, -- Sacrifice your ghoul to heal yourself for 20% of your maximum health.
-    death_siphon             = { 4933, 1, 108196 }, -- Inflicts Shadow damage to target enemy and heals you for 100% of the damage done.
-    conversion               = { 4934, 1, 119975 }, -- Continuously converts 2% of your maximum health per second into 20% of maximum health as healing.
+    death_pact               = { 4, 1, 48743 }, -- Sacrifice your ghoul to heal yourself for 20% of your maximum health.
+    death_siphon             = { 4, 2, 108196 }, -- Inflicts Shadow damage to target enemy and heals you for 100% of the damage done.
+    conversion               = { 4, 3, 119975 }, -- Continuously converts 2% of your maximum health per second into 20% of maximum health as healing.
     
     -- Tier 5 (Level 60) - Rune Management
-    blood_tap                = { 4935, 1, 45529 }, -- Consume 5 charges from your Blood Charges to immediately activate a random depleted rune.
-    runic_empowerment        = { 4936, 1, 81229 }, -- When you use a rune, you have a 45% chance to immediately regenerate that rune.
-    runic_corruption         = { 4937, 1, 51460 }, -- When you hit with a Death Coil, Frost Strike, or Rune Strike, you have a 45% chance to regenerate a rune.
+    blood_tap                = { 5, 1, 45529 }, -- Consume 5 charges from your Blood Charges to immediately activate a random depleted rune.
+    runic_empowerment        = { 5, 2, 81229 }, -- When you use a rune, you have a 45% chance to immediately regenerate that rune.
+    runic_corruption         = { 5, 3, 51460 }, -- When you hit with a Death Coil, Frost Strike, or Rune Strike, you have a 45% chance to regenerate a rune.
     
     -- Tier 6 (Level 75) - Ultimate
-    soul_reaper              = { 4938, 1, 130735 }, -- Strike an enemy, dealing minor damage but cursing the target for 5 sec. If the target is below 35% health after 5 sec, they explode for massive damage.
-    desecrated_ground        = { 4939, 1, 118009 }, -- Corrupts the ground targeted by the Death Knight for 30 sec. While standing on this ground you are immune to effects that cause loss of control.
-    defile                   = { 4940, 1, 152280 }  -- Defiles the ground under the target location, dealing increasing damage to enemies that remain in the area.
+    soul_reaper              = { 6, 1, 130735 }, -- Strike an enemy, dealing minor damage but cursing the target for 5 sec. If the target is below 35% health after 5 sec, they explode for massive damage.
+    desecrated_ground        = { 6, 2, 118009 }, -- Corrupts the ground targeted by the Death Knight for 30 sec. While standing on this ground you are immune to effects that cause loss of control.
+    defile                   = { 6, 3, 152280 }  -- Defiles the ground under the target location, dealing increasing damage to enemies that remain in the area.
 } )
 
 -- Glyphs

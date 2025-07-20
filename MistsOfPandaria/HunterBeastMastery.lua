@@ -79,39 +79,103 @@
     -- Talents
     spec:RegisterTalents( {
         -- Tier 1 (Level 15)
-        posthaste = { 19340, 109215, 1 }, -- Disengage also frees you from all movement impairing effects and increases your movement speed by 60% for 4 sec.
-        narrow_escape = { 19339, 109298, 1 }, -- When Disengage is activated, you also activate a web trap which encases all targets within 8 yards in sticky webs, preventing movement for 8 sec. Damage caused may interrupt the effect.
-        crouching_tiger_hidden_chimera = { 19341, 109215, 1 }, -- Reduces the cooldown of Disengage by 6 sec and Deterrence by 10 sec.
+        posthaste = { 1, 1, 109215 }, -- Disengage also frees you from all movement impairing effects and increases your movement speed by 60% for 4 sec.
+        narrow_escape = { 1, 2, 109298 }, -- When Disengage is activated, you also activate a web trap which encases all targets within 8 yards in sticky webs, preventing movement for 8 sec. Damage caused may interrupt the effect.
+        crouching_tiger_hidden_chimera = { 1, 3, 109215 }, -- Reduces the cooldown of Disengage by 6 sec and Deterrence by 10 sec.
 
         -- Tier 2 (Level 30)
-        silencing_shot = { 19386, 34490, 1 }, -- Interrupts spellcasting and prevents any spell in that school from being cast for 3 sec.
-        wyvern_sting = { 19384, 19386, 1 }, -- A stinging shot that puts the target to sleep for 30 sec. Any damage will cancel the effect. When the target wakes up, they will be poisoned, taking Nature damage over 6 sec. Only one Sting per Hunter can be active on the target at a time.
-        binding_shot = { 19387, 109248, 1 }, -- Fires a magical projectile, tethering the enemy and any other enemies within 5 yards, stunning them for 5 sec if they move more than 5 yards from the arrow.
+        silencing_shot = { 2, 1, 34490 }, -- Interrupts spellcasting and prevents any spell in that school from being cast for 3 sec.
+        wyvern_sting = { 2, 2, 19386 }, -- A stinging shot that puts the target to sleep for 30 sec. Any damage will cancel the effect. When the target wakes up, they will be poisoned, taking Nature damage over 6 sec. Only one Sting per Hunter can be active on the target at a time.
+        binding_shot = { 2, 3, 109248 }, -- Fires a magical projectile, tethering the enemy and any other enemies within 5 yards, stunning them for 5 sec if they move more than 5 yards from the arrow.
 
         -- Tier 3 (Level 45)
-        intimidation = { 19388, 19577, 1 }, -- Commands your pet to intimidate the target, causing a high amount of threat and stunning the target for 3 sec.
-        spirit_bond = { 19389, 19579, 1 }, -- While your pet is active, you and your pet regen 2% of total health every 10 sec.
-        iron_hawk = { 19390, 109260, 1 }, -- Reduces all damage taken by 10%.
+        intimidation = { 3, 1, 19577 }, -- Commands your pet to intimidate the target, causing a high amount of threat and stunning the target for 3 sec.
+        spirit_bond = { 3, 2, 19579 }, -- While your pet is active, you and your pet regen 2% of total health every 10 sec.
+        iron_hawk = { 3, 3, 109260 }, -- Reduces all damage taken by 10%.
 
         -- Tier 4 (Level 60)
-        dire_beast = { 19347, 120679, 1 }, -- Summons a powerful wild beast that attacks the target for 15 sec.
-        fervor = { 19348, 82726, 1 }, -- Instantly restores 50 Focus to you and your pet, and increases Focus regeneration by 50% for you and your pet for 10 sec.
-        a_murder_of_crows = { 19349, 131894, 1 }, -- Summons a flock of crows to attack your target over 30 sec. If the target dies while the crows are attacking, their cooldown is reset.
+        dire_beast = { 4, 1, 120679 }, -- Summons a powerful wild beast that attacks the target for 15 sec.
+        fervor = { 4, 2, 82726 }, -- Instantly restores 50 Focus to you and your pet, and increases Focus regeneration by 50% for you and your pet for 10 sec.
+        a_murder_of_crows = { 4, 3, 131894 }, -- Summons a flock of crows to attack your target over 30 sec. If the target dies while the crows are attacking, their cooldown is reset.
 
         -- Tier 5 (Level 75)
-        blink_strikes = { 19391, 130392, 1 }, -- Your pet's Basic Attacks deal 50% increased damage and can be used from 30 yards away. Their range is increased to 40 yards while Dash or Stampede is active.
-        lynx_rush = { 19392, 120697, 1 }, -- Commands your pet to rush the target, performing 9 attacks in 4 sec for 800% normal damage. Each hit deals bleed damage to the target over 8 sec. Bleeds stack and persist on the target.
-        thrill_of_the_hunt = { 19393, 109306, 1 }, -- You have a 30% chance when you hit with Multi-Shot or Arcane Shot to make your next Steady Shot or Cobra Shot cost no Focus and deal 150% additional damage.
+        blink_strikes = { 5, 1, 130392 }, -- Your pet's Basic Attacks deal 50% increased damage and can be used from 30 yards away. Their range is increased to 40 yards while Dash or Stampede is active.
+        lynx_rush = { 5, 2, 120697 }, -- Commands your pet to rush the target, performing 9 attacks in 4 sec for 800% normal damage. Each hit deals bleed damage to the target over 8 sec. Bleeds stack and persist on the target.
+        thrill_of_the_hunt = { 5, 3, 109306 }, -- You have a 30% chance when you hit with Multi-Shot or Arcane Shot to make your next Steady Shot or Cobra Shot cost no Focus and deal 150% additional damage.
 
         -- Tier 6 (Level 90)
-        glaive_toss = { 19394, 117050, 1 }, -- Throws a pair of glaives at your target, dealing Physical damage and reducing movement speed by 30% for 3 sec. The glaives return to you, also dealing damage to any enemies in their path.
-        powershot = { 19395, 109259, 1 }, -- A powerful aimed shot that deals weapon damage to the target and up to 5 targets in the line of fire. Knocks all targets back, reduces your maximum Focus by 20 for 10 sec and refunds some Focus for each target hit.
-        barrage = { 19396, 120360, 1 }, -- Rapidly fires a spray of shots for 3 sec, dealing Physical damage to all enemies in front of you. Usable while moving.
+        glaive_toss = { 6, 1, 117050 }, -- Throws a pair of glaives at your target, dealing Physical damage and reducing movement speed by 30% for 3 sec. The glaives return to you, also dealing damage to any enemies in their path.
+        powershot = { 6, 2, 109259 }, -- A powerful aimed shot that deals weapon damage to the target and up to 5 targets in the line of fire. Knocks all targets back, reduces your maximum Focus by 20 for 10 sec and refunds some Focus for each target hit.
+        barrage = { 6, 3, 120360 }, -- Rapidly fires a spray of shots for 3 sec, dealing Physical damage to all enemies in front of you. Usable while moving.
     } )
 
+-- Glyphs (Enhanced System - authentic MoP 5.4.8 glyph system)
+spec:RegisterGlyphs( {
+    -- Major glyphs - Beast Mastery Combat
+    [54825] = "aspect_of_the_beast",  -- Aspect of the Beast now also increases your pet's damage by 10%
+    [54760] = "bestial_wrath",        -- Bestial Wrath now also increases your pet's movement speed by 50%
+    [54821] = "kill_command",         -- Kill Command now has a 50% chance to not trigger a cooldown
+    [54832] = "mend_pet",             -- Mend Pet now also heals you for 50% of the amount
+    [54743] = "revive_pet",           -- Revive Pet now has a 100% chance to succeed
+    [54829] = "scare_beast",          -- Scare Beast now affects all beasts within 10 yards
+    [54754] = "tame_beast",           -- Tame Beast now has a 100% chance to succeed
+    [54755] = "call_pet",             -- Call Pet now summons your pet instantly
+    [116218] = "aspect_of_the_pack",  -- Aspect of the Pack now also increases your pet's movement speed by 30%
+    [125390] = "aspect_of_the_cheetah", -- Aspect of the Cheetah now also increases your pet's movement speed by 30%
+    [125391] = "aspect_of_the_hawk",  -- Aspect of the Hawk now also increases your pet's attack speed by 10%
+    [125392] = "aspect_of_the_monkey", -- Aspect of the Monkey now also increases your pet's dodge chance by 10%
+    [125393] = "aspect_of_the_viper", -- Aspect of the Viper now also increases your pet's mana regeneration by 50%
+    [125394] = "aspect_of_the_wild",  -- Aspect of the Wild now also increases your pet's critical strike chance by 5%
+    [125395] = "aspect_mastery",      -- Your aspects now last 50% longer
+    
+    -- Major glyphs - Pet Abilities
+    [94388] = "growl",                -- Growl now has a 100% chance to succeed
+    [59219] = "claw",                 -- Claw now has a 50% chance to not trigger a cooldown
+    [114235] = "bite",                -- Bite now has a 50% chance to not trigger a cooldown
+    [125396] = "dash",                -- Dash now also increases your pet's attack speed by 20%
+    [125397] = "cower",               -- Cower now also reduces the target's attack speed by 20%
+    [125398] = "demoralizing_screech", -- Demoralizing Screech now affects all enemies within 10 yards
+    [125399] = "monkey_business",     -- Monkey Business now has a 100% chance to succeed
+    [125400] = "serpent_swiftness",   -- Serpent Swiftness now also increases your pet's movement speed by 30%
+    [125401] = "great_stamina",       -- Great Stamina now also increases your pet's health by 20%
+    [54828] = "great_resistance",     -- Great Resistance now also increases your pet's resistance by 20%
+    
+    -- Major glyphs - Defensive/Survivability
+    [125402] = "mend_pet",            -- Mend Pet now also heals you for 50% of the amount
+    [125403] = "revive_pet",          -- Revive Pet now has a 100% chance to succeed
+    [125404] = "call_pet",            -- Call Pet now summons your pet instantly
+    [125405] = "dismiss_pet",         -- Dismiss Pet now has no cooldown
+    [125406] = "feed_pet",            -- Feed Pet now has a 100% chance to succeed
+    [125407] = "play_dead",           -- Play Dead now has a 100% chance to succeed
+    [125408] = "tame_beast",          -- Tame Beast now has a 100% chance to succeed
+    [125409] = "beast_lore",          -- Beast Lore now provides additional information
+    [125410] = "track_beasts",        -- Track Beasts now also increases your damage against beasts by 5%
+    [125411] = "track_humanoids",     -- Track Humanoids now also increases your damage against humanoids by 5%
+    
+    -- Major glyphs - Control/CC
+    [125412] = "freezing_trap",       -- Freezing Trap now affects all enemies within 5 yards
+    [125413] = "ice_trap",            -- Ice Trap now affects all enemies within 5 yards
+    [125414] = "snake_trap",          -- Snake Trap now summons 3 additional snakes
+    [125415] = "explosive_trap",      -- Explosive Trap now affects all enemies within 5 yards
+    [125416] = "immolation_trap",     -- Immolation Trap now affects all enemies within 5 yards
+    [125417] = "black_arrow",         -- Black Arrow now has a 50% chance to not trigger a cooldown
+    
+    -- Minor glyphs - Visual/Convenience
+    [57856] = "aspect_of_the_beast",  -- Your pet appears as a different beast type
+    [57862] = "aspect_of_the_cheetah", -- Your pet leaves a glowing trail when moving
+    [57863] = "aspect_of_the_hawk",   -- Your pet has enhanced visual effects
+    [57855] = "aspect_of_the_monkey", -- Your pet appears more agile and nimble
+    [57861] = "aspect_of_the_viper",  -- Your pet appears more serpentine
+    [57857] = "aspect_of_the_wild",   -- Your pet appears more wild and untamed
+    [57858] = "beast_lore",           -- Beast Lore provides enhanced visual information
+    [57860] = "track_beasts",         -- Track Beasts has enhanced visual effects
+    [121840] = "track_humanoids",     -- Track Humanoids has enhanced visual effects
+    [125418] = "blooming",            -- Your abilities cause flowers to bloom around the target
+    [125419] = "floating",            -- Your spells cause you to hover slightly above the ground
+    [125420] = "glow",                -- Your abilities cause you to glow with natural energy
+} )
 
-
-    -- Auras
+-- Auras
     spec:RegisterAuras( {
         -- Talent: Under attack by a flock of crows.
         -- https://wowhead.com/beta/spell=131894

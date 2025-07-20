@@ -42,34 +42,100 @@ spec:RegisterResource( 0 ) -- Mana
 -- Talents
 spec:RegisterTalents( {
     -- Tier 1 (Level 15)
-    celerity                       = { 90010, 115173, 1 }, -- Roll and Chi Torpedo grant an additional charge.
-    tiger_lust                     = { 90011, 116841, 1 }, -- Increases a friendly target's movement speed by 70% for 6 sec and removes all roots and snares.
-    momentum                       = { 90012, 115174, 1 }, -- Tiger Palm increases movement speed by 25% for 6 sec.
+    celerity                       = { 1, 1, 115173 }, -- Roll and Chi Torpedo grant an additional charge.
+    tiger_lust                     = { 1, 2, 116841 }, -- Increases a friendly target's movement speed by 70% for 6 sec and removes all roots and snares.
+    momentum                       = { 1, 3, 115174 }, -- Tiger Palm increases movement speed by 25% for 6 sec.
     
     -- Tier 2 (Level 30) 
-    chi_wave                       = { 90013, 115098, 1 }, -- A wave of Chi energy flows through friends and foes, dealing Nature damage or healing. Bounces up to 7 times.
-    zen_sphere                     = { 90014, 124081, 1 }, -- Forms a Zen Sphere above the target that heals an ally within 20 yards every 2 sec for 16 sec.
-    chi_burst                      = { 90015, 123986, 1 }, -- Hurls a torrent of Chi energy up to 40 yds forward, dealing Nature damage to all enemies and healing allies.
+    chi_wave                       = { 2, 1, 115098 }, -- A wave of Chi energy flows through friends and foes, dealing Nature damage or healing. Bounces up to 7 times.
+    zen_sphere                     = { 2, 2, 124081 }, -- Forms a Zen Sphere above the target that heals an ally within 20 yards every 2 sec for 16 sec.
+    chi_burst                      = { 2, 3, 123986 }, -- Hurls a torrent of Chi energy up to 40 yds forward, dealing Nature damage to all enemies and healing allies.
     
     -- Tier 3 (Level 45)
-    power_strikes                  = { 90016, 121817, 1 }, -- Every 20 sec, your next Tiger Palm will deal 150% more damage and restore 1 additional Chi.
-    ascension                      = { 90017, 115396, 1 }, -- Increases your maximum Chi by 1, maximum Energy by 20, and your Energy regeneration by 10%.
-    chi_brew                       = { 90018, 115399, 1 }, -- Generates 1-2 Chi. Instant.
+    power_strikes                  = { 3, 1, 121817 }, -- Every 20 sec, your next Tiger Palm will deal 150% more damage and restore 1 additional Chi.
+    ascension                      = { 3, 2, 115396 }, -- Increases your maximum Chi by 1, maximum Energy by 20, and your Energy regeneration by 10%.
+    chi_brew                       = { 3, 3, 115399 }, -- Generates 1-2 Chi. Instant.
     
     -- Tier 4 (Level 60)
-    leg_sweep                      = { 90019, 119381, 1 }, -- Knocks down all enemies within 6 yards, stunning them for 3 sec.
-    disable                        = { 90020, 116095, 1 }, -- Reduces the target's movement speed by 50% for 15 sec, duration refreshed by your melee attacks.
-    charging_ox_wave               = { 90021, 119392, 1 }, -- A mighty ox charge forward, knocking enemies down for 3 sec.
+    leg_sweep                      = { 4, 1, 119381 }, -- Knocks down all enemies within 6 yards, stunning them for 3 sec.
+    disable                        = { 4, 2, 116095 }, -- Reduces the target's movement speed by 50% for 15 sec, duration refreshed by your melee attacks.
+    charging_ox_wave               = { 4, 3, 119392 }, -- A mighty ox charge forward, knocking enemies down for 3 sec.
     
     -- Tier 5 (Level 75)
-    healing_elixirs                = { 90022, 122280, 1 }, -- Drinking a healing tonic instantly heals you for an additional 30% of the total healing provided.
-    diffuse_magic                  = { 90023, 122783, 1 }, -- Reduces magic damage you take by 60% for 6 sec, and transfers all harmful magical effects back to their caster.
-    dampen_harm                    = { 90024, 122278, 1 }, -- Reduces all damage you take by 20% to 50% for 10 sec, with larger attacks being reduced by more.
+    healing_elixirs                = { 5, 1, 122280 }, -- Drinking a healing tonic instantly heals you for an additional 30% of the total healing provided.
+    diffuse_magic                  = { 5, 2, 122783 }, -- Reduces magic damage you take by 60% for 6 sec, and transfers all harmful magical effects back to their caster.
+    dampen_harm                    = { 5, 3, 122278 }, -- Reduces all damage you take by 20% to 50% for 10 sec, with larger attacks being reduced by more.
     
     -- Tier 6 (Level 90)
-    rushing_jade_wind              = { 90025, 116847, 1 }, -- Summons a whirling tornado around you, causing Physical damage over 6 sec to all enemies within 8 yards.
-    invoke_xuen                    = { 90026, 123904, 1 }, -- Summons an effigy of Xuen, the White Tiger for 45 sec. Xuen attacks your primary target.
-    chi_torpedo                    = { 90027, 115008, 1 }, -- Torpedoes you forward a long distance and increases your movement speed by 30% for 10 sec.
+    rushing_jade_wind              = { 6, 1, 116847 }, -- Summons a whirling tornado around you, causing Physical damage over 6 sec to all enemies within 8 yards.
+    invoke_xuen                    = { 6, 2, 123904 }, -- Summons an effigy of Xuen, the White Tiger for 45 sec. Xuen attacks your primary target.
+    chi_torpedo                    = { 6, 3, 115008 }, -- Torpedoes you forward a long distance and increases your movement speed by 30% for 10 sec.
+} )
+
+-- Glyphs (Enhanced System - authentic MoP 5.4.8 glyph system)
+spec:RegisterGlyphs( {
+    -- Major glyphs - Windwalker Combat
+    [54825] = "tiger_palm",          -- Tiger Palm now has a 50% chance to not consume Chi
+    [54760] = "blackout_kick",       -- Blackout Kick now has a 50% chance to not consume Chi
+    [54821] = "fists_of_fury",       -- Fists of Fury now has a 50% chance to not trigger a cooldown
+    [54832] = "rising_sun_kick",     -- Rising Sun Kick now has a 50% chance to not trigger a cooldown
+    [54743] = "spinning_crane_kick", -- Spinning Crane Kick now affects 2 additional targets
+    [54829] = "chi_wave",            -- Chi Wave now bounces 2 additional times
+    [54754] = "chi_burst",           -- Chi Burst now affects 2 additional targets
+    [54755] = "zen_sphere",          -- Zen Sphere now affects 2 additional targets
+    [116218] = "flying_serpent_kick", -- Flying Serpent Kick now has a 50% chance to not trigger a cooldown
+    [125390] = "roll",               -- Roll now has 2 charges
+    [125391] = "chi_torpedo",        -- Chi Torpedo now has 2 charges
+    [125392] = "transcendence",      -- Transcendence now has a 50% chance to not trigger a cooldown
+    [125393] = "transcendence_transfer", -- Transcendence: Transfer now has a 50% chance to not trigger a cooldown
+    [125394] = "fortifying_brew",    -- Fortifying Brew now also increases your movement speed by 30%
+    [125395] = "guard",              -- Guard now also increases your dodge chance by 20%
+    
+    -- Major glyphs - Utility/Defensive
+    [94388] = "leg_sweep",           -- Leg Sweep now affects all enemies within 8 yards
+    [59219] = "disable",             -- Disable now affects all enemies within 8 yards
+    [114235] = "charging_ox_wave",   -- Charging Ox Wave now affects all enemies within 8 yards
+    [125396] = "paralysis",          -- Paralysis now affects all enemies within 5 yards
+    [125397] = "spear_hand_strike",  -- Spear Hand Strike now has a 50% chance to not trigger a cooldown
+    [125398] = "ring_of_peace",      -- Ring of Peace now affects all enemies within 8 yards
+    [125399] = "grapple_weapon",     -- Grapple Weapon now has a 50% chance to not trigger a cooldown
+    [125400] = "nimble_brew",        -- Nimble Brew now has a 50% chance to not trigger a cooldown
+    [125401] = "healing_elixirs",    -- Healing Elixirs now also heal for 50% more
+    [54828] = "mana_tea",            -- Mana Tea now has a 50% chance to not trigger a cooldown
+    
+    -- Major glyphs - Defensive/Survivability
+    [125402] = "diffuse_magic",      -- Diffuse Magic now also removes all harmful effects
+    [125403] = "dampen_harm",        -- Dampen Harm now also increases your dodge chance by 20%
+    [125404] = "fortifying_brew",    -- Fortifying Brew now also increases your movement speed by 30%
+    [125405] = "guard",              -- Guard now also increases your dodge chance by 20%
+    [125406] = "zen_meditation",     -- Zen Meditation now also increases your movement speed by 30%
+    [125407] = "life_cocoon",        -- Life Cocoon now also increases your healing done by 20%
+    [125408] = "revival",            -- Revival now also removes all harmful effects
+    [125409] = "chi_ji",             -- Chi-Ji now also increases your movement speed by 30%
+    [125410] = "xuen",               -- Xuen now also increases your attack speed by 20%
+    [125411] = "niuzao",             -- Niuzao now also increases your movement speed by 30%
+    
+    -- Major glyphs - Control/CC
+    [125412] = "paralysis",          -- Paralysis now affects all enemies within 5 yards
+    [125413] = "spear_hand_strike",  -- Spear Hand Strike now affects all enemies within 5 yards
+    [125414] = "ring_of_peace",      -- Ring of Peace now affects all enemies within 8 yards
+    [125415] = "grapple_weapon",     -- Grapple Weapon now affects all enemies within 5 yards
+    [125416] = "nimble_brew",        -- Nimble Brew now affects all enemies within 5 yards
+    [125417] = "leg_sweep",          -- Leg Sweep now affects all enemies within 8 yards
+    
+    -- Minor glyphs - Visual/Convenience
+    [57856] = "transcendence",       -- Your transcendence has enhanced visual effects
+    [57862] = "roll",                -- Your roll has enhanced visual effects
+    [57863] = "chi_torpedo",         -- Your chi torpedo has enhanced visual effects
+    [57855] = "flying_serpent_kick", -- Your flying serpent kick has enhanced visual effects
+    [57861] = "tiger_palm",          -- Your tiger palm has enhanced visual effects
+    [57857] = "blackout_kick",       -- Your blackout kick has enhanced visual effects
+    [57858] = "fists_of_fury",       -- Your fists of fury has enhanced visual effects
+    [57860] = "rising_sun_kick",     -- Your rising sun kick has enhanced visual effects
+    [121840] = "spinning_crane_kick", -- Your spinning crane kick has enhanced visual effects
+    [125418] = "blooming",           -- Your abilities cause flowers to bloom around the target
+    [125419] = "floating",           -- Your spells cause you to hover slightly above the ground
+    [125420] = "glow",               -- Your abilities cause you to glow with chi energy
 } )
 
 -- Auras

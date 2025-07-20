@@ -420,6 +420,11 @@ ns.getSpecializationKey = function ( id )
     return spec and spec.key or "none"
 end
 
+-- MoP Classic spec detection function
+ns.getSpecializationID = function( specIndex )
+    local playerClass = select(2, UnitClass("player"))
+    local selectedSpec = specIndex or (GetSpecialization and GetSpecialization()) or 1
+    
     -- Basic fallback mapping for MoP Classic
     local fallbackMapping = {
         HUNTER = { [1] = 253, [2] = 254, [3] = 255 },       -- Beast Mastery, Marksmanship, Survival
@@ -435,12 +440,12 @@ end
         WARRIOR = { [1] = 71, [2] = 72, [3] = 73 }          -- Arms, Fury, Protection
     }
     
-if fallbackMapping[playerClass] and fallbackMapping[playerClass][selectedSpec] then
-
-    return fallbackMapping[playerClass][selectedSpec]
+    if fallbackMapping[playerClass] and fallbackMapping[playerClass][selectedSpec] then
+        return fallbackMapping[playerClass][selectedSpec]
+    end
+    
+    return 0  -- Complete fallback
 end
-
-do return 0 end  -- Complete fallback
 
 
 

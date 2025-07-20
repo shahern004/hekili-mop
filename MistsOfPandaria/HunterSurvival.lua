@@ -2,22 +2,20 @@
 -- July 2025
 -- by Smufrik
 
--- MoP: Use UnitClass instead of UnitClassBase
 local _, playerClass = UnitClass('player')
-if playerClass ~= 'HUNTER' then return end
+    if playerClass ~= 'HUNTER' then return end
 
-local addon, ns = ...
-local Hekili = _G[ addon ]
-local class, state = Hekili.Class, Hekili.State
-local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
-local floor = math.floor
-local strformat = string.format
-local spec = Hekili:NewSpecialization( 255, false ) -- Survival spec ID for Hekili (255 = ranged in MoP Classic)
+    local addon, ns = ...
+    local Hekili = _G[ addon ]
+    local class, state = Hekili.Class, Hekili.State
 
--- Ensure state is properly initialized
-if not state then 
-    state = Hekili.State 
-end
+    local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
+    local PTR = ns.PTR
+
+    local strformat = string.format
+
+
+    local spec = Hekili:NewSpecialization( 255, true )
 
 -- Use MoP power type numbers instead of Enum
 -- Focus = 2 in MoP Classic
@@ -54,6 +52,72 @@ spec:RegisterTalents( {
     glaive_toss = { 6, 1, 117050 }, -- Hurls two glaives that damage enemies in their path.
     powershot = { 6, 2, 109259 }, -- Powerful shot that knocks back enemies.
     barrage = { 6, 3, 120360 }, -- Rapidly fires a spray of shots.
+} )
+
+-- Glyphs (Enhanced System - authentic MoP 5.4.8 glyph system)
+spec:RegisterGlyphs( {
+    -- Major glyphs - Survival Combat
+    [54825] = "aspect_of_the_beast",  -- Aspect of the Beast now also increases your pet's damage by 10%
+    [54760] = "bestial_wrath",        -- Bestial Wrath now also increases your pet's movement speed by 50%
+    [54821] = "kill_command",         -- Kill Command now has a 50% chance to not trigger a cooldown
+    [54832] = "mend_pet",             -- Mend Pet now also heals you for 50% of the amount
+    [54743] = "revive_pet",           -- Revive Pet now has a 100% chance to succeed
+    [54829] = "scare_beast",          -- Scare Beast now affects all beasts within 10 yards
+    [54754] = "tame_beast",           -- Tame Beast now has a 100% chance to succeed
+    [54755] = "call_pet",             -- Call Pet now summons your pet instantly
+    [116218] = "aspect_of_the_pack",  -- Aspect of the Pack now also increases your pet's movement speed by 30%
+    [125390] = "aspect_of_the_cheetah", -- Aspect of the Cheetah now also increases your pet's movement speed by 30%
+    [125391] = "aspect_of_the_hawk",  -- Aspect of the Hawk now also increases your pet's attack speed by 10%
+    [125392] = "aspect_of_the_monkey", -- Aspect of the Monkey now also increases your pet's dodge chance by 10%
+    [125393] = "aspect_of_the_viper", -- Aspect of the Viper now also increases your pet's mana regeneration by 50%
+    [125394] = "aspect_of_the_wild",  -- Aspect of the Wild now also increases your pet's critical strike chance by 5%
+    [125395] = "aspect_mastery",      -- Your aspects now last 50% longer
+    
+    -- Major glyphs - Pet Abilities
+    [94388] = "growl",                -- Growl now has a 100% chance to succeed
+    [59219] = "claw",                 -- Claw now has a 50% chance to not trigger a cooldown
+    [114235] = "bite",                -- Bite now has a 50% chance to not trigger a cooldown
+    [125396] = "dash",                -- Dash now also increases your pet's attack speed by 20%
+    [125397] = "cower",               -- Cower now also reduces the target's attack speed by 20%
+    [125398] = "demoralizing_screech", -- Demoralizing Screech now affects all enemies within 10 yards
+    [125399] = "monkey_business",     -- Monkey Business now has a 100% chance to succeed
+    [125400] = "serpent_swiftness",   -- Serpent Swiftness now also increases your pet's movement speed by 30%
+    [125401] = "great_stamina",       -- Great Stamina now also increases your pet's health by 20%
+    [54828] = "great_resistance",     -- Great Resistance now also increases your pet's resistance by 20%
+    
+    -- Major glyphs - Defensive/Survivability
+    [125402] = "mend_pet",            -- Mend Pet now also heals you for 50% of the amount
+    [125403] = "revive_pet",          -- Revive Pet now has a 100% chance to succeed
+    [125404] = "call_pet",            -- Call Pet now summons your pet instantly
+    [125405] = "dismiss_pet",         -- Dismiss Pet now has no cooldown
+    [125406] = "feed_pet",            -- Feed Pet now has a 100% chance to succeed
+    [125407] = "play_dead",           -- Play Dead now has a 100% chance to succeed
+    [125408] = "tame_beast",          -- Tame Beast now has a 100% chance to succeed
+    [125409] = "beast_lore",          -- Beast Lore now provides additional information
+    [125410] = "track_beasts",        -- Track Beasts now also increases your damage against beasts by 5%
+    [125411] = "track_humanoids",     -- Track Humanoids now also increases your damage against humanoids by 5%
+    
+    -- Major glyphs - Control/CC
+    [125412] = "freezing_trap",       -- Freezing Trap now affects all enemies within 5 yards
+    [125413] = "ice_trap",            -- Ice Trap now affects all enemies within 5 yards
+    [125414] = "snake_trap",          -- Snake Trap now summons 3 additional snakes
+    [125415] = "explosive_trap",      -- Explosive Trap now affects all enemies within 5 yards
+    [125416] = "immolation_trap",     -- Immolation Trap now affects all enemies within 5 yards
+    [125417] = "black_arrow",         -- Black Arrow now has a 50% chance to not trigger a cooldown
+    
+    -- Minor glyphs - Visual/Convenience
+    [57856] = "aspect_of_the_beast",  -- Your pet appears as a different beast type
+    [57862] = "aspect_of_the_cheetah", -- Your pet leaves a glowing trail when moving
+    [57863] = "aspect_of_the_hawk",   -- Your pet has enhanced visual effects
+    [57855] = "aspect_of_the_monkey", -- Your pet appears more agile and nimble
+    [57861] = "aspect_of_the_viper",  -- Your pet appears more serpentine
+    [57857] = "aspect_of_the_wild",   -- Your pet appears more wild and untamed
+    [57858] = "beast_lore",           -- Beast Lore provides enhanced visual information
+    [57860] = "track_beasts",         -- Track Beasts has enhanced visual effects
+    [121840] = "track_humanoids",     -- Track Humanoids has enhanced visual effects
+    [125418] = "blooming",            -- Your abilities cause flowers to bloom around the target
+    [125419] = "floating",            -- Your spells cause you to hover slightly above the ground
+    [125420] = "glow",                -- Your abilities cause you to glow with natural energy
 } )
 
 -- Auras

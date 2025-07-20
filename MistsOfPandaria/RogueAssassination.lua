@@ -33,14 +33,14 @@ spec:RegisterResource( 4 ) -- ComboPoints
 -- Talents for MoP Assassination Rogue
 spec:RegisterTalents({
     -- Tier 1 (Level 15)
-    shadow_focus = { 1, 1, 108209 }, -- Abilities cost 30% less Energy while Stealth or Shadow Clone is active
+    shadow_focus =        { 1, 1, 108209 }, -- Abilities cost 30% less Energy while Stealth or Shadow Clone is active
     improved_recuperate = { 1, 2, 108210 }, -- Recuperate restores 5% additional health and 30% more healing per stack of Recuperate
-    lethality = { 1, 3, 108211 }, -- Critical strike damage bonus increased by 10%
+    lethality =           { 1, 3, 108211 }, -- Critical strike damage bonus increased by 10%
     
     -- Tier 2 (Level 30)
-    deadly_throw = { 2, 1, 26679 }, -- Throw a dagger that slows the target
-    nerve_strike = { 2, 2, 108215 }, -- Your successful melee attacks reduce the target's damage by 50% for 6 sec
-    combat_readiness = { 2, 3, 74001 }, -- Each melee or ranged attack against you increases your dodge by 2%
+    deadly_throw =       { 2, 1, 26679 }, -- Throw a dagger that slows the target
+    nerve_strike =       { 2, 2, 108215 }, -- Your successful melee attacks reduce the target's damage by 50% for 6 sec
+    combat_readiness =   { 2, 3, 74001 }, -- Each melee or ranged attack against you increases your dodge by 2%
     
     -- Tier 3 (Level 45)
     cheat_death = { 3, 1, 31230 }, -- Fatal damage instead reduces you to 7% of maximum health
