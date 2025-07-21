@@ -586,6 +586,12 @@ spec:RegisterAuras( {
         tick_time = 3,
         max_stack = 1,
     },
+
+    explosive_trap = {
+        id = 13813,
+        duration = 10,
+        max_stack = 1,
+    },
     
     concussive_shot = {
         id = 5116,
@@ -633,6 +639,37 @@ spec:RegisterAuras( {
             t.applied = 0
             t.caster = "nobody"
         end
+    },
+
+    -- === TIER SET BONUSES ===
+    tier14_4pc = {
+        id = 123157,
+        duration = 10,
+        max_stack = 1,
+    },
+
+    tier15_2pc = {
+        id = 138368,
+        duration = 10,
+        max_stack = 1,
+    },
+
+    tier15_4pc = {
+        id = 138369,
+        duration = 10,
+        max_stack = 1,
+    },
+
+    tier16_2pc = {
+        id = 144659,
+        duration = 5,
+        max_stack = 1,
+    },
+
+    tier16_4pc = {
+        id = 144660,
+        duration = 5,
+        max_stack = 1,
     },
     
     call_pet = {
@@ -1077,15 +1114,11 @@ spec:RegisterAbilities( {
         cooldown = 120,
         gcd = "spell",
         school = "shadow",
-        
         spend = 60,
         spendType = "focus",
-        
         talent = "murder_of_crows",
         startsCombat = true,
-        
         toggle = "cooldowns",
-        
         handler = function ()
             applyDebuff( "target", "a_murder_of_crows", 30 )
             summonPet( "murder_of_crows", 30 )
@@ -1098,14 +1131,10 @@ spec:RegisterAbilities( {
         cooldown = 90,
         gcd = "spell",
         school = "physical",
-        
         talent = "lynx_rush",
         startsCombat = true,
-        
         toggle = "cooldowns",
-        
         usable = function() return pet.alive, "requires active pet" end,
-        
         handler = function ()
             applyBuff( "lynx_rush" )
         end,
@@ -1154,10 +1183,9 @@ spec:RegisterAbilities( {
         cooldown = 30,
         gcd = "spell",
         school = "nature",
-        
         talent = "dire_beast",
         startsCombat = true,
-        
+        toggle = "cooldowns",
         handler = function ()
             applyBuff( "dire_beast", 15 )
             summonPet( "dire_beast_cat", 15 )
@@ -1171,13 +1199,11 @@ spec:RegisterAbilities( {
         cooldown = 15,
         gcd = "spell",
         school = "physical",
-        
         spend = 15,
         spendType = "focus",
-        
         talent = "glaive_toss",
         startsCombat = true,
-        
+        toggle = "cooldowns",
         handler = function ()
             -- Hits primary target + 1 additional within 10 yards
         end,
@@ -1189,12 +1215,10 @@ spec:RegisterAbilities( {
         cooldown = 45,
         gcd = "spell",
         school = "physical",
-        
         talent = "powershot",
         startsCombat = true,
-        
+        toggle = "cooldowns",
         usable = function() return active_enemies > 2, "more effective with multiple targets" end,
-        
         handler = function ()
             -- AoE knockback effect
         end,
@@ -1206,15 +1230,12 @@ spec:RegisterAbilities( {
         cooldown = 30,
         gcd = "spell",
         school = "physical",
-        
         spend = 60,
         spendType = "focus",
-        
         talent = "barrage",
         startsCombat = true,
-        
+        toggle = "cooldowns",
         usable = function() return active_enemies > 3, "most effective with 4+ targets" end,
-        
         handler = function ()
             -- Channel for 3 seconds, AoE damage
         end,
@@ -1281,14 +1302,10 @@ spec:RegisterAbilities( {
         cooldown = 20,
         gcd = "off",
         school = "physical",
-        
         talent = "silencing_shot",
         startsCombat = true,
-        
         toggle = "interrupts",
-        
         usable = function() return target.casting, "target must be casting" end,
-        
         handler = function ()
             interrupt()
             applyDebuff( "target", "silencing_shot", 3 )
@@ -1301,10 +1318,9 @@ spec:RegisterAbilities( {
         cooldown = 45,
         gcd = "spell",
         school = "nature",
-        
         talent = "wyvern_sting",
         startsCombat = true,
-        
+        toggle = "interrupts",
         handler = function ()
             applyDebuff( "target", "wyvern_sting", 30 )
         end,
@@ -1316,10 +1332,9 @@ spec:RegisterAbilities( {
         cooldown = 45,
         gcd = "spell",
         school = "nature",
-        
         talent = "binding_shot",
         startsCombat = false,
-        
+        toggle = "interrupts",
         handler = function ()
             -- Tether effect not directly modeled
         end,
@@ -1350,24 +1365,12 @@ spec:RegisterAbilities( {
             end
             return cd
         end,
-        charges = 2,
-        recharge = function() 
-            local cd = 180
-            if talent.crouching_tiger.enabled then
-                cd = cd - 10
-            end
-            return cd
-        end,
         gcd = "off",
         school = "physical",
-        
-        toggle = "defensives",
-        defensive = true,
-        
         startsCombat = false,
-        
+        toggle = "defensives",
         handler = function ()
-            applyBuff( "deterrence", 5 )
+            applyBuff( "deterrence" )
         end,
     },
     
@@ -1423,11 +1426,10 @@ spec:RegisterAbilities( {
         cooldown = 30,
         gcd = "off",
         school = "physical",
-        
         startsCombat = false,
-        
+        toggle = "defensives",
         handler = function ()
-            applyBuff( "feign_death", 6 )
+            applyBuff( "feign_death" )
         end,
     },
     
@@ -1800,7 +1802,7 @@ spec:RegisterAbilities( {
 
 -- Enhanced State Expressions for Marksmanship optimization
 spec:RegisterStateExpr( "current_focus", function()
-    return focus.current
+    return focus.current or 0
 end )
 
 spec:RegisterStateExpr( "focus_deficit", function()
@@ -1813,7 +1815,7 @@ spec:RegisterStateExpr( "focus_time_to_max", function()
     if buff.rapid_fire.up then regen_rate = regen_rate * 1.5 end
     if talent.improved_tracking.enabled then regen_rate = regen_rate * (1 + talent.improved_tracking.rank * 0.02) end
     
-    return math.max( 0, ( focus.max - focus.current ) / regen_rate )
+    return math.max( 0, ( (focus.max or 100) - (focus.current or 0) ) / regen_rate )
 end )
 
 spec:RegisterStateExpr( "master_marksman_ready", function()
@@ -1821,11 +1823,11 @@ spec:RegisterStateExpr( "master_marksman_ready", function()
 end )
 
 spec:RegisterStateExpr( "aimed_shot_ready", function()
-    return cooldown.aimed_shot.remains == 0 and (focus.current >= 50 or master_marksman_ready)
+    return cooldown.aimed_shot.remains == 0 and ((focus.current or 0) >= 50 or master_marksman_ready)
 end )
 
 spec:RegisterStateExpr( "chimera_shot_ready", function()
-    return cooldown.chimera_shot.remains == 0 and focus.current >= 35
+    return cooldown.chimera_shot.remains == 0 and (focus.current or 0) >= 35
 end )
 
 spec:RegisterStateExpr( "serpent_sting_refreshable", function()
@@ -1845,11 +1847,11 @@ spec:RegisterStateExpr( "careful_aim_available", function()
 end )
 
 spec:RegisterStateExpr( "rapid_fire_optimal", function()
-    return not buff.rapid_fire.up and cooldown.rapid_fire.remains == 0 and focus.current < 30
+    return not buff.rapid_fire.up and cooldown.rapid_fire.remains == 0 and (focus.current or 0) < 30
 end )
 
 spec:RegisterStateExpr( "focus_dump_ready", function()
-    return focus.current > 80 and not focus_time_to_max <= 3
+    return (focus.current or 0) > 80 and not focus_time_to_max <= 3
 end )
 
 spec:RegisterStateExpr( "pet_focus_available", function()
@@ -1858,6 +1860,13 @@ end )
 
 spec:RegisterStateExpr( "thrill_proc_available", function()
     return talent.thrill_of_the_hunt.enabled and buff.thrill_of_the_hunt.stack > 0
+end )
+
+spec:RegisterStateExpr( "threat", function()
+    -- Threat situation for misdirection logic
+    return {
+        situation = 0 -- Default to no threat situation
+    }
 end )
 
 -- Combat Log Event Tracking for Marksmanship mechanics

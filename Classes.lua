@@ -1655,10 +1655,6 @@ all:RegisterAuras({
         duration = 3600,
     },
 
-    mastery = {
-        duration = 3600,
-    },
-
     versatility = {
         duration = 3600,
     },
@@ -3840,8 +3836,55 @@ if spec then
 
     state.swings.mh_speed, state.swings.oh_speed = UnitAttackSpeed( "player" )
 
+    -- Initialize threat state
+    state.threat = state.threat or {}
+    state.threat.situation = 0 -- 0 = no threat, 1 = low threat, 2 = high threat, 3 = tanking
+    state.threat.percentage = 0
+    state.threat.raw = 0
+    state.threat.rawTarget = 0
+
     HekiliEngine.activeThread = nil
     self:UpdateDisplayVisibility()
     self:UpdateDamageDetectionForCLEU()
 end
+
+-- Tinkers (Classic WoW - simplified for compatibility)
+all:RegisterAura( "hyperspeed_acceleration", {
+    id = 54758,
+    duration = 15,
+    max_stack = 1
+})
+all:RegisterAbility( "hyperspeed_acceleration", {
+    id = 54758,
+    cast = 0,
+    cooldown = 60,
+    gcd = "off",
+
+    startsCombat = true,
+    toggle = "cooldowns",
+
+    handler = function()
+        applyBuff("hyperspeed_acceleration")
+    end
+} )
+
+all:RegisterAura( "synapse_springs", {
+    id = 96228,
+    duration = 15,
+    max_stack = 1,
+    copy = {96228, 96229, 96230}
+})
+all:RegisterAbility( "synapse_springs", {
+    id = 82174,
+    cast = 0,
+    cooldown = 60,
+    gcd = "off",
+
+    startsCombat = true,
+    toggle = "cooldowns",
+
+    handler = function()
+        applyBuff("synapse_springs")
+    end
+} )
 

@@ -1689,7 +1689,7 @@ do
         duration = 10,
         max_stack = 1,
         generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Prowl" )
+            local name, icon, count, debuffType, duration, expires, caster = ns.FindUnitBuffByID( "player", 5215 ) -- Prowl spell ID
             if name then
                 t.name = name
                 t.count = max( 1, count )
@@ -1712,7 +1712,7 @@ do
         duration = 8,
         max_stack = 1,
         generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Sage Mender" )
+            local name, icon, count, debuffType, duration, expires, caster = ns.FindUnitBuffByID( "player", 105770 ) -- T14 2pc spell ID
             if name then
                 t.name = name
                 t.count = max( 1, count )
@@ -1734,7 +1734,7 @@ do
         duration = 15,
         max_stack = 1,
         generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Sage Mender" )
+            local name, icon, count, debuffType, duration, expires, caster = ns.FindUnitBuffByID( "player", 138286 ) -- T15 2pc spell ID
             if name then
                 t.name = name
                 t.count = max( 1, count )
@@ -1756,7 +1756,7 @@ do
         duration = 15,
         max_stack = 1,
         generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Capacitance" )
+            local name, icon, count, debuffType, duration, expires, caster = ns.FindUnitBuffByID( "player", 137590 ) -- Capacitance spell ID
             if name then
                 t.name = name
                 t.count = max( 1, count )
@@ -1779,7 +1779,7 @@ do
         duration = 3600,
         max_stack = 1,
         generate = function( t )
-            local name, icon, count, debuffType, duration, expires, caster = UnitBuff( "player", "Symbiosis" )
+            local name, icon, count, debuffType, duration, expires, caster = ns.FindUnitBuffByID( "player", 110309 ) -- Symbiosis spell ID
             if name then
                 t.name = name
                 t.count = max( 1, count )

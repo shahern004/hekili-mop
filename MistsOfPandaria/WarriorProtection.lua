@@ -14,10 +14,6 @@ local floor = math.floor
 local strformat = string.format
 local spec = Hekili:NewSpecialization( 73, true ) -- Survival spec ID for Hekili (255 = ranged in MoP Classic)
 
--- Ensure state is properly initialized
-if not state then 
-    state = Hekili.State 
-end
 
 -- Register resources with proper rage generation system from Cataclysm
 local function rage_amount( isOffhand )
@@ -975,52 +971,7 @@ spec:RegisterAuras( {
     
 } )
 
--- Debug function for tracking profile sections
-local function debugPrint(section, message)
-    if ns.debug then
-        print(string.format("[Hekili Protection Debug] %s: %s", section, message or "OK"))
-    end
-end
-
--- Enable debug mode (set to false to disable)
-ns.debug = true
-
-debugPrint("AURAS", "Auras registered successfully")
-
--- Add individual aura validation debug
-local function validateAuras()
-    debugPrint("AURA_CHECK", "Validating individual auras...")
-    
-    local auraList = {
-        "shield_block",
-        "shield_barrier", 
-        "sunder_armor",
-        "battle_shout",
-        "commanding_shout",
-        "shield_wall",
-        "last_stand",
-        "vengeance",
-        "berserker_rage",
-        "revenge",
-        "devastate",
-        "shield_slam",
-        "thunder_clap"
-    }
-    
-    for _, auraName in ipairs(auraList) do
-        if class.auras[auraName] then
-            debugPrint("AURA_VALID", auraName .. " - OK")
-        else
-            debugPrint("AURA_MISSING", auraName .. " - MISSING")
-        end
-    end
-    
-    debugPrint("AURA_CHECK", "Aura validation completed")
-end
-
-validateAuras()
-
-debugPrint("INIT", "Starting Protection Warrior spec registration")
+-- Protection Warrior State Variables and Helper Functions
 
 -- Protection Warrior State Variables and Helper Functions
 spec:RegisterStateExpr( "rage_deficit", function()
@@ -1066,41 +1017,7 @@ spec:RegisterStateExpr( "vengeance_stacks", function()
     return buff.vengeance.stack or 0
 end )
 
--- Add debug state expressions for problematic auras
-spec:RegisterStateExpr( "debug_shield_block", function()
-    debugPrint("STATE_DEBUG", "shield_block buff exists: " .. tostring(buff.shield_block ~= nil))
-    if buff.shield_block then
-        debugPrint("STATE_DEBUG", "shield_block.up: " .. tostring(buff.shield_block.up))
-        debugPrint("STATE_DEBUG", "shield_block.down: " .. tostring(buff.shield_block.down))
-        debugPrint("STATE_DEBUG", "shield_block.remains: " .. tostring(buff.shield_block.remains))
-    end
-    return true
-end )
-
-spec:RegisterStateExpr( "debug_shield_barrier", function()
-    debugPrint("STATE_DEBUG", "shield_barrier buff exists: " .. tostring(buff.shield_barrier ~= nil))
-    if buff.shield_barrier then
-        debugPrint("STATE_DEBUG", "shield_barrier.up: " .. tostring(buff.shield_barrier.up))
-        debugPrint("STATE_DEBUG", "shield_barrier.down: " .. tostring(buff.shield_barrier.down))
-        debugPrint("STATE_DEBUG", "shield_barrier.remains: " .. tostring(buff.shield_barrier.remains))
-    end
-    return true
-end )
-
-spec:RegisterStateExpr( "debug_sunder_armor", function()
-    debugPrint("STATE_DEBUG", "sunder_armor debuff exists: " .. tostring(debuff.sunder_armor ~= nil))
-    if debuff.sunder_armor then
-        debugPrint("STATE_DEBUG", "sunder_armor.up: " .. tostring(debuff.sunder_armor.up))
-        debugPrint("STATE_DEBUG", "sunder_armor.down: " .. tostring(debuff.sunder_armor.down))
-        debugPrint("STATE_DEBUG", "sunder_armor.stack: " .. tostring(debuff.sunder_armor.stack))
-        debugPrint("STATE_DEBUG", "sunder_armor.remains: " .. tostring(debuff.sunder_armor.remains))
-    end
-    return true
-end )
-
-debugPrint("STATE_DEBUG", "Debug state expressions added")
-
-debugPrint("STATE_EXPR", "State expressions registered successfully")
+-- Protection Warrior specific state table modifications
 
 -- Protection Warrior specific state table modifications
 spec:RegisterStateTable( "protection", {
@@ -1137,7 +1054,7 @@ spec:RegisterStateTable( "protection", {
     use_emergency = { "last_stand", "shield_wall", "enraged_regeneration" }
 } )
 
-debugPrint("STATE_TABLE", "State tables registered successfully")
+
 
 -- MoP Protection Warrior specific functions
 spec:RegisterHook( "reset_precast", function()
@@ -1161,7 +1078,7 @@ spec:RegisterHook( "reset_precast", function()
     end
 end )
 
-debugPrint("HOOK", "RegisterHook reset_precast registered successfully")
+
 
 -- Protection Warrior abilities
 
@@ -1977,12 +1894,8 @@ spec:RegisterAbilities( {
     },
 } )
 
-debugPrint("ABILITIES", "Abilities registered successfully")
-
 -- Range
 spec:RegisterRanges( "devastate", "charge", "heroic_throw" )
-
-debugPrint("RANGES", "Ranges registered successfully")
 
 -- Protection Warrior Settings
 spec:RegisterSetting( "use_shield_wall", true, {
@@ -2127,41 +2040,4 @@ spec:RegisterSetting( "use_berserker_rage", true, {
     width = "full"
 } )
 
-debugPrint("SETTINGS", "Settings registered successfully")
 
-debugPrint("COMPLETE", "Protection Warrior spec registration completed successfully")
-
--- Test aura system functionality
-local function testAuraSystem()
-    debugPrint("AURA_TEST", "Testing aura system functionality...")
-    
-    -- Test if we can access the problematic auras through the state system
-    local success, err = pcall(function()
-        local shield_block_test = state.buff.shield_block.up
-        debugPrint("AURA_TEST", "shield_block accessible: " .. tostring(shield_block_test ~= nil))
-    end)
-    if not success then
-        debugPrint("AURA_TEST", "shield_block ERROR: " .. tostring(err))
-    end
-    
-    local success2, err2 = pcall(function()
-        local shield_barrier_test = state.buff.shield_barrier.down
-        debugPrint("AURA_TEST", "shield_barrier accessible: " .. tostring(shield_barrier_test ~= nil))
-    end)
-    if not success2 then
-        debugPrint("AURA_TEST", "shield_barrier ERROR: " .. tostring(err2))
-    end
-    
-    local success3, err3 = pcall(function()
-        local sunder_armor_test = state.debuff.sunder_armor.down
-        debugPrint("AURA_TEST", "sunder_armor accessible: " .. tostring(sunder_armor_test ~= nil))
-    end)
-    if not success3 then
-        debugPrint("AURA_TEST", "sunder_armor ERROR: " .. tostring(err3))
-    end
-    
-    debugPrint("AURA_TEST", "Aura system test completed")
-end
-
--- Run aura test after a short delay to ensure everything is loaded
-C_Timer.After(1, testAuraSystem)

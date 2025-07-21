@@ -25,7 +25,7 @@ actions+=/charge,if=time=0|movement.distance>8
 # Interrupts and Emergency Actions
 actions+=/pummel,if=target.debuff.casting.react&target.debuff.casting.interruptible
 actions+=/disrupting_shout,if=target.debuff.casting.react&target.debuff.casting.interruptible&!cooldown.pummel.ready&talent.disrupting_shout.enabled
-actions+=/spell_reflection,if=target.debuff.casting.react&target.debuff.casting.reflectable
+actions+=/spell_reflection,if=target.casting
 
 # Stance Management for Rage Generation
 actions+=/stance,choose=battle,if=rage.deficit>40&!buff.berserker_stance.up&!movement.moving

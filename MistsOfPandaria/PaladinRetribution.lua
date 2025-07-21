@@ -302,13 +302,13 @@ spec:RegisterGlyphs( {
     [54924] = "divine_protection", -- Reduces the magical damage reduction of your Divine Protection to 20% but adds 20% physical damage reduction.
     [146956] = "divine_shield",     -- Removing harmful effects with Divine Shield heals you for 10% for each effect removed.  This heal cannot exceed 50% of your maximum health.
     [63220] = "divine_storm",      -- Your Divine Storm also heals you for 5% of your maximum health.
-    [63220] = "divinity",      		-- Increases the cooldown of your Lay on Hands by 2 min but causes it to give you 10% of your maximum mana.
+    [63221] = "divinity",      		-- Increases the cooldown of your Lay on Hands by 2 min but causes it to give you 10% of your maximum mana.
     [54922] = "double_jeopardy",   -- Your Judgment deals 20% additional damage when striking a target already affected by your Judgment.
     [57955] = "flash_of_light",    -- When you Flash of Light a target, it increases your next heal done to that target within 7 sec by 10%.
     [63219] = "hammer_of_the_righteous", -- The physical damage reduction caused by Hammer of the Righteous now lasts 50% longer.
     [146957] = "hand_of_sacrifice", -- Hand of Sacrifice no longer redirects damage to the Paladin.
     [54938] = "harsh_words", 		-- Your Word of Glory can now also be used on enemy targets, causing Holy damage approximately equal to the amount it would have healed.
-    [54938] = "immediate_truth", 		-- Increases the instant damage done by Seal of Truth by 40%, but decreases the damage done by Censure by 50%.
+    [54939] = "immediate_truth", 		-- Increases the instant damage done by Seal of Truth by 40%, but decreases the damage done by Censure by 50%.
     [63225] = "inquisition",       -- When you land a killing blow on an opponent that yields experience or honor, the duration of your Inquisition is increased by 30 sec.
     [122028] = "mass_exorcism",     -- Reduces the range of Exorcism to melee range, but causes 25% damage to all enemies within 8 yards of the primary target.
     [93466] = "protector_of_the_innocent",     -- When you use Word of Glory to heal another target, it also heals you for 20% of the amount.
@@ -1161,32 +1161,7 @@ spec:RegisterAuras({
     },
 } )
 
-    ret_tier16_4pc = {
-        id = 144586,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( t )
-            if state.set_bonus.tier16_4pc > 0 then
-                t.name = "Retribution T16 4-Piece Bonus"
-                t.count = 1
-                t.expires = query_time + 3600
-                t.applied = query_time
-                t.caster = "player"
-                t.up = true
-                t.down = false
-                t.remains = 3600
-                return
-            end
 
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-            t.up = false
-            t.down = true
-            t.remains = 0
-        end
-    },
 
 -- Abilities
 spec:RegisterAbilities( {

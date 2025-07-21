@@ -72,4 +72,5 @@ Options\ChatCommands.lua
 Options\Options.lua
 UI.lua
 Scripts.lua
+spectest.lua
 Core.lua

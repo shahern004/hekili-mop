@@ -375,12 +375,6 @@ spec:RegisterAuras( {
         tick_time = 1,
         max_stack = 1
     },
-    -- Suffering from a wound that will deal Shadow damage when damaged by Scourge Strike.
-    festering_wound = {
-        id = 194310,
-        duration = 30,
-        max_stack = 6
-    },
     -- Suffering $w1 Frost damage every $t1 sec.
     -- https://wowhead.com/spell=55095
     frost_fever = {

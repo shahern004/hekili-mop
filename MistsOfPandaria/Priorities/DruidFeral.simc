@@ -155,3 +155,19 @@ actions.utility+=/wild_charge,if=movement.distance>8&movement.distance<25&energy
 # Final resource management
 actions+=/tigers_fury,if=energy<30&!buff.tigers_fury.up&!buff.omen_of_clarity.up&cooldown.tigers_fury.ready
 actions+=/wait,sec=0.1,if=energy<50&energy.regen>10&!buff.omen_of_clarity.up&!buff.berserk.up&cooldown.tigers_fury.remains>3
+
+# ADVANCED TECHNIQUES
+# Bear-Weaving and Wrath-Weaving action lists
+
+# Bear-Weaving: Shift to Bear Form to pool energy and deal damage
+actions.bear_weaving+=/bear_form,if=settings.bear_weaving_enabled&energy>=80&!buff.berserk.up&!buff.incarnation_king_of_the_jungle.up&target.time_to_die>10
+actions.bear_weaving+=/mangle_bear,if=settings.bear_weaving_enabled&buff.bear_form.up&energy>=50
+actions.bear_weaving+=/lacerate,if=settings.bear_weaving_enabled&buff.bear_form.up&energy>=60&!debuff.lacerate.up
+actions.bear_weaving+=/cat_form,if=settings.bear_weaving_enabled&buff.bear_form.up&energy>=90
+
+# Wrath-Weaving: Use Wrath during Heart of the Wild when not in combat forms
+actions.wrath_weaving+=/wrath,if=settings.wrath_weaving_enabled&buff.heart_of_the_wild.up&!buff.cat_form.up&!buff.bear_form.up&mana>=0.06*mana.max
+
+# Call advanced techniques in main rotation
+actions+=/call_action_list,name=bear_weaving,if=settings.bear_weaving_enabled
+actions+=/call_action_list,name=wrath_weaving,if=settings.wrath_weaving_enabled

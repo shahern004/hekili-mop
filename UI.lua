@@ -1687,9 +1687,9 @@ do
                         start, duration, enabled, modRate = GetSpellCooldown( ability.id )
                     end
 
-                    if i == 1 and conf.delays.extend and rec.exact_time > max( now, start + duration ) then
+                    if i == 1 and conf.delays.extend and rec.exact_time and start and duration and rec.exact_time > max( now, start + duration ) then
                         start = ( start > 0 and start ) or ( cStart > 0 and cStart ) or ( gStart > 0 and gStart ) or max( state.gcd.lastStart, state.combat )
-                        duration = rec.exact_time - start
+                        duration = (rec.exact_time or 0) - start
 
                     elseif enabled and enabled == 0 then
                         start = 0
@@ -1697,7 +1697,7 @@ do
                         modRate = 1
                     end
 
-                    if cd.lastStart ~= start or cd.lastDuration ~= duration then
+                    if (cd.lastStart or 0) ~= start or (cd.lastDuration or 0) ~= duration then
                         cd:SetCooldown( start, duration, modRate )
                         cd.lastStart = start
                         cd.lastDuration = duration

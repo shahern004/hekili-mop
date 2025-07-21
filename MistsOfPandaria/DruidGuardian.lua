@@ -2,31 +2,29 @@ if not Hekili or not Hekili.NewSpecialization then return end
 -- DruidGuardian.lua
 -- December 2024 - Rebuilt from retail structure for MoP compatibility
 
--- MoP: Use UnitClass instead of UnitClassBase
 local _, playerClass = UnitClass('player')
-if playerClass ~= 'DRUID' then return end
+if playerClass ~= 'DRUID' then 
+    return 
+end
 
 local addon, ns = ...
 local Hekili = _G[ addon ]
-
 local class, state = Hekili.Class, Hekili.State
+
+local floor = math.floor
 local strformat = string.format
 
-local spec = Hekili:NewSpecialization( 104, true )
+local spec = Hekili:NewSpecialization(104, true)
 
--- Register Resources
-spec:RegisterResource( 1, { -- Rage = 1 in MoP
-    -- No special rage mechanics in MoP like retail
-} )
-spec:RegisterResource( 3 ) -- Energy = 3 in MoP
-spec:RegisterResource( 0 ) -- Mana = 0 in MoP
-
--- Spec configuration for MoP
-spec.role = "TANK"
-spec.primaryStat = "stamina"
 spec.name = "Guardian"
+spec.role = "TANK"
+spec.primaryStat = 2 -- Agility
 
--- No longer need custom spec detection - WeakAuras system handles this in Constants.lua
+-- Use MoP power type numbers instead of Enum
+-- Energy = 3, ComboPoints = 4, Rage = 1, Mana = 0 in MoP Classic
+spec:RegisterResource( 1 ) -- Rage (primary for Guardian)
+spec:RegisterResource( 0 ) -- Mana (for healing spells)
+
 
 -- Talents (MoP system - different from retail)
 spec:RegisterTalents( {
@@ -61,71 +59,7 @@ spec:RegisterTalents( {
     disentanglement       = { 6, 3, 108280 }
 } )
 
--- Glyphs (Enhanced System - authentic MoP 5.4.8 glyph system)
-spec:RegisterGlyphs( {
-    -- Major glyphs - Guardian Combat
-    [54825] = "savage_roar",           -- Savage Roar increases damage by 3% instead of 30%
-    [54760] = "feral_charge",          -- Feral Charge (Bear) now also stuns the target for 3 sec
-    [54821] = "maul",                  -- Maul now hits 2 additional targets
-    [54832] = "mangle",                -- Mangle generates 5 additional rage
-    [54743] = "lacerate",              -- Lacerate now has a 50% chance to refresh its duration
-    [54829] = "swipe",                 -- Swipe now hits 2 additional targets
-    [54754] = "shred",                 -- Shred now deals 20% additional damage to bleeding targets
-    [54755] = "rip",                   -- Rip now has a 50% chance to not consume combo points
-    [116218] = "ferocious_bite",       -- Ferocious Bite now heals you for 1% of your maximum health per combo point
-    [125390] = "tigers_fury",          -- Tiger's Fury now also increases your movement speed by 15%
-    [125391] = "berserk",              -- Berserk now lasts 5 sec longer but has a 30 sec longer cooldown
-    [125392] = "incarnation",          -- Incarnation now also grants 50% increased movement speed
-    [125393] = "survival_instincts",   -- Survival Instincts now also grants immunity to movement impairing effects
-    [125394] = "frenzied_regeneration", -- Frenzied Regeneration now also increases your dodge chance by 30%
-    [125395] = "barkskin",             -- Barkskin now also grants immunity to silence and interrupt effects
-    
-    -- Major glyphs - Mobility/Utility
-    [94388] = "wild_charge",           -- Wild Charge now has 2 charges
-    [59219] = "displacer_beast",       -- Displacer Beast now also grants stealth for 4 sec
-    [114235] = "stampeding_roar",      -- Stampeding Roar cooldown reduced by 60 seconds
-    [125396] = "dash",                 -- Dash now also increases your swimming speed by 100%
-    [125397] = "wild_charge",          -- Wild Charge now has 2 charges
-    [125398] = "displacer_beast",      -- Displacer Beast now also grants stealth for 4 sec
-    [125399] = "typhoon",              -- Typhoon now also silences affected enemies for 3 sec
-    [125400] = "ursols_vortex",        -- Ursol's Vortex now lasts 50% longer
-    [125401] = "mighty_bash",          -- Mighty Bash now also reduces the target's movement speed by 50% for 8 sec
-    [54828] = "rebirth",               -- Rebirth gives 100% health/mana instead of 60%
-    
-    -- Major glyphs - Defensive/Survivability
-    [125402] = "renewal",              -- Renewal now also grants immunity to movement impairing effects for 4 sec
-    [125403] = "cenarion_ward",        -- Cenarion Ward now lasts 50% longer
-    [125404] = "survival_instincts",   -- Survival Instincts can now be cast in any form
-    [125405] = "frenzied_regeneration", -- Frenzied Regeneration now also increases your dodge chance by 30%
-    [125406] = "bear_form",            -- Bear Form now also increases your movement speed by 15%
-    [125407] = "cat_form",             -- Cat Form now also increases your energy regeneration by 20%
-    [125408] = "travel_form",          -- Travel Form now also grants water walking
-    [125409] = "aquatic_form",         -- Aquatic Form now also increases your movement speed on land by 25%
-    [125410] = "moonkin_form",         -- Moonkin Form now also increases your spell critical strike chance by 5%
-    [125411] = "treant_form",          -- Treant Form now also increases your healing done by 15%
-    
-    -- Major glyphs - Control/CC
-    [125412] = "hibernate",            -- Hibernate can now affect Dragonkin and Undead
-    [125413] = "entangling_roots",     -- Entangling Roots can now affect flying enemies
-    [125414] = "cyclone",              -- Cyclone now lasts 2 sec longer but has a 10 sec longer cooldown
-    [125415] = "solar_beam",           -- Solar Beam now also reduces the movement speed of affected enemies by 50%
-    [125416] = "mass_entanglement",    -- Mass Entanglement now affects 3 additional targets
-    [125417] = "faerie_fire",          -- Faerie Fire now also increases the target's damage taken by magic spells by 15%
-    
-    -- Minor glyphs - Visual/Convenience
-    [57856] = "aquatic_form",          -- Walk on water in Aquatic Form
-    [57862] = "challenging_roar",      -- Roar matches shapeshift form
-    [57863] = "charm_woodland_creature", -- Charm critters for 10 minutes
-    [57855] = "dash",                  -- Dash leaves glowing trail
-    [57861] = "grace",                 -- Death causes enemies to flee
-    [57857] = "mark_of_the_wild",      -- Transform into stag when self-buffing
-    [57858] = "treant",                -- Force of Nature treants resemble trees
-    [57860] = "unburdened_rebirth",    -- Rebirth requires no reagent
-    [121840] = "stars",                -- Moonfire and Sunfire appear as stars
-    [125418] = "blooming",             -- Lifebloom causes flowers to bloom around the target
-    [125419] = "floating",             -- Spells cause you to hover slightly above the ground
-    [125420] = "glow",                 -- Healing spells cause you to glow with natural energy
-} )
+-- Glyphs disabled for Guardian (simplified)
 
 -- Gear Sets
 spec:RegisterGear( "tier13", 78699, 78700, 78701, 78702, 78703, 78704, 78705, 78706, 78707, 78708 )
@@ -302,6 +236,75 @@ spec:RegisterAuras( {
         duration = 30,
         max_stack = 3,
     },
+
+    -- Missing auras from APL
+    incarnation_son_of_ursoc = {
+        id = 102558,
+        duration = 30,
+        max_stack = 1,
+    },
+
+    natures_vigil = {
+        id = 124974,
+        duration = 12,
+        max_stack = 1,
+    },
+
+    pulverize = {
+        id = 80313,
+        duration = 20,
+        max_stack = 1,
+    },
+
+    symbiosis = {
+        id = 110309,
+        duration = 3600,
+        max_stack = 1,
+    },
+
+    dream_of_cenarius_damage = {
+        id = 108373,
+        duration = 15,
+        max_stack = 1,
+    },
+
+    dream_of_cenarius_healing = {
+        id = 108373,
+        duration = 15,
+        max_stack = 1,
+    },
+
+    mangle = {
+        id = 33917,
+        duration = 0,
+        max_stack = 1,
+    },
+
+    tooth_and_claw_debuff = {
+        id = 135286,
+        duration = 6,
+        max_stack = 1,
+    },
+
+    -- Additional debuffs needed for APL
+    mighty_bash = {
+        id = 5211,
+        duration = 5,
+        max_stack = 1,
+    },
+
+    growl = {
+        id = 6795,
+        duration = 3,
+        max_stack = 1,
+    },
+
+    challenging_roar = {
+        id = 5209,
+        duration = 6,
+        max_stack = 1,
+    },
+
 } )
 
 -- State Functions
@@ -385,6 +388,7 @@ spec:RegisterAbilities( {
         end,
     },
 
+    -- Lacerate (Guardian ability)
     lacerate = {
         id = 33745,
         cast = 0,
@@ -410,32 +414,25 @@ spec:RegisterAbilities( {
         end,
     },
 
-    thrash = {
-        id = 77758,
+    -- Pulverize (Guardian ability)
+    pulverize = {
+        id = 80313,
         cast = 0,
-        cooldown = 6,
+        cooldown = 0,
         gcd = "spell",
 
-        spend = -5,
+        spend = 20,
         spendType = "rage",
 
         startsCombat = true,
-        texture = 451161,
+        texture = 236149,
 
         form = "bear_form",
 
         handler = function ()
-            applyDebuff( "target", "thrash_bear", 15 )
-            
-            if active_enemies > 1 then
-                local applied = min( active_enemies, 8 )
-                for i = 1, applied do
-                    if i == 1 then
-                        applyDebuff( "target", "thrash_bear", 15 )
-                    else
-                        applyDebuff( "target" .. i, "thrash_bear", 15 )
-                    end
-                end
+            if debuff.lacerate.stack >= 3 then
+                removeDebuff( "target", "lacerate" )
+                applyBuff( "pulverize" )
             end
         end,
     },
@@ -463,27 +460,7 @@ spec:RegisterAbilities( {
         end,
     },
 
-    swipe = {
-        id = 779,
-        cast = 0,
-        cooldown = 0,
-        gcd = "spell",
 
-        spend = 15,
-        spendType = "rage",
-
-        startsCombat = true,
-        texture = 134296,
-
-        form = "bear_form",
-
-        handler = function ()
-            if active_enemies > 1 then
-                local applied = min( active_enemies, 8 )
-                -- Hit multiple enemies
-            end
-        end,
-    },
 
     -- Defensive abilities
     barkskin = {
@@ -493,6 +470,7 @@ spec:RegisterAbilities( {
         gcd = "off",
 
         defensive = true,
+        toggle = "defensives",
 
         startsCombat = false,
         texture = 136097,
@@ -509,6 +487,7 @@ spec:RegisterAbilities( {
         gcd = "off",
 
         defensive = true,
+        toggle = "defensives",
 
         startsCombat = false,
         texture = 236169,
@@ -525,6 +504,7 @@ spec:RegisterAbilities( {
         gcd = "off",
 
         defensive = true,
+        toggle = "defensives",
 
         startsCombat = false,
         texture = 132091,
@@ -542,6 +522,8 @@ spec:RegisterAbilities( {
         cooldown = 60,
         gcd = "off",
 
+        toggle = "cooldowns",
+
         startsCombat = false,
         texture = 136224,
 
@@ -558,6 +540,8 @@ spec:RegisterAbilities( {
         cast = 0,
         cooldown = 180,
         gcd = "off",
+
+        toggle = "cooldowns",
 
         startsCombat = false,
         texture = 236149,
@@ -642,6 +626,7 @@ spec:RegisterAbilities( {
         gcd = "off",
 
         talent = "incarnation",
+        toggle = "cooldowns",
 
         startsCombat = false,
         texture = 571586,
@@ -651,6 +636,222 @@ spec:RegisterAbilities( {
             if not buff.bear_form.up then
                 shift( "bear_form" )
             end
+        end,
+    },
+
+    -- Incarnation: Son of Ursoc (Guardian version)
+    incarnation_son_of_ursoc = {
+        id = 102558,
+        cast = 0,
+        cooldown = 180,
+        gcd = "off",
+
+        talent = "incarnation",
+
+        startsCombat = false,
+        texture = 571586,
+
+        handler = function ()
+            applyBuff( "incarnation_son_of_ursoc" )
+            if not buff.bear_form.up then
+                shift( "bear_form" )
+            end
+        end,
+    },
+
+    -- Savage Defense (Guardian ability)
+    savage_defense = {
+        id = 62606,
+        cast = 0,
+        cooldown = 0,
+        gcd = "off",
+
+        talent = "savage_defense",
+        toggle = "defensives",
+
+        startsCombat = false,
+        texture = 132091,
+
+        handler = function ()
+            applyBuff( "savage_defense" )
+        end,
+    },
+
+    -- Nature's Vigil (talent)
+    natures_vigil = {
+        id = 124974,
+        cast = 0,
+        cooldown = 90,
+        gcd = "off",
+
+        talent = "natures_vigil",
+        toggle = "defensives",
+
+        startsCombat = false,
+        texture = 132123,
+
+        handler = function ()
+            applyBuff( "natures_vigil" )
+        end,
+    },
+
+
+
+    -- Swipe (Bear form)
+    swipe_bear = {
+        id = 779,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        spend = 15,
+        spendType = "rage",
+
+        startsCombat = true,
+        texture = 134296,
+
+        form = "bear_form",
+
+        handler = function ()
+            if active_enemies > 1 then
+                local applied = min( active_enemies, 8 )
+                -- Hit multiple enemies
+            end
+        end,
+    },
+
+    -- Thrash (Bear form)
+    thrash_bear = {
+        id = 77758,
+        cast = 0,
+        cooldown = 6,
+        gcd = "spell",
+
+        spend = -5,
+        spendType = "rage",
+
+        startsCombat = true,
+        texture = 451161,
+
+        form = "bear_form",
+
+        handler = function ()
+            applyDebuff( "target", "thrash_bear", 15 )
+            
+            if active_enemies > 1 then
+                local applied = min( active_enemies, 8 )
+                for i = 1, applied do
+                    if i == 1 then
+                        applyDebuff( "target", "thrash_bear", 15 )
+                    else
+                        applyDebuff( "target" .. i, "thrash_bear", 15 )
+                    end
+                end
+            end
+        end,
+    },
+
+    -- Symbiosis (MoP ability)
+    symbiosis = {
+        id = 110309,
+        cast = 0,
+        cooldown = 120,
+        gcd = "spell",
+
+        startsCombat = false,
+        texture = 136033,
+
+        handler = function ()
+            applyBuff( "symbiosis" )
+        end,
+    },
+
+    -- Skull Bash (interrupt)
+    skull_bash = {
+        id = 80965,
+        cast = 0,
+        cooldown = 10,
+        gcd = "off",
+
+        toggle = "interrupts",
+
+        startsCombat = false,
+        texture = 132091,
+
+        form = "bear_form",
+
+        handler = function ()
+            interrupt()
+        end,
+    },
+
+    -- Mighty Bash (talent interrupt)
+    mighty_bash = {
+        id = 5211,
+        cast = 0,
+        cooldown = 50,
+        gcd = "spell",
+
+        talent = "mighty_bash",
+        toggle = "interrupts",
+
+        startsCombat = true,
+        texture = 132091,
+
+        handler = function ()
+            applyDebuff( "target", "mighty_bash" )
+        end,
+    },
+
+    -- Wild Charge (talent)
+    wild_charge = {
+        id = 102401,
+        cast = 0,
+        cooldown = 15,
+        gcd = "off",
+
+        talent = "wild_charge",
+
+        startsCombat = false,
+        texture = 132091,
+
+        handler = function ()
+            applyBuff( "wild_charge" )
+        end,
+    },
+
+    -- Heart of the Wild (talent)
+    heart_of_the_wild = {
+        id = 108292,
+        cast = 0,
+        cooldown = 360,
+        gcd = "off",
+
+        talent = "heart_of_the_wild",
+        toggle = "defensives",
+
+        startsCombat = false,
+        texture = 132123,
+
+        handler = function ()
+            applyBuff( "heart_of_the_wild" )
+        end,
+    },
+
+    -- Force of Nature (talent)
+    force_of_nature = {
+        id = 106737,
+        cast = 0,
+        cooldown = 60,
+        gcd = "spell",
+
+        talent = "force_of_nature",
+
+        startsCombat = true,
+        texture = 132123,
+
+        handler = function ()
+            -- Summon treants
         end,
     },
 
@@ -707,6 +908,82 @@ spec:RegisterStateExpr( "rage_spent_recently", function()
     end
     return false
 end )
+spec:RegisterOptions( {
+    enabled = true,
+
+    aoe = 3,
+    cycle = false,
+
+    nameplates = true,
+    nameplateRange = 10,
+    rangeFilter = false,
+
+    damage = true,
+    damageDots = false,
+    damageExpiration = 3,
+
+    potion = "tempered_potion",
+
+    package = "Guardian"
+} )
+
+-- Guardian-specific settings
+spec:RegisterSetting( "defensive_health_threshold", 80, {
+    name = "Defensive Health Threshold",
+    desc = "The health percentage at which defensive abilities will be recommended.",
+    type = "range",
+    min = 50,
+    max = 100,
+    step = 5,
+    width = 1.5,
+} )
+
+spec:RegisterSetting( "use_symbiosis", true, {
+    name = strformat( "Use %s", Hekili:GetSpellLinkWithTexture( 110309 ) ),
+    desc = strformat( "If checked, %s will be recommended when available.",
+        Hekili:GetSpellLinkWithTexture( 110309 ) ),
+    type = "toggle",
+    width = "full",
+} )
+
+spec:RegisterSetting( "use_savage_defense", true, {
+    name = strformat( "Use %s", Hekili:GetSpellLinkWithTexture( 62606 ) ),
+    desc = strformat( "If checked, %s will be recommended when you have sufficient rage.",
+        Hekili:GetSpellLinkWithTexture( 62606 ) ),
+    type = "toggle",
+    width = "full",
+} )
+
+spec:RegisterSetting( "savage_defense_rage_threshold", 80, {
+    name = "Savage Defense Rage Threshold",
+    desc = "The minimum rage required to use Savage Defense.",
+    type = "range",
+    min = 50,
+    max = 100,
+    step = 5,
+    width = 1.5,
+} )
+
+spec:RegisterSetting( "lacerate_stacks", 3, {
+    name = strformat( "%s Stacks", Hekili:GetSpellLinkWithTexture( 33745 ) ),
+    desc = strformat( "The number of %s stacks to maintain on the target.",
+        Hekili:GetSpellLinkWithTexture( 33745 ) ),
+    type = "range",
+    min = 1,
+    max = 3,
+    step = 1,
+    width = 1.5,
+} )
+
+spec:RegisterSetting( "maintain_faerie_fire", true, {
+    name = strformat( "Maintain %s", Hekili:GetSpellLinkWithTexture( 770 ) ),
+    desc = strformat( "If checked, %s will be maintained on the target.",
+        Hekili:GetSpellLinkWithTexture( 770 ) ),
+    type = "toggle",
+    width = "full",
+} )
+
+
 
 -- Priority List
-spec:RegisterPackage( "Guardian", 20241201.1, [[Hekili:TEvZZTnss(BrvkPss2SILnHPdllNLfEMGUcKYSSSSQOOcOOOGHHJC6p3HF5J5NZhKqPbQb9H9O8O2kP(T4T2lKr(0Q(yU57FWYgV9Ro3CFWyVp8FWYgV(IK63g7eo0C)TcNlpe9)SkOsI3ZnHPdLlwAo1QaHLaHJaH5FwHHJG3TJdtT4cJPjO2MfO2(fOwO9E9fO(TfOMMBFKdltaWwaSjOPBKKJG5FwHH7gZBF3NsJ5FKfEm(V4TFEI(E)dglXexYpqwSkdlFxuKfVYXMfKB(0E9HXISG8BQU9FXaRnfWNJB)g8V9oYVGWa8p3NsXNfqMhbEF3NLWDu0k5YNfeggBT(Vd7)Mg8d36Fk)Cy0R(xpMJEOdGzh9THLyDCaOWWNJBF0n3mCCaNJl8zn(Bz4TXzN4cKgUhMfKBLJ(MJzGONMLPG3MZOu1DmF1FKNTGSmebcVn3dZH)FFiE9TIuBFZK55(1Jm(d5M9O4TtHJ4YJF5o2ZsJmhbLJBE5YXB)lR8VJ5qH)9THCy55cNCIl8dxL8ZV7lgvdQWU(9qP)PFO0U(UVX54VBe(JU8iiF9W8cKF0uWYh(y8EQHKpfEllBOW(JRW(h5)OTJJ)dJJLyXBP5XvKNJUayOWaKrMGOOGzZqfwOWrKQ5iyOWHWaOWLtOTdcqQgKJ3CGdlgOq(sNlZC3(6p)EqXZhfnlUXHHeOsO6PHJNgCKaOY4OJQH7gaLOkO6FHs8yO55xUGnw5YJVuixCKLapJrMCOE1WJaBpbmGq)dJJLy0OVoaWqLHBE5kCXJNp(yoK0eiKKbFCqKI8CW()c)yoKaGp0MZ2uXhtZXnl8B9pIhElp0)Jh6)OHBXeVpB5o5AXnl5(VJzqpYXBSpOPMkE7)cKJJGVpUWNDOpG5M(J7CWnlLJFzqSSJ7(FFCoSDC5YXcJJLlVhVJ7s8)6M0(B(p4nfXO0UOhZ0OLBBLtNlQtY0Q5yL0TUVn5FQTXP5YtZclD)J)qhz5(bVGZsNJfIrPBR9VXdwWKDC58f3Hp8HpXrUL)K(1lXNpHWE)YXRoQI8R4B8K0Ely3l(t)W8Kul(TDmqZelKO7CfKl85f(WHlOdJF)rX)n(xDdqO(QJ7)gFdZYm5YJq)dZ8KZ)Z8P8U4C8BWpbJltNJI)6h0lL2yb3WJFNc8fE)QJcK4p8)2Fc5x4tWa)c(ZlN)h8L9gSKZ8XQTqfVtNJfE)QJcK4p8)2FcZxq8j2YJ7(WGNP7s)3Wgxo)e8f(rNx)Daf9kpb)I)6)tJelLNJ7Ctq(MJpA8elXNYLJZBLXpZfCl3)lp8CKV4T4Zq4pWLHnJxo)e8v4V5pbp3s8T4u8ZlN)eLlps)dJ2GJ(o2HlUhFV4LhB(zI)8YJ7rQcKF0n4J)9R5LZWyFKNrJZ5ZOF1nqKhxvNJNg)z5Y7WJf(3VeZRlLtIl8CKx41SB)tJeF3ZnHPdLlwAo1QaHLarNJcphxTp4TJ)8o8BwPJ(FdKqTbE)q8tOK8f8V(bpMT9o8)eMeeFdE4Uq4pUq4TBQaFXVE5Y7Gx2FeG)4AFcoNqEeFkTZQJ4Bp8JpGCtlpTw(M(gTjDJlDfUo25YU8hy8x0Fc3D3Nf(qqzJ)81rrNZJNWgWZz8)7hbRlNJAaZHFjd2GcDWJvjpSsWJj42AcJnNJLVhNCbKV1kNJrJBg)tqCPQBOEUvmfOA)HyXvqtPBOl3YTW(ElP8CZJFqJ)6wYJa6vJ)6gLKNJ48AaFEL)yCfV(E4WJNV0V4FFuKJJGHFpExKOm9h0S9hbQWFONJJ4TJ(FD(XdU)RvNZxo2aBo3OPJhE4W8dNW5JX4zEUJRoZJX8JrFEo8yGClLWrSRo)z5Uo2X)4Q3UkpLLV8(qYhMl)hhEm3SJqsLdNG6yOh)aWJdDYwGPFgFlf))F9KxtYJJdDYwGPFcZJdDcHOsKhLJ)hhEc6Ox5Xp4tq)0VJfOElkVJfgvdZi8B2Lhl8WJFfSIlJXhM)8CoMFX8XrVFKbVExH)d]] )
+spec:RegisterPack( "Guardian", 20250721, [[Hekili:DVX(VnUT5)wckGQD3np)ioxANDa6w36UdDhkMV(tf1smw02Arp8KOsAkc0F77JpfPejTC6T1HHd5UtsF879ls(LTZ2(XTBIre82pmF68LtF78ztMnB68zB3qE(eE7MtODpGoa)NCug83hQrLXjO8MicUIq)8ZPfOykwQkQl3bGSDZ91jPK3LV9EBOE285aSNW72(HztVE7MJjXXyoS4QDB38XJjvnr0FqnrcQ3evShEEhjPaOCAsfb(8(IYMO)g(HK0KjB3WEjLnovI3vKDpIap8bM4HZr3NIJ3(N4KOm5efpB38nL1jXFvt03kKPTB4uaeamQmeWF2wcW8DWbGacUmbTDZvnr3xVF)Kmu5dHf7djhXHpLKgpP(utuqt0HYI6tTyTlyuKV4SiV65S7tkQsQKyLGkpGjtW)mxnaV5reScadtQRWHk4BjC7RakETtksqP4CYK4smkJYN7aOktQRMiGMrljB1dQWyugyQMOlXhXO0K8dHKI6DhPeF55fx0JawcJX7X5vyPmBkHgGOjMMVNa)zZbCoUe8bdlPoXw8iA5GDffPXfpLdMZ8daPabm(zDRh9T(DiuOGCSevDmK6hXXdtkgX9HFehcCvwcgSE31enRj6Lxyk2ymtfOVyQ8pULj0(KFVhbQsr7yI)Kkcej1eTstvk)wi7BCpPswWga1TlBjQeq)EpwKSfUXz1tjNWs5aStuGcbvm8pzGtOnlLCP7qPPH8hcPr96mHIw3mvpwHKKHbNWW4emJXULNViuKtZWhXIbE4u(okLnqoKPlpwH5Ugm3ywdf7tstXLIpxX1xGwcKS8Dp73Nwi)7qveiouxLiCqeFH6KkyfLf6HAGNUhC387ZlYAKLC4i5zg8g5lSWbx1Lj0xRrcZ2373BxWd0KQH7osXTnEiguPO8Dcxa7FbCDMR5MQHr)E)9Kji3)tPDszZ)hqbSgQSLIEgdX35jKwYXwe3adzXq1Pwde6N0uvVYq95Tk2G88A9YET(UYmIwl9mK4kAjeYXjN2r45qMYZwMKdf5PLw4vDcxYZ4iGod9ZnrFrt00juJPg7WRna5PQSvnAqsugkjNa)egxqyy5Mxdw6MVJzZnd0Nmixa7fuSfLbUXa6Zpq1ALfIAlQ8Z01P543f4Z2iKjTIXzfLqT)FPlXeGHkZODVbeDAhEyAlp0dj)hSKxhX)vxYBMBC2TKxBOXaJXlRWLpivKJ0kSETiOWw1oAcnXNzObcCqL5iMxzf8d0bxDzvXUUDAii3GY9RHtR9k6LMCzPty(nocZNn1rC(sVAGflnKnx8ZWAihNxY7Z1S7g)DCO7iWrWG6fhKZsIXwl01V91BNXtyPUNGUd1yJE2njP)(2fmkOnRlXvHpMCij1Gj7WHVvla3yr2sL2Jmq1SDykZXxAxTrVaY1SMqVipPRn0gDiipY1SeG3OxhjLwFMKsJAdEovN(iGRFH7XPSETVUet5NkE5rdMxbJ)O4xtItkFmsTJf1s15LRPbLb9HziQGX2tf7n40XUNOCQLpPZPluYJZm6Nbd34BxAE7Au2cmFpNDyy1orBPKEbY2TK6o(uGPNWOhaPkoKv5vZeVWxzzLbs5XVhbOfhUpPuBJ36Vu28QSnlVrhDYnOiNA9HCiGCrqEIJq9sJ6kv1LpM8ikneuoWUl2ruNrIeI9L48Fjbe7sSyxE0AucGgApKl0QH3JI(dT(vkGEz)rA9ziRxEi95thDSmvUs90B2G0FK2Vsr6Eu5dvpKOlfd1omxuK3rwE9Mxeezq1ybva(jK3IwdvivN)JeNDodjXRhufv(5QbDN8eQm(tbZjTaMiwFdJgFXF9y)hxNYVuXBMWXopKoS3L4iOvhKuuaskkh2MEk6jEZmM5UUOJm8dV9tTJ)ibJkB2b2gWEsoUQsLS32U4LsbF3u9oRvXbRQLhFUrhCgN6kX4uO8Mq2Lkv3MUWOcuDQ)mGQLDlVBGUbVRLvy1A5XcdOS3wC4g3NFCN(Ysf(5MY3YPo2ZMNujQf)L9vomdaerLd2Kk69BaqMKDQOKiUdJp3((()CGNW)RAOOk4ivvKbldvtkYGEHGxaBqp)aUAsZ7)UKC4tZ(QMOFiVQ(efXua4ydWE3TY)5Q1m35A6T172fTW5IKDQ1c71oHTvXsHMPt2xKMw8e7qcr1qdunrpHlH3dXVX0CdqxkuWKOGEykuFcIeU8cMcTo3a64ykWXic6Euf(RAEFt0VN2Fvh5t8EPiap(ElgkJtk(tL9H3f3qSkA9v()z2JZO3BtF9PtPxNoevUjCU11M6VZPTLy9)66zZSNIxAMU1Hj4tCsj6IcreA5lQIWkjv3K7Lrupgj59G2AJw6gydv1Vjwlx3XQpJPsgDOuvN64LPuDhH46W0gsud)KWgI1W4OI(nXyW5vXdUeAhkDJdm6Yu8UdHuNUZqYJ1VwGBRI1Ym(sMzw)YTru7Cc(nXeQvLH(iNXfpO0MINnpWe3jffNZXLzuV5)LZ6i38SZKqI9xi(EV91CPLAOJ6ZPYcOjymFUFYsQQyIQqbj02SMVs2biPmj)bmbuNrnrVJWxeRwrg0MavHqoIGxJbd6ZuCNuanQ)mlQnToM21pob0aLsj(h)bGbbmHZQ(P3aQSJj7oQdnk)5wQkuM4F(uAYUesAlE11TsI(hBIkKnx(JFKJciO(NOinw)vZ1O8tW(b0KibkjsqzAd2RYRZUhZD5sliGZY7YKEuZMA6oqD(GTMutowuUDZMS69LjpqNwkMIF7MpRjQ78q18(pdE7gmHEZ9GzvUJ33qVcZ1U327BEeLwJxF70UlX7Ha4CvDoCybCl6cMXSpjaAMvGm4cxqA7epBHLRA(EzdknrFntvdkjUoVAIQ5LF36)GAJ92)C35c7nj7xFL48F7nyzbSHkZoIAfFfg0NESaJjhlW(uJzhZghPaf7NBwXcUYXjxOMsmhIGPXPvo6UT)apNVJ0(83r04XVwef89Q8aFhn9OK8ar1Agv)1kZwlByCenAG29U(5(qQXN48GQAl78G2w0HYxTNk1QBN(Yl9pcT7Ap(SVGDgQNLagDRCEW7mkdsL)Frj8QGJOrVlNGllRprQejaFhKHdY1a1KJ(iKjarQg36yO0Fuhd14iXD)0NQOa)Z0KDeQnCrAo0wgJPGoe7kFdVKDAPngrA0YY4kf0zGKU72UVzLMf0GgSzhI5PAFqKcmgcPRwZhaP2qL)jTQYFUNB4eLNjlIGDLX6XdY7qoye1py11Gpy)lFE1C41Sf4zuagBNMUwHMI0Y8hiY)4HCbJ0cDUXsOZSPDIDwAv0wS0bJZ3WqRUsn3abmn1ntd6JT7MT0oY6DR8AIVZHeWqeDyzwkTmTMshYJXwW0iV1R(pqJYVDQDe25U11qPJR5pyefnTNE7DRxmaZ21JLo5FJmZPvh928Q00n9UOVojBhWX)l8bTElLIV56c(coxE8fo4BRi8vZ6ozpwW(D0OMbCJJJDWRYnA8QzpT7smy050yZHW3EUpUynXf1P5s25wcdUqg2(nd6G6g3dNgpy9kbVuo5kRxcORWGb3ogZHyyx33aSvICs9UiOX(B7ZQm0R31luHnY5139Yl97kCCWqUYUvZv5Kk(OOvOVHvVM31kbwfDEKvsKrpzGqPoUcQazDcBw7A6AcgX5A9blsOV7nurRUDSBEqIxNSWkxSWlVmYXKdT66jldUm5XdhQDswmFxRJi0lV4E4Ewbfy6w0zwGh4VXd3WpVjDgrn1pkEWCIFwnBQB0PVX0wlGTb9z1Ia9b85UPbEhShPR5)GEENG7OQZEUF6g6LXWo)hjN1zhao3PGX1Nr5zpncD7LJ(2BjsIBOc1LJgZBJ1uz8TQIBA7Nurbd5ZWGB93Ti3lSJFR7FTI61r0miNKvV8XUP2RpoM3j7TlDJ727fJI9om7I21RRKvoywuXT2yM(TMvI2ETcEjPftpZIzqD7YatEB9mzAYE4vKRSxjWXoiKxvWCoxUCqC5xovQO(RmFulh7KPZl1hVZT)BHhM1DlTw(nfGZM67oPhL6DN6w2mQTFVa6MBItPPEO0Vshw)IHxZ1mjcyt1X2)9p]] )

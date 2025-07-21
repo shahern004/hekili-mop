@@ -258,127 +258,42 @@ spec:RegisterAuras( {
         duration = 3600,
         max_stack = 1,
     },
-    -- Incapacitated.
-    leg_sweep = {
-        id = 119381,
-        duration = 3,
-        mechanic = "stun",
-        max_stack = 1
-    },
+
     -- Movement speed increased by $w1%.
     momentum = {
         id = 115174,
         duration = 6,
         max_stack = 1,
     },
-    -- Incapacitated.
-    paralysis = {
-        id = 115078,
-        duration = 60,
-        mechanic = "incapacitate",
-        max_stack = 1
-    },
+
     -- Your next Tiger Palm will deal 300% weapon damage and restore 1 additional Chi.
     power_strikes = {
         id = 129914,
         duration = 3600,
         max_stack = 1,
     },
-    -- Taunted. Movement speed increased by $s3%.
-    provoke = {
-        id = 116189,
-        duration = 3,
-        mechanic = "taunt",
-        max_stack = 1
-    },
-    -- Nearby enemies will be knocked out of the Ring of Peace.
-    ring_of_peace = {
-        id = 116844,
-        duration = 5,
-        type = "Magic",
-        max_stack = 1
-    },
-    -- Damage increased by $w1%.
-    rising_sun_kick = {
-        id = 107428,
-        duration = 10,
-        max_stack = 1,
-    },
-    -- Dealing physical damage to nearby enemies every $116847t1 sec.
-    rushing_jade_wind = {
-        id = 116847,
-        duration = function () return 6 * haste end,
-        tick_time = 0.75,
-        dot = "buff",
-        max_stack = 1,
-    },
-    -- Healing for $w1 every $t1 sec.
-    soothing_mist = {
-        id = 115175,
-        duration = 8,
-        type = "Magic",
-        max_stack = 1
-    },
-    -- Attacking nearby enemies for Physical damage every $101546t1 sec.
-    spinning_crane_kick = {
-        id = 101546,
-        duration = function () return 1.5 * haste end,
-        tick_time = function () return 0.5 * haste end,
-        max_stack = 1
-    },
-    -- Movement speed increased by $w1%.
-    tigers_lust = {
-        id = 116841,
-        duration = 6,
-        type = "Magic",
-        max_stack = 1
-    },
-    -- Marked for death.
-    touch_of_death = {
-        id = 115080,
-        duration = 8,
-        max_stack = 1
-    },
-    -- Absorbing damage dealt to the Monk.
-    touch_of_karma = {
-        id = 125174,
-        duration = 10,
-        max_stack = 1
-    },
-    -- Damage dealt to the Monk is redirected to you as Nature damage over $124280d.
-    touch_of_karma_debuff = {
-        id = 122470,
-        duration = 10,
-        max_stack = 1
-    },
-    -- You left your spirit behind, allowing you to use Transcendence: Transfer to swap with its location.
-    transcendence = {
-        id = 101643,
-        duration = 900,
-        max_stack = 1
-    },
+
+
+
+
+
+
+
+
+
+
+
     transcendence_transfer = {
         id = 119996,
     },
-    -- Movement speed increased by $s1%.
-    windwalking = {
-        id = 166646,
-        duration = 3600,
-        max_stack = 1,
-    },
+
     -- Healing for $w1.
     zen_sphere = {
         id = 124081,
         duration = 16,
         max_stack = 1,
     },
-    -- Flying.
-    zen_flight = {
-        id = 125883,
-        duration = 3600,
-        type = "Magic",
-        max_stack = 1
-    },
+
     -- Talent: Movement speed reduced by $m2%.
     -- https://wowhead.com/beta/spell=123586
     flying_serpent_kick_snare = {
@@ -429,14 +344,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         copy = 338321
     },
-    -- Stunned.
-    -- https://wowhead.com/beta/spell=119381
-    leg_sweep = {
-        id = 119381,
-        duration = 3,
-        mechanic = "stun",
-        max_stack = 1
-    },
+
     --[[mark_of_the_crane = {
         id = 228287,
         duration = 15,
@@ -482,64 +390,23 @@ spec:RegisterAuras( {
         duration = 3600,
         max_stack = 1,
     },
-    -- Talent: Incapacitated.
-    -- https://wowhead.com/beta/spell=115078
-    paralysis = {
-        id = 115078,
-        duration = 60,
-        mechanic = "incapacitate",
-        max_stack = 1
-    },
+
     pressure_point = {
         id = 393053,
         duration = 5,
         max_stack = 1,
         copy = 337482
     },
-    -- Taunted. Movement speed increased by $s3%.
-    -- https://wowhead.com/beta/spell=116189
-    provoke = {
-        id = 116189,
-        duration = 3,
-        mechanic = "taunt",
-        max_stack = 1
-    },
-    -- Talent: Nearby enemies will be knocked out of the Ring of Peace.
-    -- https://wowhead.com/beta/spell=116844
-    ring_of_peace = {
-        id = 116844,
-        duration = 5,
-        type = "Magic",
-        max_stack = 1
-    },
-    rising_sun_kick = {
-        id = 107428,
-        duration = 10,
-        max_stack = 1,
-    },
-    -- Talent: Dealing physical damage to nearby enemies every $116847t1 sec.
-    -- https://wowhead.com/beta/spell=116847
-    rushing_jade_wind = {
-        id = 116847,
-        duration = function () return 6 * haste end,
-        tick_time = 0.75,
-        dot = "buff",
-        max_stack = 1,
-        copy = 443626
-    },
+
+
+
+
     save_them_all = {
         id = 390105,
         duration = 4,
         max_stack = 1
     },
-    -- Talent: Healing for $w1 every $t1 sec.
-    -- https://wowhead.com/beta/spell=115175
-    soothing_mist = {
-        id = 115175,
-        duration = 8,
-        type = "Magic",
-        max_stack = 1
-    },
+
     -- $?$w2!=0[Movement speed reduced by $w2%.  ][]Drenched in brew, vulnerable to Breath of Fire.
     -- https://wowhead.com/beta/spell=196733
     special_delivery = {
@@ -547,14 +414,7 @@ spec:RegisterAuras( {
         duration = 15,
         max_stack = 1
     },
-    -- Attacking nearby enemies for Physical damage every $101546t1 sec.
-    -- https://wowhead.com/beta/spell=101546
-    spinning_crane_kick = {
-        id = 101546,
-        duration = function () return 1.5 * haste end,
-        tick_time = function () return 0.5 * haste end,
-        max_stack = 1
-    },
+
     -- Talent: Elemental spirits summoned, mirroring all of the Monk's attacks.  The Monk and spirits each do ${100+$m1}% of normal damage and healing.
     -- https://wowhead.com/beta/spell=137639
     storm_earth_and_fire = {
@@ -594,41 +454,7 @@ spec:RegisterAuras( {
         duration = 30,
         max_stack = 30
     },
-    -- Talent: Moving $s1% faster.
-    -- https://wowhead.com/beta/spell=116841
-    tigers_lust = {
-        id = 116841,
-        duration = 6,
-        type = "Magic",
-        max_stack = 1
-    },
-    touch_of_death = {
-        id = 115080,
-        duration = 8,
-        max_stack = 1
-    },
-    touch_of_karma = {
-        id = 125174,
-        duration = 10,
-        max_stack = 1
-    },
-    -- Talent: Damage dealt to the Monk is redirected to you as Nature damage over $124280d.
-    -- https://wowhead.com/beta/spell=122470
-    touch_of_karma_debuff = {
-        id = 122470,
-        duration = 10,
-        max_stack = 1
-    },
-    -- Talent: You left your spirit behind, allowing you to use Transcendence: Transfer to swap with its location.
-    -- https://wowhead.com/beta/spell=101643
-    transcendence = {
-        id = 101643,
-        duration = 900,
-        max_stack = 1
-    },
-    transcendence_transfer = {
-        id = 119996,
-    },
+
     transfer_the_power = {
         id = 195321,
         duration = 30,
@@ -913,9 +739,9 @@ spec:RegisterStateTable( "healing_sphere", setmetatable( {}, {
 } ) )
 
 spec:RegisterHook( "reset_precast", function ()
-    rawset( healing_sphere, "count", nil )
-    if healing_sphere.count > 0 then
-        applyBuff( "gift_of_the_ox", nil, healing_sphere.count )
+    rawset( state.healing_sphere, "count", nil )
+    if state.healing_sphere.count > 0 then
+        applyBuff( "gift_of_the_ox", nil, state.healing_sphere.count )
     end
 
     chiSpent = 0
@@ -1004,7 +830,7 @@ spec:RegisterUnitEvent( "UNIT_POWER_UPDATE", "player", nil, function( event, uni
 end )
 
 local empowered_cast_time
-max_empower = 4
+local max_empower = 4
 
 do
     local stages = {

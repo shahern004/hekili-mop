@@ -128,6 +128,10 @@ local function GetDataText()
     end
 
     if LDB then
+        ---@class MinimapDataObject
+        ---@field text string
+        ---@field RefreshDataText fun(self: MinimapDataObject)
+        
         ns.UI.Minimap = ns.UI.Minimap or LDB:NewDataObject( "Hekili", {
             type = "data source",
             text = "Hekili",

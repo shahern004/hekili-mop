@@ -176,7 +176,7 @@ spec:RegisterAuras( {
         max_stack = 1,
     },
     savage_roar = {
-        id = 52610,
+        id = 127568,
         duration = function() return 12 + (combo_points.current * 6) end, -- MoP: 12s + 6s per combo point
         max_stack = 1,
     },
@@ -231,6 +231,13 @@ spec:RegisterAuras( {
         max_stack = 1,
         copy = { 106951, "berserk_cat" },
         multiplier = 1.5,
+    },
+
+    incarnation_king_of_the_jungle = {
+        id = 114107,
+        duration = 30,
+        max_stack = 1,
+        copy = { "incarnation" },
     },
     -- Bloodtalons removed (not in MoP)
     cat_form = {
@@ -476,6 +483,22 @@ spec:RegisterAuras( {
         id = 5209,
         duration = 6,
         name = "Challenging Roar",
+        max_stack = 1,
+    },
+
+    -- Bear-Weaving and Wrath-Weaving auras
+    lacerate = {
+        id = 33745,
+        duration = 15,
+        tick_time = 3,
+        mechanic = "bleed",
+        max_stack = 3,
+    },
+
+    -- Bear Form specific auras
+    bear_form_weaving = {
+        id = 0, -- Dummy ID for tracking
+        duration = 3600,
         max_stack = 1,
     },
 } )
@@ -1350,6 +1373,144 @@ spec:RegisterAbilities( {
             applyBuff( "shadowmeld" )
         end,
     },
+
+    -- Wrath (for Wrath-Weaving during Heart of the Wild)
+    wrath = {
+        id = 5176,
+        cast = function() return 2 / haste end,
+        cooldown = 0,
+        gcd = "spell",
+        school = "nature",
+        spend = 0.06,
+        spendType = "mana",
+        startsCombat = true,
+        usable = function() 
+            return state.settings.wrath_weaving_enabled and 
+                   buff.heart_of_the_wild.up and 
+                   not buff.cat_form.up and 
+                   not buff.bear_form.up
+        end,
+        handler = function()
+            -- Wrath damage during Heart of the Wild
+        end,
+    },
+
+    -- Mangle (Bear) for Bear-Weaving
+    mangle_bear = {
+        id = 33878,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+        spend = 20,
+        spendType = "rage",
+        startsCombat = true,
+        form = "bear_form",
+        usable = function() 
+            return state.settings.bear_weaving_enabled and 
+                   buff.bear_form.up and 
+                   energy.current >= 50 -- Pool energy for Cat Form
+        end,
+        handler = function()
+            -- Mangle damage in Bear Form
+        end,
+    },
+
+    -- Lacerate for Bear-Weaving (if talented)
+    lacerate = {
+        id = 33745,
+        cast = 0,
+        cooldown = 0,
+        gcd = "totem",
+        school = "physical",
+        spend = 15,
+        spendType = "rage",
+        startsCombat = true,
+        form = "bear_form",
+        usable = function() 
+            return state.settings.bear_weaving_enabled and 
+                   buff.bear_form.up and 
+                   energy.current >= 60 -- Pool more energy
+        end,
+        handler = function()
+            applyDebuff("target", "lacerate")
+        end,
+    },
+} )
+
+-- Feral Druid Advanced Techniques
+-- Simple toggle system for Bear-Weaving and Wrath-Weaving
+
+-- Additional auras for advanced techniques
+spec:RegisterAuras( {
+    lacerate = {
+        id = 33745,
+        duration = 15,
+        tick_time = 3,
+        mechanic = "bleed",
+        max_stack = 3,
+    },
+
+    -- Bear Form specific auras
+    bear_form_weaving = {
+        id = 0, -- Dummy ID for tracking
+        duration = 3600,
+        max_stack = 1,
+    },
+} )
+
+-- Auras for advanced techniques
+spec:RegisterAuras( {
+    lacerate = {
+        id = 33745,
+        duration = 15,
+        tick_time = 3,
+        mechanic = "bleed",
+        max_stack = 3,
+    },
+
+    -- Bear Form specific auras
+    bear_form_weaving = {
+        id = 0, -- Dummy ID for tracking
+        duration = 3600,
+        max_stack = 1,
+    },
+} )
+
+-- State expressions for advanced techniques
+spec:RegisterStateExpr( "should_bear_weave", function()
+    if not state.settings.bear_weaving_enabled then return false end
+    
+    -- Bear-weave when energy is high and we're not in immediate danger
+    return energy.current >= 80 and 
+           not buff.berserk.up and 
+           not buff.incarnation_king_of_the_jungle.up and
+           target.time_to_die > 10
+end )
+
+spec:RegisterStateExpr( "should_wrath_weave", function()
+    if not state.settings.wrath_weaving_enabled then return false end
+    
+    -- Wrath-weave during Heart of the Wild when not in combat forms
+    return buff.heart_of_the_wild.up and 
+           not buff.cat_form.up and 
+           not buff.bear_form.up and
+           mana.current >= 0.06 * mana.max
+end )
+
+-- Settings for advanced techniques
+spec:RegisterSetting( "bear_weaving_enabled", false, {
+    name = "Enable Bear-Weaving",
+    desc = "If checked, Bear-Weaving will be recommended when appropriate. This involves shifting to Bear Form to pool energy and deal damage.",
+    type = "toggle",
+    width = "full"
+} )
+
+spec:RegisterSetting( "wrath_weaving_enabled", false, {
+    name = "Enable Wrath-Weaving", 
+    desc = "If checked, Wrath-Weaving will be recommended during Heart of the Wild when not in combat forms.",
+    type = "toggle",
+    width = "full"
 } )
 
 spec:RegisterRanges( "rake", "shred", "skull_bash", "growl", "moonfire" )
@@ -1447,6 +1608,42 @@ end )
 spec:RegisterVariable( "lazy_swipe", function()
     return state.settings.lazy_swipe ~= false
 end )
+
+-- State expressions for advanced techniques
+spec:RegisterStateExpr( "should_bear_weave", function()
+    if not state.settings.bear_weaving_enabled then return false end
+    
+    -- Bear-weave when energy is high and we're not in immediate danger
+    return energy.current >= 80 and 
+           not buff.berserk.up and 
+           not buff.incarnation_king_of_the_jungle.up and
+           target.time_to_die > 10
+end )
+
+spec:RegisterStateExpr( "should_wrath_weave", function()
+    if not state.settings.wrath_weaving_enabled then return false end
+    
+    -- Wrath-weave during Heart of the Wild when not in combat forms
+    return buff.heart_of_the_wild.up and 
+           not buff.cat_form.up and 
+           not buff.bear_form.up and
+           mana.current >= 0.06 * mana.max
+end )
+
+-- Settings for advanced techniques
+spec:RegisterSetting( "bear_weaving_enabled", false, {
+    name = "Enable Bear-Weaving",
+    desc = "If checked, Bear-Weaving will be recommended when appropriate. This involves shifting to Bear Form to pool energy and deal damage.",
+    type = "toggle",
+    width = "full"
+} )
+
+spec:RegisterSetting( "wrath_weaving_enabled", false, {
+    name = "Enable Wrath-Weaving", 
+    desc = "If checked, Wrath-Weaving will be recommended during Heart of the Wild when not in combat forms.",
+    type = "toggle",
+    width = "full"
+} )
 
 spec:RegisterPack( "Feral", 202507210, [[Hekili:fV1EVTnos8plblG34TD95hXT5UZjaPTU76G2KGyVlWHdRLuKOJ5fzjd9iTPWqF2VziPKOOOOS9E92)46flrnZW55Vzi3LdwUy5CpNeYYBg2F44(VD4GEd6p48(Jwop5LTKLZ364(KZJWFe4Sb(3vKih)m7esCc(Ux8dD8qAehMg5cVF58hsP(jZcw(GocFw)bWA3sCxEZaKhRPEEe(AjXUlNVynnoZg)Foz2cwNzhUc(TBcnmiZ2NgNaVEvyuM9VsEI6t7TCo7HOy46tCEMa)1nSDgjW5bFI3Y3TCo)7xopY5jqmDFbwPvIt0Je4dHfp3nIMqIOolNFsMTxyspCH9sOUprdEmZUtMnjGe94lz2xErM9OXCjoIULt23)PPx97tZSV)2fxTy2T3KzF6Wm7fxD)VmDX8Ulta1GIavJHjRJCIxB56K0iBh3VCJuUCK6JAK6UHBEi0ABina1BivgWO7dPRw1l25zqdBff6e1lISXHgaRzsM9B7nSKtslcz1znPzPBnZ3Xm(MREPBRSn52c4rBa7sOLhfS7xwUuV0ihoBQz6arA8EU7NKleYk1ZKuQBCcEeOUqP(MdLSmDA4gsGv4klxFhy9V0lDRrwgVocOoYpWJAfjiMA2boon6z6Zo(wGTkHg4ckHQUIFy6hNEZ8zO34vVh9fNll5Rjo(jR7T1nHj3J6ZeoGoHBatHLNZgwihO6fRCJZxZS)Pm7(9gB2nwHYJpakpQC79Gt0tXGxHzNAMI(bItKfKiytUkwrcK1YRIibFJs8SIipIwcUZKgV5g3pdpG9Zzs7NCHuNFA(IqcG0mjm1DTI58x5VdYccpyd9B5Hbv1fBbNiNKWOxSI)cDvsajoUbTYB7B21wVz8eHZDe5)K(m8DOqamqk6x6fCV5vuFFsuSoF5kBWpo7tFA69foRz2tfrkBddXDo4Yd1lM3V3GsU9fhAISq)meQHuVh(nw5HAGC7c)2l8lbqILhbHXAvA0lLz6aB3iDo1AshuvM)m7fIYqSKbO4Izd2JSekzcm6OFQHKkDf7W9GjShDkZmwOQCcHnWUDShgtsGCjpg3Z35BmxOTW76wpjvJj)Bvt9L1eO6TRtWpc(vqQByFrwtd82d91jhuIvdHz8Drv5B6g4RjbUab4oS7HavNJQHtLrfpgf(Le1y67fpoNNqW9gaIZtjqU)iNk6KcltuX3ijbSm48WnrATq9rCAqnOaG52p)UBZSV72z3SiZ(xMEZ07VAXT3dHJxfofTyfuxxyxAmusMrA5A87hIgJfvQ6TQQ7hlzBrF2Mqdvf8xvtb8iq1VDRp1LL8c(rGxMnMHibiraIQTDWHv0ermAwhYOXYnfKvgh2igz0(kDaM2tbXeGRbJvuxgINoES0ifEMGjQ3qj4(bTMTIdePsoqqD6xLmpP(j0FMtVmBUQigQt64Hfvme02ymYcHholRFmLNylNbaviEQguPia9M1gwqdg3QroM0xVParPdOgmLraynhFIsEX4ysqcfB2dFRiQGuMT0DnX9PyfJnlpDofZtqN)Cz8AMQ6g)uQVV1dGErrMMbrKrrPBtestjEzjPqOqCDq0XpAkBGRdWg(pSWoi59rAXB0TK2gQ6TfYi7RiKZtyaOq8AO5sNcI9z5AhEvzSsJtcVECrk)4qFO6dUySySMaXQzWdJaBFuyIaH4ETnZXhfBkGWifwrdOXRrGEafE7XqbPAlajo)yirowt47)7nfvxcaufaknaDZJi8HyG5(daO9aAJkymRuZTIJTm2sfF(gWS0aSuhVxWTWG(k7H2baljCIed8N0J1VdpZE)9rYkdwJIjrp1IaxfhnosOic3v2ukNnqpEiRtwtS(c1xfs2hIsPq09h5JA6NZS)C4DW2Q34EWo4DKeNm7F)Q7ND17(0ueEYnFiZ(93EZhMjAFOAE)yxqaIOHXL9vWYDidAx2INzVq8Lqp2upzibqUAcgJE39tr0sxTG9N3D19Sj(OlqxDJ2qIpJPq1KP2yhd)5sYOKAJztbOxhfKYRUT6aXg9kPjIDSZ)YqDdbCKJc8XB0INq3SM23jTPVBHMqS2mUW9E(Dy4Pe1Ro0UgHW9x3q723PRvkf6eHMgp6ksuOlnmn26bGSlftKiVuLb3zLpuDwf3mB(VItR4U7ND79Zw8Va)6XVhspn)UPqkOB(fOP8PFL4MMG1IHEFjSezCkczVO4ZHuARPpUMedXIBHCty(3JD)xZnqeXlmnQdXQUlP5ykz3ifCoS3ab4WRQ0UeB)HBgOHkFUaEu(ZkZJoppMwLdMrZibgYxJ8g)8(cuvn2TigBuTzr6wD9kUf(xixIlIHyfaJyT8(90tumB72DAPPuiJtGnyh1Nvp6Qt9hDz5acOBTYJ4621eSvEqVH22((KgOXKVNzSZnMsVsJBnLmZCORMOWC3bV0n7vAWdja806TRv4LkdUQ4HAhXNjy5nhBknul5W0JkmKvwHL(SSxbdPpfBTAtb8)G9m)H7MxcLmMzcIFjWDDuya9BeisknMDwJ1X1kngtdk86BQZ4k4AgUU7bQ2jTmD4M7Oyb(MFeiXhH3vXtRLwlkhpZFQgiAkJ2khGFeRv0i4Fq41QXiS3dInnkF42orBW)ppIAEC(t6jrsMRIPecd0ocmfph2e)vgrNlBoeopq9HQkKkdDqBdyAc00L34iOsP06hg6XT9SGJ0eu4EXiYIw0()2IzFIHOG1sZNV93N(5P3S4a15c7fOT7xRu)WwobVdAao)12wsJErE1hB0NdFw0ANwpOnIx3ZJgNWbWCzXX9Ll2iz1DGdJ0EGdTr8Zz0rZ70drBOuxdyBKwURrJnZXlbNfquaQZYV(eGoAffhnj(Jn04ywgV40TBdJseH1SzUGiwsIObpbia6LzNzplH)rSM4brZJWA7fnoKNjyQSC4QSdc1p1dlHtOq)Tr)JSRzz6(3)wmbPezt8F8A8CFOURLxTtWlLCnZoiej(xriv0e)s66H)fYCsjt)Nz2GSlyZcojGSk)Hagw5JgkXzqH5lTJeKmjFPmTb7rbPBGaDKXX(q5ISRNTbvy4dWrNWnaIlGc8wMViQNxo)hGkBToZIR)bJJT46SRZhD)RXzADr5rQ86ND8tjxeVL47NdyRxr3JxEXz6(uSRxXhoq9955LXdlvSM(QRjEnU3JtSss8eRrtwDLpYpeA45a)M4iR0TIvRR0UQSVsz5kzTvwUYX1xUBz2JMgvKcrCcjTzdgP(n8BIK5p7IHc5y)MmLchKoQBbB4)yY4(DoPbSdIxiH)uvS3ATX5RwGahKBcLbvD5fJH2xQ(KZ60uNxtg2vL(ytkIMKeKxxNqvzWaHwQTbZP6PWEQvmnjLTyzBpJE6NJx218i94EfZY8vx83uNK3RPRU4KMMXNEsKxNS8tLRZQ9tyv7kxFrTZ8DWEEinfeVnPOW9q6I1W5uJh9ImTlp4gK6vpiMQYq1r5ZTxsKKXsLdsrManOx6C6jCv3UDAWr0vq3QNts7Yvz)kTU0Ibm1(slp0J2xR40nkm71VHxLUpfAr0Eu7QIH6SYrcnzu)okjiVS8Um9t97nwpDZVJwkuBCluBKEQP9QzHKUMVyhjMbndQx2YxVIWnSfH7mHUv71TspRQCRTkey93elzr)Tni6YxHQ6QwURUY9VQWL4GAWUK9flLP5yffqoZlKaP27xp3ogMPuay3oL(R72XuN1tgLNqFpAtwVSkr1s5DYfJg3CLVM7ywinT18REjPwtDO80qFA6gF3GXc2xRlxJwjqjx4Xvfb0UD1kXRLof9VU)0HRM2JrGZQnDmtbVuwlsLI64kZ1dLxfmjDu8)061wBI4tgoUtUN(4CiHhYyT1lTsSTUOoOzWsiWNtRb2QzSv72Ll8N3pV22(oGA9soOb1PC1nb7VZZV(1QZoUB3UAXSxD4WnVTQmT7lgOBBQUl1jSQIvhKFLJZEYf5LrABAZFpD0pT0PUwqS4b1ZpMREBy0X)VXvNnSQ8swnEJdXxQCPdlzF5ZWYafhzmYEn3grUrT(jlxjUxlPlAsRcLHobl(0ZkZC36viSbMWAshHXQEo1DQDn(ky7OXTqm1Bl4KrDQ9inHMM4OXcxgVNDMKvnXK1ve1cWAmSu(2bwrBXXA06D3BV8X0FN9eQynVqJIU01t3w5nfXhQ3lE5bfiUA8YrLSwea5fVzqVoM4Er)EdQ47knVaJWZUCubMYMUK764B5naxnvWKYYSNj6(U(NZUB24xEAtjO60inHkuYrO72DIM7ZExLDvtxi9dEV1iIZQB6Q5wf37BtkcdQqmPJ5RqUokNFdYrIx7ALlOp0syHdOP7Vtj9bfETOKdjRl)7p(ecVrBMrovRKeVj9z9V6OQQPSF((H5qLvhoOHQGE5fJn(F)IsTqWgR5bzW0zEkiZX73uqId1Cjbzv3(6)hgUcUT3jnRVRBinX(LmIzZ1FEJL8sCKMV64AYL178L9ly8WX6O8HpoY604p10a1C4G64HNyOM1oZUlhMpAgXrew6V3xhHKo)o9078o1EMCJQdZb0y4wlxW3x10KsgLl0v75)4MEsjZuXEi424CVa(Tr(YbhWbu0cuLLZDstwhgTC(8nPRIzhi6Y)7]] )
 

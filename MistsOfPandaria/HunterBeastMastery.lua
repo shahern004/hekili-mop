@@ -14,8 +14,9 @@
 
     local strformat = string.format
 
+local function RegisterBeastMasterySpec()
 
-    local spec = Hekili:NewSpecialization( 253, true )
+local spec = Hekili:NewSpecialization( 253, true )
 
 
 
@@ -445,6 +446,16 @@ spec:RegisterGlyphs( {
             duration = 3600,
             max_stack = 1
         },
+        tier16_2pc = {
+            id = 144659,
+            duration = 5,
+            max_stack = 1
+        },
+        tier16_4pc = {
+            id = 144660,
+            duration = 5,
+            max_stack = 1
+        },
         -- Additional missing auras
         deterrence = {
             id = 19263,
@@ -496,12 +507,27 @@ spec:RegisterGlyphs( {
 
     -- State Expressions for MoP Beast Mastery Hunter
     spec:RegisterStateExpr( "current_focus", function()
-        return focus.current
-    end )
+    return focus.current or 0
+end )
 
     spec:RegisterStateExpr( "focus_deficit", function()
-        return focus.max - focus.current
-    end )
+    return (focus.max or 100) - (focus.current or 0)
+end )
+
+spec:RegisterStateExpr( "should_focus_fire", function()
+    -- Use Focus Fire immediately at 5 stacks, or every 20 seconds at lower stacks
+    return pet.alive and (
+        buff.frenzy.stack >= 5 or 
+        (buff.frenzy.stack >= 1 and cooldown.focus_fire.remains == 0)
+    )
+end )
+
+spec:RegisterStateExpr( "threat", function()
+    -- Threat situation for misdirection logic
+    return {
+        situation = 0 -- Default to no threat situation
+    }
+end )
 
     spec:RegisterStateExpr( "focus_time_to_max", function()
         return focus.time_to_max
@@ -518,6 +544,7 @@ spec:RegisterGlyphs( {
 
             talent = "a_murder_of_crows",
             startsCombat = true,
+            toggle = "cooldowns",
 
             handler = function ()
                 applyDebuff( "target", "a_murder_of_crows" )
@@ -598,6 +625,7 @@ spec:RegisterGlyphs( {
 
             talent = "barrage",
             startsCombat = true,
+            toggle = "cooldowns",
 
             start = function ()
                 applyBuff( "barrage" )
@@ -629,6 +657,7 @@ spec:RegisterGlyphs( {
 
             talent = "binding_shot",
             startsCombat = false,
+            toggle = "interrupts",
 
             handler = function ()
                 applyDebuff( "target", "binding_shot_stun" )
@@ -707,6 +736,8 @@ spec:RegisterGlyphs( {
 
             startsCombat = false,
 
+            toggle = "defensives",
+
             handler = function ()
                 applyBuff( "deterrence" )
             end,
@@ -721,6 +752,7 @@ spec:RegisterGlyphs( {
 
             talent = "dire_beast",
             startsCombat = true,
+            toggle = "cooldowns",
 
             handler = function ()
                 applyBuff( "dire_beast" )
@@ -783,6 +815,8 @@ spec:RegisterGlyphs( {
 
             startsCombat = false,
 
+            toggle = "defensives",
+
             handler = function ()
                 applyBuff( "feign_death" )
             end,
@@ -791,13 +825,15 @@ spec:RegisterGlyphs( {
         focus_fire = {
             id = 82692,
             cast = 0,
-            cooldown = 0,
+            cooldown = 20,
             gcd = "spell",
             school = "nature",
 
             startsCombat = false,
 
-            usable = function () return pet.alive and buff.frenzy.stack >= 1, "requires pet with frenzy stacks" end,
+            usable = function () 
+                return should_focus_fire, "requires pet with frenzy stacks" 
+            end,
 
             handler = function ()
                 local stacks = buff.frenzy.stack
@@ -850,6 +886,7 @@ spec:RegisterGlyphs( {
 
             talent = "glaive_toss",
             startsCombat = true,
+            toggle = "cooldowns",
 
             handler = function ()
                 applyDebuff( "target", "glaive_toss" )
@@ -880,6 +917,7 @@ spec:RegisterGlyphs( {
 
             talent = "intimidation",
             startsCombat = true,
+            toggle = "interrupts",
 
             usable = function() return pet.alive, "requires a living pet" end,
 
@@ -935,6 +973,7 @@ spec:RegisterGlyphs( {
 
             talent = "lynx_rush",
             startsCombat = true,
+            toggle = "cooldowns",
 
             usable = function() return pet.alive, "requires a living pet" end,
 
@@ -1023,6 +1062,7 @@ spec:RegisterGlyphs( {
 
             talent = "powershot",
             startsCombat = true,
+            toggle = "cooldowns",
 
             handler = function ()
                 applyDebuff( "player", "powershot" )
@@ -1038,6 +1078,7 @@ spec:RegisterGlyphs( {
             school = "physical",
 
             startsCombat = true,
+            toggle = "cooldowns",
 
             start = function ()
                 applyBuff( "rapid_fire" )
@@ -1103,7 +1144,6 @@ spec:RegisterGlyphs( {
 
             talent = "silencing_shot",
             startsCombat = true,
-
             toggle = "interrupts",
 
             debuff = "casting",
@@ -1175,6 +1215,7 @@ spec:RegisterGlyphs( {
 
             talent = "wyvern_sting",
             startsCombat = true,
+            toggle = "interrupts",
 
             handler = function ()
                 applyDebuff( "target", "wyvern_sting" )
@@ -1262,3 +1303,19 @@ spec:RegisterGlyphs( {
     } )
 
     spec:RegisterPack( "Beast Mastery", 20250716, [[Hekili:1Y1EVTnos8plbho3MTn(KF2S7fhG9jU2B3Gc4U4(JdRLPLOJ1f9WNEK0ueOp73mKusKsKuYE79pDJLi)ndN3ZiPDZKnFAZAFsoDZDtDMUW5DtwoEY1tNoB(M15pFKUz9rI3dK7H)iMeb)7pqjz5LB)n4FPPpJ3(5WeIpctwsrQhSKnR3veeM)(4n7uX25DJDG)y23UznPi)qs6M1RJk2Ng8WM1hc89P8DqZ82Sg3XvoV7kNLFhqTKJBwhgKLNH0zFqyinf(R7yCpnMSlK6V5h4Bnn4yEqs8M1)AYtxTpXRiRClFhLBpMgKKgKhqZ2SgwiCcciaE8fDZQYTlCk3oQC7fLB3vSF)4GOJPjps9DHdlX)z3Sdj5JlaEH4XPH013KdhZw8thAClqJzCA4tzKiJMEKgNduii((XP0isqmUqyDnKXlzxkPMkZgcvMZPYRfNK8dPGmWnzVB(bQ7HIy8CuU9Lxk3MtsVNMpopiI6MN46hq5YIjacx2WdKupsmTIjYrLCAwEVAHFaxfi5pqYaCtGRgf8fI4yvZ4hbgGeg8iLX0shJfonCWokiKiHUpLsYpyxCNtcbH6yIBurQpnfp3EPjpLnwSAgzycgfqv0TD2SDzVGKHph)z30ISdkKs981dHRHaj4CJe8KW8bu77LefrI9ryxyewgq7tPXF55Xz5GZVWQDiuHP4C3hKsrAS0onAdtBv)ChtgF39UZazT(BYmVItwU8HXfKAqiWiyF9AV)l8dWVaBRoEZZGFyej37afUd4)vFm3ZwvyY9bEWpstIk3gebu6YE0ZDvply30ljj0p5P4wsa5OkxBsBz2zAqmWmLWnD1awJ0mvjsJkFz2JtLVEDR4gCsY4gFuhUdtCXyLlvLvnKdeuq0CRIzlrJgQN6PYOAyfuOn1mRagV0pt9kGmV9zU(Z81vhG(1CDeqvAyYtavC(RLBpqjH5hSyukuS815E0lxWIoMdazl2TbWoHae2ctBdDdbjAt5zoMdBasMtjEXhrHDrEqilmbiCk3kTBjgVI1a1c1V2LsC10KKC2vB4RiwfAzUEKWW(e4SmxbXyUzFwUzLKxcrMhHjoKVKIN8TkUhYOzxJCr70JGvYosUKegobUOyDcxc7t3tJZGv3RW9NQwPPs)cIbIbhkxFcg31Dbpij36yCe5ZLB)MYToJN3Wn(uyVG3OxprnBd9mdqVukWhn4(yxFQiGYqJ8H)cQVd2gylJqETqhf)aqFjlIGmmaJNqLuNI7eSwfz3A2H5s64yxzHWoV3wLMqQI7LoNB10QyZYJmEXWkTE(PxATTQOvprYHL6Ubx8wps5Y)QCqz9k4)(I8KR8yTELaqL2K)kBaL)yl5RScyxysIV7(cOXU2Y)DFfjt2ZXKJzq0AWPm((EQRUQxSuYXaFEAAHm)ml2yHsXgnWAph(G6O484OLTA0sxFhMRx)e6748yVwcmLUtwA0erWwsv00sqX9HHy5bEb5n9SwxluxMuIjAG1E7acUypn9XKufoqPPF5qW4k5ENqYIu3DjXfz0(Dq)ua6uMHzZzjXpMM4zo4iSooYJrImzU78JEnf71Cnn1ESWCvpMdy2IElCN2HESRvrVA7gZfWz2JTdX6E4wiF4o5oZaJgsrO2Sv8Hu5NsOXbEUK7z1v1sv9BqEGQQmK7rl7zibu0xX4ChtQQ(PTMrTg8ikGvS3Zm5UP6)UqRwrP2OtQIbLkG7m5lZ94d8LpsrDHlv4k(pCXX21UM3uOl3u44(tFCD520KCH)bUuxUgSj7MMGFMjJec6BFxZyjgeAEjao1CkVqFOukELQASd7M)IKDek9QQuGGuGkhip9G6iNuwdE7bv5UjOR2Jb8RxyVjG71WJziuDlSmhSZdqh)GmMwtJDXaIdOChDQsdE)D8hXMls6V9HVp5NLJpq8)pfz5OzKsnx8c6CPX0OaAvdIs(lqKQGbeI2wRN6iXuT3Hva6PxDRWqAhjnf8uusuQJ2lANusPisoidQCQ7dji45jzz9s0PTj6eP2nLaYUDMoKNxf6tOdOF(yysgdpO8qftq1BjQtGLkWn7PGCVd6mQ07y49SxiadBZz4MAvqHyqmCyznEZkSa2e5rlJsxCgKP1ymsQT(2N5y320SZPnuN4metuvN6UsfR2TA99AQ1GvHOlxIXecgClZBhGVVid)yco42QLBA6c2eByneVUVwvzIkrtTgeYlvQlUteYHovx7TgO4PBzELNt1IdD2HvbXmhtXCNIs8)uPGgQ9(DAXmApV7wgAknYiDpfv7efrMAIIEE4jMNeHPBlpR(nM6GO3oPmfWEyHLVUp4hsxS9uFQs)PFBFe8yYtqus8X6A40iEAT4OxydCIR5U3ZhhHNCPfcCqQoXPpYAOTyT9e3qe1UENyUMZZVT37MCEvO0FCSL2tvyQMLjd6PDV0zarXUajVrXpUI6NjK0cKNB4clpr87MynYKPslmwUZmlfDC3eZbRo)e1gE0kT0hMdmP9TpWRahwEUR0nFNZFIx8G7MyogLYqyvAN9uFroMyosLn8Qo0sms1H1wTaxAIpG6sIaYmOrZ)BIfkktu8iLAzfwn0djrJApHEhO0CYblDLkwH9IleQwFObAsShTkXqR6S9sIb5eZWUJcP19gunenKdL8xlh4mJgFFVnLujR1Z392EARXubkVhHCc4T4V)tZM8TBw)ejnMn071FcFraadPK0C0IjTC7RQyGxb1ws)VfqqiqtMLGzDif5jrKC8cEhiX3tZgx(HFnigU1KVRC7VhNvCeHcxaNHa80Q5EfSXYp8PdbzSPuUpie5d4hrbG8g7ZqaLGRUhclLIVGc5PbXpavLpUCB523NZ3eBii4mHqcNFanUOWX(z5gNdI9cl8XaB0a8Hx8DadS9QYT)7FhFKZVpNgL9hVTC7thc8oiVAs8ZnuTCBCccoeleZog2GRp(xIxSIkI(3HgKsRiZN4qasQ)q4D0CPPsu(jOMjPtKaY8QLYKgSlfxeTJYvoHGDB5hEFuLShnwQK)S3yn4UGBnOhaRGfZWXgXe5Bw)xk3(pynPbQp13QUYpa373p6Zv3FOapRolFlwu8uaEu9blynnhnbZy)aNedwcnCHvoStn7bllUeY2PuWYmeW71oxnXXbqdwhyOJ(bzxYaH8ycup8UNCbZW0qYXv7jHOgcq77XBH8jlXA52)fMzfKX8fY2n2PPlOYK2f)89Qm8KL(qLcL3ylUfWI07b2uKsrtAPD(J4DeZdLDpH4)FYur)iVXcggAEeBvgbRYtl4W9rr)zFb(5NyBa499cTjYLqaZmi(adrrvyfrhDRfBRUMlvfpau8MQc1fGuDQZLcDZhtPxvfRnJMJb55pva157w(bUPs246Hj(Mv)T9HKShEl(2xUI)eYC3bP)HWazgwFsIVy5uIBeo0sWFL6gdxh0T63u3rn(2G9RUONrvoeSQxpc4WMqPEyBgXiJ1A6cq7QLh4H(vOe5MbPPmYA3oF6HVfNX4QwJyuO1T)GfQr1owiJPTi2xEPBbt3ScQ8LtCZpfbzcNvefbcFyfgKPWAQMWpUI6fms9zgCZcNrxOVw7kpaDZ4xMmTN3oxAup4)(xQ2j83)2uM0JGBT841BmgQVeaDZtk)m0x6aS1Ze)ReQnt4OX7wz8iJE9jqLjlUupz68iRLD9n9eZpjsV0XaPRB3xIKDMIWOgZ4tHOgpVnThkr1Unvo61kn0F7Q5oV8Iw6BGo82YLOHAh9JyWFZQfvXa(68YN2WlA9WyzCQUUAmc2zt(vv82vlgz)Ls92R)QsUzNMcE6aoSkqPYaC9lCiR0Rkde9YrgFht1kP()kR0HG3SAQWQX8WSbtNIQYq3rYW)dUGamt7EIhvXSvkQ65LSTxiSnKjieXOUQ4BxAgE5ru3swAWesiIxQxe3dLW(c5EYTM3nOiCmV3(JGl4QPlmdsZOLrqWv1mTjzFMwdXUoyv3byd(owoWsJSPorM2jwpY0TQCNntdPrllfGuZ8PReqtSiGo1SigQ8Xe81thwc(otEUIpN5mQEAZ3S6EpFZ4o08qDsdzgYtiLJjiAMdIrNwqZFgoZtSq0wMC1UQgDMVWO46LxSmh4BxyXUxDqTYr96m33rD8c)Zkq1kWQmQSPY1l6MdIoLH3E7Q35yinQJTebnt0Sg9Bq05XYmnj1HINnqejfVHX4MY)GTSVL3eGXx3JgUHKq7pEA7Lpm9xByM26kGqRnWIx1cjV1wVbhDaDXOApJ2Gn8aQD5unHy5G21JO9MNpYOpsvB1ANSDdLQMA6BApjcXapz(H8UYhPBahnZ8wlMTMeTuo8QXeJh86tr3HARf16rsRbVBwDTbor2oQZ0QzSHXQSyIsTFqen0Q(lRazW6VZbKyD)qjUT5lz4BCgpxpisFrd6qzwluwQhf5pCb1k1W)I)PpCJZ4Rhj(KhQgbHTpTMgkDu5d2zL83nJS7A13DZlV0(BUXeuaNl)vWi5uP7tTPk(T4ZSrx48fwOKPHLnsmokLgen99B0GpVIbjXIUW4YFbg3oRQ0a5ilTHPJrChCGSjJnyfxLbEUv8n(jx0tLO1jMeIQt59VQHHuExWwjptY3Q8MnTAIKTvN3vlDk)zogOYBA3PKgczk5NHIgSK4PnP7R1c9DwujJ79LMxIWsVn(RAvYIUxNErRfYVk9JQ7rwpSVPBtH6EX5LqU6LMFKMHt3czv7EDVJ8k4k4y7HZn)X13WgSpt)vwMCGgHcBpV5CNRxpnhvb(x5EUQG1CB9dea1PnX2u7zmnqK01gC7DPRa9Q9RAYOF72nqS()dmKcJYUN2y8yREdTuDom6JXZ6R1Ay9zAaYCRjMJKBPhf(dk5e(KNByjXhuTvdSEgTtdeTowA3NodJgeuLW6bWum)A9b7LuyZ)7p]] )
+
+end
+
+-- Deferred loading to ensure addon is fully loaded
+if Hekili then
+    RegisterBeastMasterySpec()
+else
+    local frame = CreateFrame("Frame")
+    frame:RegisterEvent("ADDON_LOADED")
+    frame:SetScript("OnEvent", function(self, event, addonName)
+        if addonName == "Hekili" then
+            RegisterBeastMasterySpec()
+            frame:UnregisterEvent("ADDON_LOADED")
+        end
+    end)
+end
