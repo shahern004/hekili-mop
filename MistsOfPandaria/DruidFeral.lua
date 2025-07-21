@@ -65,61 +65,6 @@ spec:RegisterHook( "reset_precast", function()
         removeBuff( "cat_form" )
     end
     
-    -- COMPREHENSIVE DEBUG: Track the complete aura mapping process
-    if UnitExists("target") then
-        print("=== COMPLETE AURA MAPPING ANALYSIS ===")
-        
-        -- 1. Check if spell IDs are properly mapped in class.auras
-        for _, spellID in ipairs({770, 1822}) do
-            local aura = class.auras[ spellID ]
-            print(string.format("class.auras[%d] = %s", spellID, 
-                aura and string.format("{key='%s', id=%s}", aura.key or "nil", tostring(aura.id)) or "nil"))
-        end
-        
-        -- 2. Check what UnitDebuff actually returns and how keys are generated
-        print("=== UnitDebuff RAW DATA & KEY GENERATION ===")
-        for i = 1, 10 do
-            local name, _, count, _, duration, expires, caster, _, _, spellID = UnitDebuff("target", i)
-            if not name then break end
-            if spellID == 770 or spellID == 1822 then
-                local aura = class.auras[ spellID ]
-                local key_from_aura = aura and aura.key
-                local key_from_name = ns.formatKey(name)
-                local final_key = key_from_aura or key_from_name
-                print(string.format("SpellID %d: name='%s', aura.key='%s', formatKey(name)='%s', final_key='%s'", 
-                    spellID, name, tostring(key_from_aura), key_from_name, final_key))
-            end
-        end
-        
-        -- 3. Check what's in the actual auras database after ScrapeUnitAuras
-        print("=== AURAS DATABASE FINAL STATE ===")
-        if state.auras and state.auras.target and state.auras.target.debuff then
-            for k, v in pairs(state.auras.target.debuff) do
-                if v.id == 770 or v.id == 1822 then
-                    local timeLeft = v.expires > 0 and (v.expires - GetTime()) or 0
-                    print(string.format("auras.target.debuff['%s'] = {id=%s, expires=%.2f, timeLeft=%.2f, count=%d}", 
-                        k, tostring(v.id), v.expires or 0, timeLeft, v.count or 0))
-                end
-            end
-        else
-            print("auras.target.debuff is nil or does not exist")
-        end
-        
-        -- 4. Test direct debuff access
-        print("=== DIRECT STATE DEBUFF ACCESS TEST ===")
-        if state and state.debuff then
-            for _, key in ipairs({"faerie_fire", "rake"}) do
-                local d = state.debuff[key]
-                if d then
-                    print(string.format("state.debuff.%s.up=%s, remains=%.2f, down=%s", 
-                        key, tostring(d.up), d.remains or 0, tostring(d.down)))
-                else
-                    print(string.format("state.debuff.%s = nil", key))
-                end
-            end
-        end
-    end
-    
     -- Removed workaround sync - testing core issue
 end )
 
@@ -146,37 +91,36 @@ spec:RegisterHook( "reset", function()
 end )
 
 -- Talents - MoP compatible talent structure
--- Using tier/column system instead of retail IDs
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Mobility
-    feline_swiftness = { 1, 1, 131768 }, -- Tier 1, Column 1, SpellID
-    displacer_beast  = { 1, 2, 102280 }, -- Tier 1, Column 2, SpellID  
-    wild_charge      = { 1, 3, 102401 }, -- Tier 1, Column 3, SpellID
+    feline_swiftness               = { 1, 1, 131768 }, -- Increases movement speed by 15%.
+    displacer_beast                = { 1, 2, 102280 }, -- Teleports you forward and shifts you into Cat Form, removing all snares.
+    wild_charge                    = { 1, 3, 102401 }, -- Grants a movement ability based on your form.
 
     -- Tier 2 (Level 30) - Healing/Utility
-    yseras_gift      = { 2, 1, 145108 }, -- Tier 2, Column 1, SpellID
-    renewal          = { 2, 2, 108238 }, -- Tier 2, Column 2, SpellID
-    cenarion_ward    = { 2, 3, 102351 }, -- Tier 2, Column 3, SpellID
+    yseras_gift                    = { 2, 1, 145108 }, -- Heals you for 5% of your maximum health every 5 seconds.
+    renewal                        = { 2, 2, 108238 }, -- Instantly heals you for 30% of your maximum health.
+    cenarion_ward                  = { 2, 3, 102351 }, -- Protects a friendly target, healing them when they take damage.
 
     -- Tier 3 (Level 45) - Crowd Control
-    faerie_swarm         = { 3, 1, 102355 }, -- Tier 3, Column 1, SpellID
-    mass_entanglement    = { 3, 2, 102359 }, -- Tier 3, Column 2, SpellID
-    typhoon              = { 3, 3, 132469 }, -- Tier 3, Column 3, SpellID
+    faerie_swarm                   = { 3, 1, 102355 }, -- Reduces the target's movement speed and prevents stealth.
+    mass_entanglement              = { 3, 2, 102359 }, -- Roots all enemies within 12 yards of the target in place for 20 seconds.
+    typhoon                        = { 3, 3, 132469 }, -- Strikes targets in front of you, knocking them back and dazing them.
 
     -- Tier 4 (Level 60) - Specialization Enhancement
-    soul_of_the_forest   = { 4, 1, 102543 }, -- Tier 4, Column 1, SpellID (FIXED: was 114107)
-    incarnation_king_of_the_jungle = { 4, 2, 114107 }, -- Tier 4, Column 2, SpellID (FIXED: was 102543)
-    force_of_nature      = { 4, 3, 106737 }, -- Tier 4, Column 3, SpellID
+    soul_of_the_forest             = { 4, 1, 102543 }, -- Finishing moves grant 4 Energy per combo point spent and increase damage.
+    incarnation_king_of_the_jungle = { 4, 2, 114107 }, -- Improved Cat Form for 30 sec, allowing all abilities and reducing energy cost.
+    force_of_nature                = { 4, 3, 106737 }, -- Summons treants to attack your enemy.
 
     -- Tier 5 (Level 75) - Disruption
-    disorienting_roar    = { 5, 1, 99 },      -- Tier 5, Column 1, SpellID
-    ursols_vortex        = { 5, 2, 108292 },  -- Tier 5, Column 2, SpellID (FIXED: was 102793)
-    mighty_bash          = { 5, 3, 5211 },    -- Tier 5, Column 3, SpellID
+    disorienting_roar              = { 5, 1, 99 },      -- Causes all enemies within 10 yards to become disoriented for 3 seconds.
+    ursols_vortex                  = { 5, 2, 108292 },  -- Creates a vortex that pulls and roots enemies.
+    mighty_bash                    = { 5, 3, 5211 },    -- Stuns the target for 5 seconds.
 
     -- Tier 6 (Level 90) - Major Enhancement
-    heart_of_the_wild    = { 6, 1, 102793 }, -- Tier 6, Column 1, SpellID (FIXED: was 108292)
-    dream_of_cenarius    = { 6, 2, 108373 }, -- Tier 6, Column 2, SpellID
-    natures_vigil        = { 6, 3, 124974 }, -- Tier 6, Column 3, SpellID
+    heart_of_the_wild              = { 6, 1, 102793 }, -- Dramatically improves your ability to tank, heal, or deal spell damage for 45 sec.
+    dream_of_cenarius              = { 6, 2, 108373 }, -- Increases healing or causes your next healing spell to increase damage.
+    natures_vigil                  = { 6, 3, 124974 }, -- Increases all damage and healing done, and causes all single-target healing and damage spells to also heal a nearby friendly target.
 } )
 
 
@@ -211,16 +155,11 @@ end, {} )
 spec:RegisterAuras( {
     faerie_fire = {
         id = 770, -- Faerie Fire (unified in MoP)
-        duration = 300, -- Fixed duration to match the 256.76s we see in debug
+        duration = 300, 
         max_stack = 1,
         name = "Faerie Fire",
     },
-    -- challenging_roar = {
-    --     id = 5209, -- Challenging Roar (not available to Feral in MoP)
-    --     duration = 6,
-    --     max_stack = 1,
-    --     name = "Challenging Roar",
-    -- },
+
     jungle_stalker = {
         id = 0, -- Dummy ID for Jungle Stalker tracking
         duration = 15,
@@ -533,6 +472,12 @@ spec:RegisterAuras( {
         type = "Magic",
         max_stack = 1
     },
+    challenging_roar = {
+        id = 5209,
+        duration = 6,
+        name = "Challenging Roar",
+        max_stack = 1,
+    },
 } )
 
 -- Move the spell ID mapping to after all registrations are complete
@@ -741,6 +686,11 @@ end )
 spec:RegisterStateExpr( "target_health_pct", function ()
     return target.health.percent or 100
 end )
+
+spec:RegisterStateExpr( "behind_target", function ()
+    return UnitExists("target") and UnitExists("targettarget") and UnitGUID("targettarget") ~= UnitGUID("player")
+end )
+
 
 -- MoP Tier Sets
 
@@ -1498,114 +1448,5 @@ spec:RegisterVariable( "lazy_swipe", function()
     return state.settings.lazy_swipe ~= false
 end )
 
-spec:RegisterPack( "Feral", 20250110, [[Hekili:TZrBZTrns)plCsKKvpHRKZPKMKZ2KW6SSbmwxP2rI1mzQim7KLwO2yxxyWDwsHnYJP6LP56NHJUHX2Z)OnRXYQZl6R)UNB6QL(zhdkr9bQlG(tB8L4Wdpb3NNVh(GWdFOdpNFpdO8Hdm6Tw(acm2nDWZ5MjsXyJKCtj3cU5sIVOd8jkzPsMLIX65MuLY1jrwLkKWrZA3CluOKCvId8LHIyyIeLSr1WIJ1jPr7cYeKwrJIuWXRKtFDlYkLmCPFJr(4OsZQR]] )
+spec:RegisterPack( "Feral", 202507210, [[Hekili:fV1EVTnos8plblG34TD95hXT5UZjaPTU76G2KGyVlWHdRLuKOJ5fzjd9iTPWqF2VziPKOOOOS9E92)46flrnZW55Vzi3LdwUy5CpNeYYBg2F44(VD4GEd6p48(Jwop5LTKLZ364(KZJWFe4Sb(3vKih)m7esCc(Ux8dD8qAehMg5cVF58hsP(jZcw(GocFw)bWA3sCxEZaKhRPEEe(AjXUlNVynnoZg)Foz2cwNzhUc(TBcnmiZ2NgNaVEvyuM9VsEI6t7TCo7HOy46tCEMa)1nSDgjW5bFI3Y3TCo)7xopY5jqmDFbwPvIt0Je4dHfp3nIMqIOolNFsMTxyspCH9sOUprdEmZUtMnjGe94lz2xErM9OXCjoIULt23)PPx97tZSV)2fxTy2T3KzF6Wm7fxD)VmDX8Ulta1GIavJHjRJCIxB56K0iBh3VCJuUCK6JAK6UHBEi0ABina1BivgWO7dPRw1l25zqdBff6e1lISXHgaRzsM9B7nSKtslcz1znPzPBnZ3Xm(MREPBRSn52c4rBa7sOLhfS7xwUuV0ihoBQz6arA8EU7NKleYk1ZKuQBCcEeOUqP(MdLSmDA4gsGv4klxFhy9V0lDRrwgVocOoYpWJAfjiMA2boon6z6Zo(wGTkHg4ckHQUIFy6hNEZ8zO34vVh9fNll5Rjo(jR7T1nHj3J6ZeoGoHBatHLNZgwihO6fRCJZxZS)Pm7(9gB2nwHYJpakpQC79Gt0tXGxHzNAMI(bItKfKiytUkwrcK1YRIibFJs8SIipIwcUZKgV5g3pdpG9Zzs7NCHuNFA(IqcG0mjm1DTI58x5VdYccpyd9B5Hbv1fBbNiNKWOxSI)cDvsajoUbTYB7B21wVz8eHZDe5)K(m8DOqamqk6x6fCV5vuFFsuSoF5kBWpo7tFA69foRz2tfrkBddXDo4Yd1lM3V3GsU9fhAISq)meQHuVh(nw5HAGC7c)2l8lbqILhbHXAvA0lLz6aB3iDo1AshuvM)m7fIYqSKbO4Izd2JSekzcm6OFQHKkDf7W9GjShDkZmwOQCcHnWUDShgtsGCjpg3Z35BmxOTW76wpjvJj)Bvt9L1eO6TRtWpc(vqQByFrwtd82d91jhuIvdHz8Drv5B6g4RjbUab4oS7HavNJQHtLrfpgf(Le1y67fpoNNqW9gaIZtjqU)iNk6KcltuX3ijbSm48WnrATq9rCAqnOaG52p)UBZSV72z3SiZ(xMEZ07VAXT3dHJxfofTyfuxxyxAmusMrA5A87hIgJfvQ6TQQ7hlzBrF2Mqdvf8xvtb8iq1VDRp1LL8c(rGxMnMHibiraIQTDWHv0ermAwhYOXYnfKvgh2igz0(kDaM2tbXeGRbJvuxgINoES0ifEMGjQ3qj4(bTMTIdePsoqqD6xLmpP(j0FMtVmBUQigQt64Hfvme02ymYcHholRFmLNylNbaviEQguPia9M1gwqdg3QroM0xVParPdOgmLraynhFIsEX4ysqcfB2dFRiQGuMT0DnX9PyfJnlpDofZtqN)Cz8AMQ6g)uQVV1dGErrMMbrKrrPBtestjEzjPqOqCDq0XpAkBGRdWg(pSWoi59rAXB0TK2gQ6TfYi7RiKZtyaOq8AO5sNcI9z5AhEvzSsJtcVECrk)4qFO6dUySySMaXQzWdJaBFuyIaH4ETnZXhfBkGWifwrdOXRrGEafE7XqbPAlajo)yirowt47)7nfvxcaufaknaDZJi8HyG5(daO9aAJkymRuZTIJTm2sfF(gWS0aSuhVxWTWG(k7H2baljCIed8N0J1VdpZE)9rYkdwJIjrp1IaxfhnosOic3v2ukNnqpEiRtwtS(c1xfs2hIsPq09h5JA6NZS)C4DW2Q34EWo4DKeNm7F)Q7ND17(0ueEYnFiZ(93EZhMjAFOAE)yxqaIOHXL9vWYDidAx2INzVq8Lqp2upzibqUAcgJE39tr0sxTG9N3D19Sj(OlqxDJ2qIpJPq1KP2yhd)5sYOKAJztbOxhfKYRUT6aXg9kPjIDSZ)YqDdbCKJc8XB0INq3SM23jTPVBHMqS2mUW9E(Dy4Pe1Ro0UgHW9x3q723PRvkf6eHMgp6ksuOlnmn26bGSlftKiVuLb3zLpuDwf3mB(VItR4U7ND79Zw8Va)6XVhspn)UPqkOB(fOP8PFL4MMG1IHEFjSezCkczVO4ZHuARPpUMedXIBHCty(3JD)xZnqeXlmnQdXQUlP5ykz3ifCoS3ab4WRQ0UeB)HBgOHkFUaEu(ZkZJoppMwLdMrZibgYxJ8g)8(cuvn2TigBuTzr6wD9kUf(xixIlIHyfaJyT8(90tumB72DAPPuiJtGnyh1Nvp6Qt9hDz5acOBTYJ4621eSvEqVH22((KgOXKVNzSZnMsVsJBnLmZCORMOWC3bV0n7vAWdja806TRv4LkdUQ4HAhXNjy5nhBknul5W0JkmKvwHL(SSxbdPpfBTAtb8)G9m)H7MxcLmMzcIFjWDDuya9BeisknMDwJ1X1kngtdk86BQZ4k4AgUU7bQ2jTmD4M7Oyb(MFeiXhH3vXtRLwlkhpZFQgiAkJ2khGFeRv0i4Fq41QXiS3dInnkF42orBW)ppIAEC(t6jrsMRIPecd0ocmfph2e)vgrNlBoeopq9HQkKkdDqBdyAc00L34iOsP06hg6XT9SGJ0eu4EXiYIw0()2IzFIHOG1sZNV93N(5P3S4a15c7fOT7xRu)WwobVdAao)12wsJErE1hB0NdFw0ANwpOnIx3ZJgNWbWCzXX9Ll2iz1DGdJ0EGdTr8Zz0rZ70drBOuxdyBKwURrJnZXlbNfquaQZYV(eGoAffhnj(Jn04ywgV40TBdJseH1SzUGiwsIObpbia6LzNzplH)rSM4brZJWA7fnoKNjyQSC4QSdc1p1dlHtOq)Tr)JSRzz6(3)wmbPezt8F8A8CFOURLxTtWlLCnZoiej(xriv0e)s66H)fYCsjt)Nz2GSlyZcojGSk)Hagw5JgkXzqH5lTJeKmjFPmTb7rbPBGaDKXX(q5ISRNTbvy4dWrNWnaIlGc8wMViQNxo)hGkBToZIR)bJJT46SRZhD)RXzADr5rQ86ND8tjxeVL47NdyRxr3JxEXz6(uSRxXhoq9955LXdlvSM(QRjEnU3JtSss8eRrtwDLpYpeA45a)M4iR0TIvRR0UQSVsz5kzTvwUYX1xUBz2JMgvKcrCcjTzdgP(n8BIK5p7IHc5y)MmLchKoQBbB4)yY4(DoPbSdIxiH)uvS3ATX5RwGahKBcLbvD5fJH2xQ(KZ60uNxtg2vL(ytkIMKeKxxNqvzWaHwQTbZP6PWEQvmnjLTyzBpJE6NJx218i94EfZY8vx83uNK3RPRU4KMMXNEsKxNS8tLRZQ9tyv7kxFrTZ8DWEEinfeVnPOW9q6I1W5uJh9ImTlp4gK6vpiMQYq1r5ZTxsKKXsLdsrManOx6C6jCv3UDAWr0vq3QNts7Yvz)kTU0Ibm1(slp0J2xR40nkm71VHxLUpfAr0Eu7QIH6SYrcnzu)okjiVS8Um9t97nwpDZVJwkuBCluBKEQP9QzHKUMVyhjMbndQx2YxVIWnSfH7mHUv71TspRQCRTkey93elzr)Tni6YxHQ6QwURUY9VQWL4GAWUK9flLP5yffqoZlKaP27xp3ogMPuay3oL(R72XuN1tgLNqFpAtwVSkr1s5DYfJg3CLVM7ywinT18REjPwtDO80qFA6gF3GXc2xRlxJwjqjx4Xvfb0UD1kXRLof9VU)0HRM2JrGZQnDmtbVuwlsLI64kZ1dLxfmjDu8)061wBI4tgoUtUN(4CiHhYyT1lTsSTUOoOzWsiWNtRb2QzSv72Ll8N3pV22(oGA9soOb1PC1nb7VZZV(1QZoUB3UAXSxD4WnVTQmT7lgOBBQUl1jSQIvhKFLJZEYf5LrABAZFpD0pT0PUwqS4b1ZpMREBy0X)VXvNnSQ8swnEJdXxQCPdlzF5ZWYafhzmYEn3grUrT(jlxjUxlPlAsRcLHobl(0ZkZC36viSbMWAshHXQEo1DQDn(ky7OXTqm1Bl4KrDQ9inHMM4OXcxgVNDMKvnXK1ve1cWAmSu(2bwrBXXA06D3BV8X0FN9eQynVqJIU01t3w5nfXhQ3lE5bfiUA8YrLSwea5fVzqVoM4Er)EdQ47knVaJWZUCubMYMUK764B5naxnvWKYYSNj6(U(NZUB24xEAtjO60inHkuYrO72DIM7ZExLDvtxi9dEV1iIZQB6Q5wf37BtkcdQqmPJ5RqUokNFdYrIx7ALlOp0syHdOP7Vtj9bfETOKdjRl)7p(ecVrBMrovRKeVj9z9V6OQQPSF((H5qLvhoOHQGE5fJn(F)IsTqWgR5bzW0zEkiZX73uqId1Cjbzv3(6)hgUcUT3jnRVRBinX(LmIzZ1FEJL8sCKMV64AYL178L9ly8WX6O8HpoY604p10a1C4G64HNyOM1oZUlhMpAgXrew6V3xhHKo)o9078o1EMCJQdZb0y4wlxW3x10KsgLl0v75)4MEsjZuXEi424CVa(Tr(YbhWbu0cuLLZDstwhgTC(8nPRIzhi6Y)7]] )
 
--- Debug slash command for manual testing
-SLASH_HEKILI_FERAL_DEBUG1 = "/hekdebug"
-SlashCmdList["HEKILI_FERAL_DEBUG"] = function()
-    if not UnitExists("target") then
-        print("ERROR: No target selected for debug analysis")
-        return
-    end
-    
-    print("=== MANUAL FERAL DEBUG ANALYSIS ===")
-    print("Time:", GetTime())
-    
-    -- 1. Check if spell IDs are properly mapped in class.auras
-    print("=== CLASS.AURAS DETAILED ANALYSIS ===")
-    
-    -- Check by key first
-    for _, key in ipairs({"faerie_fire", "rake"}) do
-        local aura = class.auras[key]
-        print(string.format("class.auras['%s'] = %s", key,
-            aura and string.format("{id=%s, key='%s'}", tostring(aura.id), aura.key or "nil") or "nil"))
-    end
-    
-    -- Check by spell ID
-    for _, spellID in ipairs({770, 1822}) do
-        local aura = class.auras[ spellID ]
-        print(string.format("class.auras[%d] = %s", spellID, 
-            aura and string.format("{key='%s', id=%s}", aura.key or "nil", tostring(aura.id)) or "nil"))
-    end
-    
-    -- Check if spec auras exist
-    if spec and spec.auras then
-        print(string.format("spec.auras.faerie_fire = %s", spec.auras.faerie_fire and "exists" or "nil"))
-        print(string.format("spec.auras.rake = %s", spec.auras.rake and "exists" or "nil"))
-    end
-    
-    -- 2. Check what UnitDebuff actually returns and how keys are generated
-    print("=== UnitDebuff RAW DATA & KEY GENERATION ===")
-    for i = 1, 10 do
-        local name, _, count, _, duration, expires, caster, _, _, spellID = UnitDebuff("target", i)
-        if not name then break end
-        if spellID == 770 or spellID == 1822 then
-            local aura = class.auras[ spellID ]
-            local key_from_aura = aura and aura.key
-            local key_from_name = ns.formatKey(name)
-            local final_key = key_from_aura or key_from_name
-            local timeLeft = expires > 0 and (expires - GetTime()) or 0
-            print(string.format("SpellID %d: name='%s', caster='%s', timeLeft=%.2f", spellID, name, tostring(caster), timeLeft))
-            print(string.format("  -> aura.key='%s', formatKey(name)='%s', final_key='%s'", 
-                tostring(key_from_aura), key_from_name, final_key))
-        end
-    end
-    
-    -- 3. Force ScrapeUnitAuras and check results
-    print("=== FORCING ScrapeUnitAuras ===")
-    if state and state.ScrapeUnitAuras then
-        state.ScrapeUnitAuras("target", false, "manual_debug")
-        print("ScrapeUnitAuras completed")
-    else
-        print("ERROR: state.ScrapeUnitAuras not available")
-    end
-    
-    -- 4. Check what's in the actual auras database
-    print("=== AURAS DATABASE FINAL STATE ===")
-    if state.auras and state.auras.target and state.auras.target.debuff then
-        local found = false
-        for k, v in pairs(state.auras.target.debuff) do
-            if v.id == 770 or v.id == 1822 then
-                local timeLeft = v.expires > 0 and (v.expires - GetTime()) or 0
-                print(string.format("auras.target.debuff['%s'] = {id=%s, expires=%.2f, timeLeft=%.2f, count=%d}", 
-                    k, tostring(v.id), v.expires or 0, timeLeft, v.count or 0))
-                found = true
-            end
-        end
-        if not found then
-            print("No debuffs with ID 770 or 1822 found in auras.target.debuff")
-        end
-    else
-        print("ERROR: auras.target.debuff is nil or does not exist")
-    end
-    
-    -- 5. Test direct debuff access through state
-    print("=== DIRECT STATE DEBUFF ACCESS TEST ===")
-    if state and state.debuff then
-        for _, key in ipairs({"faerie_fire", "rake"}) do
-            local d = state.debuff[key]
-            if d then
-                print(string.format("state.debuff.%s: up=%s, remains=%.2f, down=%s, count=%d", 
-                    key, tostring(d.up), d.remains or 0, tostring(d.down), d.count or 0))
-            else
-                print(string.format("state.debuff.%s = nil", key))
-            end
-        end
-    else
-        print("ERROR: state.debuff not available")
-    end
-    
-    -- 6. Check what happens in metatable lookup
-    print("=== METATABLE LOOKUP TEST ===")
-    if state and state.debuff then
-        -- Force a lookup to see what the metatable does
-        local ff_real = state.auras.target.debuff["faerie_fire"]
-        local rake_real = state.auras.target.debuff["rake"]
-        print(string.format("Direct auras lookup: faerie_fire=%s, rake=%s", 
-            ff_real and "found" or "nil", rake_real and "found" or "nil"))
-    end
-    
-    print("=== DEBUG ANALYSIS COMPLETE ===")
-end
-
--- Removed mapping workaround - need to fix the real issue
