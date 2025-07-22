@@ -4,3 +4,7 @@ syntaxcheck.bat
 test_specs.lua
 test_syntax.lua
 test_syntax.lua
+Libs/LibItemBuffs-1.0/tests/wowmock/tests/wowlua_tests.lua
+Libs/LibItemBuffs-1.0/tests/tests.lua
+Libs/LibItemBuffs-1.0/tests/tests.lua
+Libs/LibItemBuffs-1.0/tests/wowmock/tests/wowlua_tests.lua

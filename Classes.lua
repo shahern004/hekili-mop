@@ -3887,4 +3887,3 @@ all:RegisterAbility( "synapse_springs", {
         applyBuff("synapse_springs")
     end
 } )
-

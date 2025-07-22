@@ -329,22 +329,22 @@ spec:RegisterGlyphs( {
             type = "Magic",
             max_stack = 1,
             generate = function( t )
-                local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "pet", 136 )
-
+                local name, _, _, _, _, _, caster = FindUnitBuffByID( "pet", 136 )
+                
                 if name then
                     t.name = name
-                    t.count = count
-                    t.expires = expires
-                    t.applied = expires - duration
-                    t.caster = caster
+                    t.count = 1
+                    t.applied = state.query_time
+                    t.expires = state.query_time + 10
+                    t.caster = "pet"
                     return
                 end
-
+                
                 t.count = 0
-                t.expires = 0
                 t.applied = 0
+                t.expires = 0
                 t.caster = "nobody"
-            end
+            end,
         },
         -- Threat redirected from Hunter.
         misdirection = {
@@ -371,16 +371,22 @@ spec:RegisterGlyphs( {
         casting = {
             duration = function () return haste end,
             max_stack = 1,
-            generate = function ()
-                if action.steady_shot.channeling or action.cobra_shot.channeling then
-                    return {
-                        name = "Casting",
-                        count = 1,
-                        applied = action.steady_shot.channelStart or action.cobra_shot.channelStart,
-                        expires = action.steady_shot.channelStart + action.steady_shot.castTime or action.cobra_shot.channelStart + action.cobra_shot.castTime,
-                        caster = "player"
-                    }
+            generate = function( t )
+                local name, _, _, _, _, _, caster = FindUnitBuffByID( "player", 116951 )
+                
+                if name then
+                    t.name = name
+                    t.count = 1
+                    t.applied = state.query_time
+                    t.expires = state.query_time + 2.5
+                    t.caster = "player"
+                    return
                 end
+                
+                t.count = 0
+                t.applied = 0
+                t.expires = 0
+                t.caster = "nobody"
             end,
         },
         -- MoP specific auras

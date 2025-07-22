@@ -4,6 +4,9 @@
 local addon, ns = ...
 local Hekili = _G[ addon ]
 
+-- Global display frame declarations
+_G.HekiliDisplayAOE = _G.HekiliDisplayAOE or {}
+
 local class = Hekili.Class
 local state = Hekili.State
 local scripts = Hekili.Scripts
