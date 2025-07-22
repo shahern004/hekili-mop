@@ -121,13 +121,6 @@ spec:RegisterAuras( {
         duration = 3600,
         max_stack = 1
     },
-        black_arrow = {
-            id = 3674,
-            duration = 15,
-        max_stack = 1,
-            type = "Magic",
-            copy = "black_arrow_debuff"
-        },
         casting = {
             id = 116951,
             generate = function( t )
@@ -199,19 +192,6 @@ spec:RegisterAuras( {
             duration = 30,
         max_stack = 1
     },
-
-        lock_and_load = {
-            id = 56453,
-            duration = 8,
-            max_stack = 1
-        },
-
-        stampede = {
-            id = 121818,
-            duration = 12,
-            max_stack = 1
-        },
-
         thrill_of_the_hunt = {
             id = 109306,
             duration = 8,
@@ -383,20 +363,6 @@ spec:RegisterAuras( {
             end,
         },
 
-        blink_strike = {
-            id = 130392,
-            cast = 0,
-            cooldown = 20,
-            gcd = "spell",
-            
-            startsCombat = true,
-            texture = 236186,
-            
-            handler = function ()
-                -- Pet ability, no special handling needed
-            end,
-        },
-        
         cobra_shot = {
             id = 19386,
             cast = 2.5,
@@ -757,21 +723,6 @@ spec:RegisterAuras( {
                 applyBuff( "mend_pet" )
             end,
         },
-
-        call_pet = {
-            id = 883,
-            cast = 0,
-            cooldown = 0,
-            gcd = "off",
-
-            startsCombat = false,
-            texture = 132179,
-
-            handler = function ()
-                -- Call Pet ability
-            end,
-        },
-
         revive_pet = {
             id = 982,
             cast = 6,
@@ -798,7 +749,7 @@ spec:RegisterAuras( {
             usable = function() return not pet.alive, "no pet currently active" end,
 
             handler = function ()
-                summonPet( "hunter_pet" )
+                spec:summonPet( "hunter_pet" )
             end,
         },
 
@@ -810,7 +761,7 @@ spec:RegisterAuras( {
             startsCombat = false,
             usable = function () return not pet.exists, "requires no active pet" end,
             handler = function ()
-                summonPet( "hunter_pet", 3600 )
+                spec:summonPet( "hunter_pet", 3600 )
             end,
         },
 
@@ -822,7 +773,7 @@ spec:RegisterAuras( {
             startsCombat = false,
             usable = function () return not pet.exists, "requires no active pet" end,
             handler = function ()
-                summonPet( "ferocity" )
+                spec:summonPet( "ferocity" )
             end,
         },
 
@@ -834,7 +785,7 @@ spec:RegisterAuras( {
             startsCombat = false,
             usable = function () return not pet.exists, "requires no active pet" end,
             handler = function ()
-                summonPet( "cunning" )
+                spec:summonPet( "cunning" )
             end,
         },
 
@@ -850,7 +801,7 @@ spec:RegisterAuras( {
             usable = function() return pet.alive, "requires active pet" end,
             
             handler = function ()
-                dismissPet()
+                spec:dismissPet()
             end,
         },
 
@@ -993,50 +944,7 @@ spec:RegisterAuras( {
             end,
         },
 
-        explosive_shot = {
-            id = 53301,
-            cast = 0,
-            cooldown = 6,
-            gcd = "spell",
-            
-            spend = 25,
-            spendType = "focus",
-            
-            startsCombat = true,
-            texture = 236178,
-            
-            handler = function ()
-                applyDebuff( "target", "explosive_shot" )
-            end,
-        },
 
-        exhilaration = {
-            id = 109304,
-            cast = 0,
-            cooldown = 120,
-            gcd = "off",
-
-            startsCombat = false,
-            texture = 236174,
-
-            handler = function ()
-                -- Self-heal ability
-            end,
-        },
-
-        tranquilizing_shot = {
-            id = 19801,
-            cast = 0,
-            cooldown = 8,
-            gcd = "spell",
-
-            startsCombat = true,
-            texture = 136020,
-
-            handler = function ()
-                -- Dispel magic effect
-            end,
-        },
 
         explosive_trap = {
             id = 13813,
