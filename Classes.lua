@@ -1861,7 +1861,7 @@ all:RegisterAuras({
             end
 
             -- Legacy of the Emperor
-            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 115921)
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 117666)
             if name then
                 t.name = name
                 t.count = 1
