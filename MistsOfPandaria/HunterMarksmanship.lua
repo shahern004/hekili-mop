@@ -388,6 +388,14 @@ spec:RegisterAuras( {
         end,
     },
     
+    -- Fallback for lock_and_load if not properly registered
+    lock_and_load_fallback = {
+        id = 82914,
+        duration = 3600,
+        max_stack = 1,
+        copy = "lock_and_load" -- This ensures both names work
+    },
+    
     steady_focus = {
         id = 82923,
         duration = 3600,
@@ -771,6 +779,22 @@ spec:RegisterAuras( {
             t.applied = 0
             t.caster = "nobody"
         end,
+    },
+    
+    -- === DEBUFFS ===
+    -- Marksmanship: Wing Clip (Debuff version)
+    wing_clip = {
+        id = 2974,
+        duration = 10,
+        max_stack = 1
+    },
+    
+    -- Marksmanship: Entrapment (Debuff version)
+    entrapment = {
+        id = 135373,
+        duration = 4,
+        mechanic = "root",
+        max_stack = 1
     },
 } )
 
@@ -2010,3 +2034,7 @@ if not TryRegister() then
         end
     end)
 end
+
+
+
+-- Enhanced Pet System for Marksmanship

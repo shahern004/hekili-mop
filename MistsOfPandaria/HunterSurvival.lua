@@ -390,6 +390,14 @@ spec:RegisterAuras( {
         duration = 12,
         max_stack = 2
     },
+    
+    -- Fallback for lock_and_load if not properly registered
+    lock_and_load_fallback = {
+        id = 56453,
+        duration = 12,
+        max_stack = 2,
+        copy = "lock_and_load" -- This ensures both names work
+    },
     -- Survival: Black Arrow DoT
     black_arrow = {
         id = 3674,
@@ -399,6 +407,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         copy = { 3674, 125417 } -- Include glyph ID
     },
+    
     -- Survival: Explosive Trap DoT
     explosive_trap_dot = {
         id = 13812,
@@ -475,6 +484,7 @@ spec:RegisterAuras( {
         mechanic = "root",
         max_stack = 1
     },
+    
 } )
 
     spec:RegisterStateFunction( "apply_aspect", function( name )

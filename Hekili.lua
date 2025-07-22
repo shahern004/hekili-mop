@@ -7,56 +7,8 @@ local addon, ns = ...
 ns.TargetDummies = ns.TargetDummies or {}
 
 -- MoP API compatibility - Set up early for libraries
-if not _G.GetSpecialization then
-    _G.GetSpecialization = _G.GetActiveTalentGroup or function() return 1 end
-end
-
-if not _G.GetSpecializationInfo then
-    _G.GetSpecializationInfo = function(specIndex)
-        -- In MoP, there are typically 2-4 specs per class
-        -- Return nil for invalid indices to prevent infinite loops
-        if not specIndex or specIndex < 1 then
-            return nil
-        end
-
-        local _, class = UnitClass("player")
-        if not class then
-            return nil
-        end
-
-        -- Map spec indices to actual MoP spec IDs based on class and abilities
-        local specID = 0
-        local specName = "Unknown"
-
-        if class == "HUNTER" then
-            if IsPlayerSpell(19574) then specID = 253; specName = "Beast Mastery"  -- Bestial Wrath
-            elseif IsPlayerSpell(19506) then specID = 254; specName = "Marksmanship"  -- Improved Tracking
-            elseif IsPlayerSpell(53301) then specID = 255; specName = "Survival"  -- Explosive Shot
-            else
-                -- Fallback detection based on other abilities
-                if IsPlayerSpell(34026) then specID = 253; specName = "Beast Mastery"  -- Kill Command
-                elseif IsPlayerSpell(82928) then specID = 254; specName = "Marksmanship"  -- Aimed Shot
-                elseif IsPlayerSpell(3674) then specID = 255; specName = "Survival"  -- Black Arrow
-                else specID = 255; specName = "Survival" end -- Default to Survival
-            end
-        elseif class == "WARRIOR" then
-            -- Add warrior detection as needed
-            specID = 71; specName = "Arms"
-        elseif class == "PALADIN" then
-            -- Add paladin detection as needed
-            specID = 70; specName = "Retribution"
-        else
-            specID = 1; specName = "Unknown"
-        end
-
-        -- Return: specID, name, description, icon, role, class
-        return specID, specName, specName, nil, nil, class
-    end
-end
-
-if not _G.CanPlayerUseTalentSpecUI then
-    _G.CanPlayerUseTalentSpecUI = function() return true end
-end
+-- Note: We no longer override global functions to prevent interference with Blizzard's talent system
+-- Instead, we use local functions for internal talent detection
 
 Hekili = LibStub("AceAddon-3.0"):NewAddon( "Hekili", "AceConsole-3.0", "AceSerializer-3.0", "AceTimer-3.0" )
 

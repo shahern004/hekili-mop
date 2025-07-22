@@ -1,5 +1,9 @@
 -- Events.lua
 -- June 2024
+-- 
+-- IMPORTANT: This file has been modified to prevent interference with Blizzard's talent selection UI.
+-- We no longer override global functions like GetTalentInfoByID or C_SpecializationInfo.GetTalent
+-- to avoid Lua taint errors. Instead, we use local functions for internal talent detection.
 
 local addon, ns = ...
 local Hekili = _G[ addon ]
@@ -23,8 +27,13 @@ local GetDetailedItemLevelInfo = function(itemLink)
     return itemLevel or 0
 end
 
--- MoP: GetTalentInfoByID compatibility - Tier-based talent detection
-_G.GetTalentInfoByID = function(talentID, groupIndex)
+-- MoP: Local talent detection function (not global override)
+local function HekiliGetTalentInfoByID(talentID, groupIndex)
+    -- If no talentID is provided, return early
+    if not talentID then
+        return nil, nil, nil, false, nil, nil, nil, nil, nil, false
+    end
+    
     local enabled = false
     local spellID = nil
     
@@ -40,12 +49,14 @@ _G.GetTalentInfoByID = function(talentID, groupIndex)
         if isKnown then
             enabled = true
             -- Check other talents in the same tier to ensure only one is enabled
-            for k, v in pairs(class.talents) do
-                if type(v) == "table" and v[1] == tier and v[2] ~= column and v[3] then
-                    if IsPlayerSpell(v[3]) then
-                        -- Another talent in the same tier is also known, this shouldn't happen
-                        -- But we'll allow it for now and let the user decide
-                        enabled = true
+            if class and class.talents then
+                for k, v in pairs(class.talents) do
+                    if type(v) == "table" and v[1] == tier and v[2] ~= column and v[3] then
+                        if IsPlayerSpell(v[3]) then
+                            -- Another talent in the same tier is also known, this shouldn't happen
+                            -- But we'll allow it for now and let the user decide
+                            enabled = true
+                        end
                     end
                 end
             end
@@ -62,6 +73,11 @@ _G.GetTalentInfoByID = function(talentID, groupIndex)
     
     return nil, nil, nil, false, nil, nil, nil, nil, nil, false
 end
+
+-- Store the function in Hekili namespace for internal use
+Hekili.GetTalentInfoByID = HekiliGetTalentInfoByID
+
+
 
 -- MoP: UnitGetTotalAbsorbs compatibility (didn't exist in MoP)
 local UnitGetTotalAbsorbs = UnitGetTotalAbsorbs or function(unit)
@@ -513,6 +529,10 @@ RegisterEvent( "PLAYER_ENTERING_WORLD", function( event, login, reload )
 end )
 
 
+
+
+
+
 do    if Hekili.IsWrath() then
         RegisterEvent( "ACTIVE_TALENT_GROUP_CHANGED", function()
             if Hekili.SpecializationChanged then
@@ -610,8 +630,8 @@ function ns.updateTalents()
     for k, v in pairs( class.talents ) do
         local enabled, name, sID, known
         
-        -- Use the compatibility function that handles MoP differences
-        _, name, _, enabled, _, sID, _, _, _, _, known = GetTalentInfoByID( v, 1 )
+        -- Use our local talent detection function instead of global override
+        _, name, _, enabled, _, sID, _, _, _, _, known = HekiliGetTalentInfoByID( v, 1 )
 
         if not name then
             -- We probably used a spellID.
@@ -1967,26 +1987,26 @@ Hekili.KeybindInfo = keys
 local updatedKeys = {}
 
 local bindingSubs = {
-    { "CTRL%-", "C" },
-    { "ALT%-", "A" },
-    { "SHIFT%-", "S" },
-    { "STRG%-", "ST" },
-    { "%s+", "" },
-    { "NUMPAD", "N" },
-    { "PLUS", "+" },
-    { "MINUS", "-" },
-    { "MULTIPLY", "*" },
-    { "DIVIDE", "/" },
-    { "BUTTON", "M" },
-    { "MOUSEWHEELUP", "MwU" },
-    { "MOUSEWHEELDOWN", "MwD" },
-    { "MOUSEWHEEL", "Mw" },
-    { "DOWN", "Dn" },
-    { "UP", "Up" },
-    { "PAGE", "Pg" },
-    { "BACKSPACE", "BkSp" },
-    { "DECIMAL", "." },
-    { "CAPSLOCK", "CAPS" },
+--    { "CTRL%-", "C" },
+--    { "ALT%-", "A" },
+--    { "SHIFT%-", "S" },
+--    { "STRG%-", "ST" },
+--    { "%s+", "" },
+--    { "NUMPAD", "N" },
+--    { "PLUS", "+" },
+--    { "MINUS", "-" },
+--    { "MULTIPLY", "*" },
+--    { "DIVIDE", "/" },
+--    { "BUTTON", "M" },
+--    { "MOUSEWHEELUP", "MwU" },
+--    { "MOUSEWHEELDOWN", "MwD" },
+--    { "MOUSEWHEEL", "Mw" },
+--    { "DOWN", "Dn" },
+--    { "UP", "Up" },
+--    { "PAGE", "Pg" },
+--    { "BACKSPACE", "BkSp" },
+--    { "DECIMAL", "." },
+--    { "CAPSLOCK", "CAPS" },
 }
 
 local function improvedGetBindingText( binding )
