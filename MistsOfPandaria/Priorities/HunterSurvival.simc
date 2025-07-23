@@ -3,12 +3,12 @@
 # PRECOMBAT PREPARATION
 actions.precombat+=/aspect_of_the_cheetah,if=!buff.aspect_of_the_cheetah.up&!mounted&moving
 actions.precombat+=/aspect_of_the_hawk,if=!buff.aspect_of_the_hawk.up&!talent.aspect_of_the_iron_hawk.enabled
-actions.precombat+=/aspect_of_the_iron_hawk,if=!buff.aspect_of_the_hawk.up&!buff.aspect_of_the_iron_hawk.up
+actions.precombat+=/aspect_of_the_iron_hawk,if=!buff.aspect_of_the_hawk.up&!buff.aspect_of_the_iron_hawk.up&!moving
 actions.precombat+=/call_pet_1,if=!pet_alive
 actions.precombat+=/hunters_mark,if=(settings.mark_any|target.is_boss)&active_dot.hunters_mark=0&target.time_to_die>15
 
 # MAIN ROTATION PRIORITY LIST
-
+actions+=/call_action_list,name=cooldowns,if=time>=3
 # 1. AOE Rotation (3+ targets) - TOP PRIORITY
 actions+=/call_action_list,name=aoe,if=active_enemies>3
 
@@ -42,8 +42,6 @@ actions+=/arcane_shot,if=(focus>=55|buff.thrill_of_the_hunt.up)&target.time_to_d
 # 11. Cobra Shot (filler to generate focus, which will also maintain Serpent Sting)
 actions+=/cobra_shot
 
-# 12. Cooldowns (3s timer) - BOTTOM PRIORITY
-actions+=/call_action_list,name=cooldowns,if=time>=3
 
 # 13. Defensive and Utility - BOTTOM PRIORITY
 actions+=/call_action_list,name=defensive
@@ -94,7 +92,6 @@ actions.cooldowns+=/potion,name=virmens_bite,if=buff.bloodlust.up
 
 # AOE ROTATION (3+ TARGETS)
 actions.aoe+=/explosive_shot,if=buff.lock_and_load.up&lock_and_load_shots>0
-actions.aoe+=/multi_shot,if=focus>=70&spell_targets.multi_shot>=3
 actions.aoe+=/serpent_sting,if=!debuff.serpent_sting.up&target.time_to_die>15
 actions.aoe+=/explosive_shot,if=focus>=40
 actions.aoe+=/multi_shot,if=focus>=50

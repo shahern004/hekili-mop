@@ -783,3 +783,45 @@ function Hekili:HandlePriorityCommand( args )
     self:Print( output )
     return true
 end
+
+function Hekili:HandlePetSetupCommand()
+    self:Print( "=== Pet Ability Setup Guide ===" )
+    self:Print( "1. Make sure your pet is summoned and alive" )
+    self:Print( "2. Open your pet's spellbook (P key, then Pet tab)" )
+    self:Print( "3. Pet abilities will be automatically detected from pet action bar" )
+    self:Print( "4. No need to drag abilities to player action bars!" )
+    self:Print( "5. Check status with: /hekili pet status" )
+    
+    if self:CanUsePetBasedTargetDetection() then
+        local spells = self:GetPetBasedTargetSpells()
+        self:Print( "Supported abilities for your class:" )
+        for spellID, range in pairs( spells ) do
+            if type( spellID ) == "number" and spellID == spells.best then
+                local name = GetSpellInfo( spellID )
+                self:Print( "  BEST: " .. spellID .. " - " .. (name or "Unknown") .. " (" .. range .. " yards)" )
+            end
+        end
+    end
+end
+
+function Hekili:HandlePetStatusCommand()
+    local status = self:GetPetAbilityDetectionStatus()
+    self:Print( "Pet Detection Status: " .. status )
+    
+    if self:CanUsePetBasedTargetDetection() then
+        local spells = self:GetPetBasedTargetSpells()
+        self:Print( "Supported pet abilities for your class:" )
+        for spellID, range in pairs( spells ) do
+            if type( spellID ) == "number" then
+                local name = GetSpellInfo( spellID )
+                self:Print( "  " .. spellID .. " - " .. (name or "Unknown") .. " (" .. range .. " yards)" )
+            end
+        end
+        
+        if not UnitExists( "pet" ) then
+            self:Print( "|cFFFF0000WARNING:|r No pet is currently summoned!" )
+        elseif UnitIsDead( "pet" ) then
+            self:Print( "|cFFFF0000WARNING:|r Your pet is dead!" )
+        end
+    end
+end
