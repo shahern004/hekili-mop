@@ -1,41 +1,31 @@
-## Monk: Brewmaster
-##
-actions.precombat+=/stance_of_the_sturdy_ox
-actions.precombat+=/chi_burst,if=talent.chi_burst.enabled
-actions.precombat+=/legacy_of_the_white_tiger
+-- MoP Brewmaster Monk APL
+-- Version 1.0 - Hekili Data-Driven Rework V6.0
 
-actions+=/spear_hand_strike,if=target.debuff.casting.react
-actions+=/use_items
-actions+=/blood_fury
-actions+=/berserking
-actions+=/arcane_torrent
-actions+=/nimble_brew,if=debuff.fear.up|debuff.polymorph.up|debuff.horror.up
-actions+=/dampen_harm,if=incoming_damage_1500ms>health.max*0.3&buff.fortifying_brew.down
-actions+=/diffuse_magic,if=incoming_damage_1500ms>health.max*0.3&buff.fortifying_brew.down&magic_damage=1
-actions+=/fortifying_brew,if=health.pct<35|incoming_damage_1500ms>health.max*0.5
+-- The 'precombat' action list runs once before combat starts.
+actions.precombat=stance_of_the_sturdy_ox
 
-actions+=/purifying_brew,if=stagger.heavy
-actions+=/purifying_brew,if=stagger.moderate&buff.shuffle.remains>=6&chi>=1
-actions+=/keg_smash,if=chi<3
-actions+=/expel_harm,if=chi.max-chi>=1&health.pct<=85
-actions+=/guard,if=chi>=2
-actions+=/chi_brew,if=talent.chi_brew.enabled&chi<=1
-actions+=/zen_sphere,if=talent.zen_sphere.enabled&!ticking
+-- The 'defensives' action list is for abilities that should be used reactively.
+-- Hekili will check these in parallel with your main rotation.
+actions.defensives=purifying_brew,if=stagger_level>=settings.purify_level&chi>=1
+actions.defensives+=/guard,if=health.percent<=settings.guard_health_threshold&chi>=2
+actions.defensives+=/elusive_brew,if=buff.elusive_brew_stack.stack>=settings.elusive_brew_threshold
+actions.defensives+=/fortifying_brew,if=health.percent<=settings.fortify_health_pct&incoming_damage_5s>=health.percent*0.5
+actions.defensives+=/dampen_harm,if=talent.dampen_harm.enabled&health.percent<=50&incoming_damage_5s>=health.percent*0.4
+actions.defensives+=/diffuse_magic,if=talent.diffuse_magic.enabled&incoming_magic_damage_5s>=health.percent*0.3
+
+-- The 'cooldowns' action list is for your major offensive/utility cooldowns.
+actions.cooldowns=invoke_xuen,if=talent.invoke_xuen.enabled
+actions.cooldowns+=/energizing_brew,if=energy.current<=40&chi.current<=1
+actions.cooldowns+=/chi_brew,if=talent.chi_brew.enabled&chi.current<=chi.max-2
+
+-- The 'default' action list is your main rotational priority.
+-- It will be executed from top to bottom on every check.
+actions=keg_smash
+actions+=/blackout_kick,if=chi>=2&(buff.shuffle.remains<=3|settings.proactive_shuffle&buff.shuffle.remains<=gcd*3)
+actions+=/expel_harm,if=health.percent<=85&chi<chi.max
+actions+=/breath_of_fire,if=chi>=2&debuff.breath_of_fire_dot.down&active_enemies>=2
+actions+=/rushing_jade_wind,if=talent.rushing_jade_wind.enabled&chi>=1&buff.rushing_jade_wind.down
+actions+=/spinning_crane_kick,if=active_enemies>=3&talent.rushing_jade_wind.disabled
+actions+=/jab,if=chi<=chi.max-1
 actions+=/chi_wave,if=talent.chi_wave.enabled
-actions+=/elusive_brew,if=buff.elusive_brew.stack>=10
-
-actions+=/blackout_kick,if=buff.shuffle.down
-actions+=/blackout_kick,if=chi>=2&buff.shuffle.remains<=6
-actions+=/shuffle,if=chi>=2&buff.shuffle.remains<=1
-
-actions+=/rushing_jade_wind,if=talent.rushing_jade_wind.enabled&active_enemies>=3
-actions+=/chi_burst,if=talent.chi_burst.enabled&active_enemies>=3
-actions+=/breath_of_fire,if=dot.breath_of_fire.remains<=1&active_enemies>=3
-actions+=/spinning_crane_kick,if=active_enemies>=3&chi>=2
-
-actions+=/dizzying_haze,if=active_enemies>=3&target.distance>=10
-
-actions+=/tiger_palm,if=buff.tiger_power.stack<3
-actions+=/tiger_palm,if=buff.tiger_power.remains<=3
-actions+=/jab,if=chi.max-chi>=1
-actions+=/tiger_palm
+actions+=/tiger_palm,if=energy.current>=80
