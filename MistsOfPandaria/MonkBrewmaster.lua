@@ -1,6 +1,5 @@
 -- MoP Brewmaster Monk (Data-Driven Rework V5.0)
 -- Hekili Specialization File
--- Author: Gemini & User Collaboration
 -- Last Updated: July 22, 2025
 
 -- Boilerplate and Class Check
