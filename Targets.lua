@@ -75,46 +75,28 @@ do
 
     local petSpells = {
         HUNTER = {
-            [288962] = 10,
-            [17253]  = 5,
-            [16827]  = 5,
-            [159953] = 5,
-            [49966]  = 5,
-            [263863] = 7,
-            [50433]  = 7,
-            [24423]  = 7,
-            [160060] = 7,
-            [50285]  = 7,
-            [263840] = 7,
-            [263856] = 7,
-            [263861] = 7,
-            [279362] = 7,
-            [160018] = 7,
-            [263853] = 7,
-            [263423] = 7,
-            [54680]  = 7,
-            [344352] = 7,
-            [50245]  = 7,
-            [263857] = 7,
-            [263854] = 7,
-            [263852] = 7,
-            [160065] = 7,
-            [263858] = 7,
-            [341118] = 7,
-            [35346]  = 7,
-            [160067] = 7,
+            -- MoP Hunter Pet Abilities (verified for MoP)
+            [17253]  = 5,   -- Bite (Beast pets)
+            [16827]  = 5,   -- Claw (Beast pets)
+            [49966]  = 5,   -- Smack (Beast pets)
+            [24423]  = 7,   -- Screech (Bird pets)
+            [50285]  = 7,   -- Dust Cloud (Worm pets)
+            [50245]  = 7,   -- Pin (Spider pets)
+            [54680]  = 7,   -- Monstrous Bite (Devilsaur pets)
+            [35346]  = 7,   -- Warp (Warp Stalker pets)
 
-            best     = 288962,
-            count    = 28
+            best     = 17253,  -- Bite is most common and reliable
+            count    = 8
         },
 
         WARLOCK = {
-            [6360]   = 10,
-            [7814]   = 7,
-            [30213]  = 7,
-            [115625] = 7,
-            [54049]  = 7,
-            [115778] = 7,
+            -- MoP Warlock Pet Abilities (verified for MoP)
+            [6360]   = 10,  -- Whiplash (Succubus)
+            [7814]   = 7,   -- Lash of Pain (Succubus)
+            [30213]  = 7,   -- Cleave (Felguard)
+            [115625] = 7,   -- Felstorm (Felguard)
+            [54049]  = 7,   -- Shadow Bite (Felhunter)
+            [115778] = 7,   -- Carrion Swarm (Felhunter)
 
             best     = 6360,
             count    = 6

@@ -170,11 +170,7 @@ spec:RegisterAuras( {
         duration = 15,
         max_stack = 1,
     },
-    omen_of_clarity = {
-        id = 16864,
-        duration = 15,
-        max_stack = 1,
-    },
+
     savage_roar = {
         id = 127568,
         duration = function() return 12 + (combo_points.current * 6) end, -- MoP: 12s + 6s per combo point
@@ -252,7 +248,7 @@ spec:RegisterAuras( {
         max_stack = 1
     },
     clearcasting = {
-        id = 16870,
+        id = 135700,
 
         duration = 15,
         type = "Magic",

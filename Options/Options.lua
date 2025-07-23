@@ -4985,7 +4985,12 @@ found = true end
                                     type = "toggle",
                                     name = "Count Targets Near Your Pet",
                                     desc = function ()
-                                        local msg = "If checked and properly configured, the addon will count targets near your pet as valid targets, when your target is also within range of your pet."
+                                        local msg = "If checked and properly configured, the addon will count targets near your pet as valid targets, when your target is also within range of your pet.\n\n"
+                                        msg = msg .. "|cFFFFD100MoP Pet-Based Detection:|r\n"
+                                        msg = msg .. "• Automatically detects targets within your pet's ability range\n"
+                                        msg = msg .. "• Works with all pet types (Hunter/Warlock)\n"
+                                        msg = msg .. "• Requires enemy nameplates to be enabled\n"
+                                        msg = msg .. "• Uses pet abilities from your action bars for range detection"
 
                                         if Hekili:HasPetBasedTargetSpell() then
                                             local spell = Hekili:GetPetBasedTargetSpell()
@@ -5022,28 +5027,48 @@ found = true end
 
                                             if not spells then return " " end
 
-                                            out = out .. "For %s, %s is recommended due to its range.  It will work for all your pets."
-
-                                            if spells.count > 1 then
-                                                out = out .. "\nAlternative(s): "
+                                            -- MoP-specific guidance
+                                            local className = UnitClass( "player" )
+                                            if className == "HUNTER" then
+                                                out = out .. "For |cFF00FF00Hunter|r in MoP, |cFFFFD100Bite|r is recommended due to its range and availability. It will work for all your pets.\n\n"
+                                                out = out .. "|cFFFFD100Recommended Pet Abilities for MoP:|r\n"
+                                                out = out .. "• |cFF00FF00Bite|r - Beast pets, 5 yard range\n"
+                                                out = out .. "• |cFF00FF00Claw|r - Beast pets, 5 yard range\n"
+                                                out = out .. "• |cFF00FF00Smack|r - Beast pets, 5 yard range\n"
+                                                out = out .. "• |cFF00FF00Screech|r - Bird pets, 7 yard range\n"
+                                                out = out .. "• |cFF00FF00Dust Cloud|r - Worm pets, 7 yard range\n"
+                                                out = out .. "• |cFF00FF00Pin|r - Spider pets, 7 yard range\n"
+                                                out = out .. "• |cFF00FF00Monstrous Bite|r - Devilsaur pets, 7 yard range\n"
+                                                out = out .. "• |cFF00FF00Warp|r - Warp Stalker pets, 7 yard range\n\n"
+                                            elseif className == "WARLOCK" then
+                                                out = out .. "For |cFF00FF00Warlock|r in MoP, |cFFFFD100Whiplash|r (Succubus) is recommended due to its range.\n\n"
+                                                out = out .. "|cFFFFD100Recommended Pet Abilities for MoP:|r\n"
+                                                out = out .. "• |cFF00FF00Whiplash|r - Succubus, 10 yard range\n"
+                                                out = out .. "• |cFF00FF00Lash of Pain|r - Succubus, 7 yard range\n"
+                                                out = out .. "• |cFF00FF00Cleave|r - Felguard, 7 yard range\n"
+                                                out = out .. "• |cFF00FF00Felstorm|r - Felguard, 7 yard range\n"
+                                                out = out .. "• |cFF00FF00Shadow Bite|r - Felhunter, 7 yard range\n"
+                                                out = out .. "• |cFF00FF00Carrion Swarm|r - Felhunter, 7 yard range\n\n"
+                                            else
+                                                out = out .. "For %s, %s is recommended due to its range. It will work for all your pets."
+                                                local link = Hekili:GetSpellLinkWithTexture( spells.best )
+                                                out = format( out, className, link )
                                             end
 
-                                            local n = 1
-
-                                            local link = Hekili:GetSpellLinkWithTexture( spells.best )
-                                            out = format( out, UnitClass( "player" ), link )
-                                            for spell in pairs( spells ) do
-                                                if type( spell ) == "number" and spell ~= spells.best then
-                                                    n = n + 1
-
-                                                    link = Hekili:GetSpellLinkWithTexture( spell )
-
-                                                    if n == 2 and spells.count == 2 then
-                                                        out = out .. link .. "."
-                                                    elseif n ~= spells.count then
-                                                        out = out .. link .. ", "
-                                                    else
-                                                        out = out .. "and " .. link .. "."
+                                            if spells.count > 1 and className ~= "HUNTER" and className ~= "WARLOCK" then
+                                                out = out .. "\nAlternative(s): "
+                                                local n = 1
+                                                for spell in pairs( spells ) do
+                                                    if type( spell ) == "number" and spell ~= spells.best then
+                                                        n = n + 1
+                                                        local link = Hekili:GetSpellLinkWithTexture( spell )
+                                                        if n == 2 and spells.count == 2 then
+                                                            out = out .. link .. "."
+                                                        elseif n ~= spells.count then
+                                                            out = out .. link .. ", "
+                                                        else
+                                                            out = out .. "and " .. link .. "."
+                                                        end
                                                     end
                                                 end
                                             end
@@ -5072,6 +5097,64 @@ found = true end
                                     hidden = function ()
                                         return not self.DB.profile.specs[ id ].petbased
                                     end
+                                },
+
+                                mopPetDetection = {
+                                    type = "group",
+                                    inline = true,
+                                    name = "MoP Pet Detection Settings",
+                                    order = 0.12,
+                                    hidden = function ()
+                                        return not self.DB.profile.specs[ id ].petbased or UnitClass( "player" ) ~= "HUNTER" and UnitClass( "player" ) ~= "WARLOCK"
+                                    end,
+                                    args = {
+                                        mopPetInfo = {
+                                            type = "description",
+                                            name = function()
+                                                local className = UnitClass( "player" )
+                                                if className == "HUNTER" then
+                                                    return "|cFFFFD100MoP Hunter Pet Detection:|r\n"
+                                                        .. "• Automatically detects targets within 5-7 yard range\n"
+                                                        .. "• Works with all pet families (Beast, Bird, Worm, etc.)\n"
+                                                        .. "• Uses pet abilities from your action bars\n"
+                                                        .. "• Recommended: Bite for best range detection"
+                                                elseif className == "WARLOCK" then
+                                                    return "|cFFFFD100MoP Warlock Pet Detection:|r\n"
+                                                        .. "• Automatically detects targets within 7-10 yard range\n"
+                                                        .. "• Works with all demon types (Succubus, Felguard, Felhunter)\n"
+                                                        .. "• Uses pet abilities from your action bars\n"
+                                                        .. "• Recommended: Whiplash for best range detection"
+                                                end
+                                                return ""
+                                            end,
+                                            width = "full",
+                                            order = 1,
+                                        },
+
+                                        petRangeInfo = {
+                                            type = "description",
+                                            name = function()
+                                                local className = UnitClass( "player" )
+                                                                                            if className == "HUNTER" then
+                                                return "|cFF00FF00Pet Ability Ranges:|r\n"
+                                                    .. "• Bite/Claw/Smack: 5 yards (Beast pets)\n"
+                                                    .. "• Screech: 7 yards (Bird pets)\n"
+                                                    .. "• Dust Cloud: 7 yards (Worm pets)\n"
+                                                    .. "• Pin: 7 yards (Spider pets)\n"
+                                                    .. "• Monstrous Bite: 7 yards (Devilsaur pets)\n"
+                                                    .. "• Warp: 7 yards (Warp Stalker pets)"
+                                                elseif className == "WARLOCK" then
+                                                    return "|cFF00FF00Pet Ability Ranges:|r\n"
+                                                        .. "• Whiplash: 10 yards\n"
+                                                        .. "• Lash of Pain/Cleave/Felstorm: 7 yards\n"
+                                                        .. "• Shadow Bite/Carrion Swarm: 7 yards"
+                                                end
+                                                return ""
+                                            end,
+                                            width = "full",
+                                            order = 2,
+                                        },
+                                    }
                                 },
 
                                 npGroup = {
