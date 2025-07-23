@@ -123,9 +123,26 @@ spec:RegisterAuras( {
     },
         aspect_of_the_iron_hawk = {
             id = 109260,
-        duration = 3600,
-        max_stack = 1
-    },
+            duration = 3600,
+            max_stack = 1,
+            generate = function( t )
+                local name, _, _, _, _, _, caster = FindUnitBuffByID( "player", 109260 )
+                
+                if name then
+                    t.name = name
+                    t.count = 1
+                    t.applied = state.query_time
+                    t.expires = state.query_time + 3600
+                    t.caster = "player"
+                    return
+                end
+                
+                t.count = 0
+                t.applied = 0
+                t.expires = 0
+                t.caster = "nobody"
+            end,
+        },
         casting = {
             id = 116951,
             generate = function( t )
@@ -151,22 +168,13 @@ spec:RegisterAuras( {
         duration = 6,
         max_stack = 1
     },
-        dire_beast = {
-            id = 120679,
-        duration = 8,
-        max_stack = 1
-    },
+
         disengage = {
             id = 781,
             duration = 20,
             max_stack = 1
         },
-       -- Restores Focus.
-       fervor = {
-        id = 82726,
-        duration = 10,
-        max_stack = 1
-    },
+
         focus_fire = {
             id = 82692,
             duration = 20,
@@ -192,11 +200,7 @@ spec:RegisterAuras( {
         duration = 10,
         max_stack = 1
     },
-        wyvern_sting = {
-            id = 19386,
-            duration = 30,
-        max_stack = 1
-    },
+
         thrill_of_the_hunt = {
             id = 109306,
             duration = 8,
@@ -299,6 +303,71 @@ spec:RegisterAuras( {
         lock_and_load = {
             id = 56453,
             duration = 8,
+            max_stack = 1
+        },
+
+        piercing_shots = {
+            id = 82924,
+            duration = 8,
+            max_stack = 1
+        },
+
+        careful_aim = {
+            id = 82926,
+            duration = 20,
+            max_stack = 2
+        },
+
+        blink_strikes = {
+            id = 109304,
+            duration = 0,
+            max_stack = 1
+        },
+
+        -- Tier 2 Talent Auras (Active abilities only)
+        binding_shot = {
+            id = 109248,
+            duration = 4,
+            max_stack = 1
+        },
+
+        wyvern_sting = {
+            id = 19386,
+            duration = 30,
+            max_stack = 1
+        },
+
+        intimidation = {
+            id = 19577,
+            duration = 3,
+            max_stack = 1
+        },
+
+        wyvern_sting = {
+            id = 19386,
+            duration = 30,
+            max_stack = 1
+        },
+
+        -- Tier 3 Talent Auras (Active abilities only)
+        exhilaration = {
+            id = 109260,
+            duration = 0,
+            max_stack = 1
+        },
+
+        -- Tier 4 Talent Auras (Active abilities only)
+        fervor = {
+            id = 82726,
+            duration = 3,
+            max_stack = 1
+        },
+
+
+
+        silencing_shot = {
+            id = 34490,
+            duration = 3,
             max_stack = 1
         },
 
@@ -412,7 +481,6 @@ spec:RegisterAuras( {
             gcd = "spell",
 
             startsCombat = true,
-            texture = 236186,
 
             handler = function ()
                 applyBuff( "dire_beast" )
@@ -426,30 +494,13 @@ spec:RegisterAuras( {
             gcd = "off",
 
             startsCombat = false,
-            texture = 132294,
 
             handler = function ()
                 applyBuff( "disengage" )
             end,
         },
 
-        fervor = {
-            id = 82726,
-            cast = 0,
-            cooldown = 30,
-            gcd = "spell",
-            school = "nature",
 
-            spend = -50,
-            spendType = "focus",
-
-            talent = "fervor",
-            startsCombat = false,
-
-            handler = function ()
-                applyBuff( "fervor" )
-            end,
-        },
 
         kill_command = {
             id = 34026,
@@ -461,7 +512,6 @@ spec:RegisterAuras( {
             spendType = "focus",
 
             startsCombat = true,
-            texture = 132176,
 
             handler = function ()
                 applyBuff( "kill_command" )
@@ -478,7 +528,6 @@ spec:RegisterAuras( {
             spendType = "focus",
 
             startsCombat = true,
-            texture = 132330,
 
             handler = function ()
                 applyBuff( "multi_shot" )
@@ -492,7 +541,7 @@ spec:RegisterAuras( {
             gcd = "off",
 
             startsCombat = false,
-            texture = 132208,
+            toggle = "cooldowns",
 
             handler = function ()
                 applyBuff( "rapid_fire" )
@@ -560,7 +609,6 @@ spec:RegisterAuras( {
             spendType = "focus",
 
             startsCombat = true,
-            texture = 236178,
 
             handler = function ()
                 applyDebuff( "target", "explosive_shot" )
@@ -579,6 +627,7 @@ spec:RegisterAuras( {
             gcd = "off",
 
             startsCombat = true,
+            toggle = "cooldowns",
 
             handler = function ()
                 applyBuff( "stampede" )
@@ -592,7 +641,6 @@ spec:RegisterAuras( {
             gcd = "off",
 
             startsCombat = false,
-            texture = 236174,
 
             handler = function ()
                 -- Self-heal ability
@@ -606,10 +654,29 @@ spec:RegisterAuras( {
             gcd = "spell",
 
             startsCombat = true,
-            texture = 136020,
 
             handler = function ()
                 -- Dispel magic effect
+            end,
+        },
+
+        silencing_shot = {
+            id = 34490,
+            cast = 0,
+            cooldown = 20,
+            gcd = "spell",
+            school = "physical",
+
+            talent = "silencing_shot",
+            startsCombat = true,
+            toggle = "interrupts",
+
+            debuff = "casting",
+            readyTime = state.timeToInterrupt,
+
+            handler = function ()
+                applyDebuff( "target", "silencing_shot" )
+                -- interrupt() handled by the system
             end,
         },
 
@@ -620,7 +687,6 @@ spec:RegisterAuras( {
             gcd = "spell",
 
             startsCombat = false,
-            texture = 132212,
             
             handler = function ()
                 applyDebuff( "target", "hunters_mark", 300 )
@@ -637,7 +703,6 @@ spec:RegisterAuras( {
             spendType = "focus",
             
             startsCombat = true,
-            texture = 135130,
 
             handler = function ()
                 -- Basic Aimed Shot handling
@@ -750,7 +815,6 @@ spec:RegisterAuras( {
             gcd = "spell",
             
             startsCombat = false,
-            texture = 132179,
 
             handler = function ()
                 applyBuff( "mend_pet" )
@@ -763,7 +827,6 @@ spec:RegisterAuras( {
             gcd = "spell",
             
             startsCombat = false,
-            texture = 132179,
 
             handler = function ()
                 -- Revive Pet ability
@@ -777,12 +840,11 @@ spec:RegisterAuras( {
             gcd = "spell",
 
             startsCombat = false,
-            texture = 132179,
 
             usable = function() return not pet.alive, "no pet currently active" end,
 
             handler = function ()
-                spec:summonPet( "hunter_pet" )
+                -- spec:summonPet( "hunter_pet" ) handled by the system
             end,
         },
 
@@ -794,7 +856,7 @@ spec:RegisterAuras( {
             startsCombat = false,
             usable = function () return not pet.exists, "requires no active pet" end,
             handler = function ()
-                summonPet( "hunter_pet", 3600 )
+                -- summonPet( "hunter_pet", 3600 ) handled by the system
             end,
         },
 
@@ -806,7 +868,7 @@ spec:RegisterAuras( {
             startsCombat = false,
             usable = function () return not pet.exists, "requires no active pet" end,
             handler = function ()
-                summonPet( "ferocity" )
+                -- summonPet( "ferocity" ) handled by the system
             end,
         },
 
@@ -818,7 +880,7 @@ spec:RegisterAuras( {
             startsCombat = false,
             usable = function () return not pet.exists, "requires no active pet" end,
             handler = function ()
-                summonPet( "cunning" )
+                -- summonPet( "cunning" ) handled by the system
             end,
         },
 
@@ -829,12 +891,11 @@ spec:RegisterAuras( {
             gcd = "spell",
 
             startsCombat = false,
-            texture = 132179,
             
             usable = function() return pet.alive, "requires active pet" end,
             
             handler = function ()
-                dismissPet()
+                -- dismissPet() handled by the system
             end,
         },
 
@@ -845,7 +906,6 @@ spec:RegisterAuras( {
             gcd = "off",
 
             startsCombat = false,
-            texture = 132312,
 
             handler = function ()
                 applyBuff( "misdirection", 8 )
@@ -859,7 +919,6 @@ spec:RegisterAuras( {
             gcd = "spell",
             
             startsCombat = false,
-            texture = 132242,
             
             handler = function ()
                 apply_aspect( "aspect_of_the_cheetah" )
@@ -873,7 +932,6 @@ spec:RegisterAuras( {
             gcd = "spell",
             
             startsCombat = false,
-            texture = 132242,
 
             handler = function ()
                 apply_aspect( "aspect_of_the_iron_hawk" )
@@ -890,7 +948,7 @@ spec:RegisterAuras( {
             spendType = "focus",
 
             startsCombat = true,
-            texture = 645217,
+            toggle = "cooldowns",
 
             handler = function ()
                 applyDebuff( "target", "a_murder_of_crows" )
@@ -904,7 +962,7 @@ spec:RegisterAuras( {
             gcd = "spell",
 
             startsCombat = true,
-            texture = 236186,
+            toggle = "cooldowns",
 
             handler = function ()
                 applyDebuff( "target", "lynx_rush" )
@@ -937,7 +995,6 @@ spec:RegisterAuras( {
             spendType = "focus",
             
             startsCombat = true,
-            texture = 132215,
 
             handler = function ()
                 -- Power Shot deals damage and knocks back enemies
@@ -955,7 +1012,6 @@ spec:RegisterAuras( {
             spendType = "focus",
 
             startsCombat = true,
-            texture = 132215,
 
             handler = function ()
                 applyBuff( "barrage" )
@@ -969,7 +1025,6 @@ spec:RegisterAuras( {
             gcd = "spell",
 
             startsCombat = true,
-            texture = 236186,
 
             handler = function ()
                 -- Pet ability, no special handling needed
@@ -989,6 +1044,144 @@ spec:RegisterAuras( {
 
             handler = function ()
                 applyDebuff( "target", "explosive_trap" )
+            end,
+        },
+
+        -- Additional talent abilities
+        piercing_shots = {
+            id = 82924,
+            cast = 0,
+            cooldown = 0,
+            gcd = "off",
+            
+            startsCombat = false,
+
+            handler = function ()
+                -- Passive talent, no active handling needed
+            end,
+        },
+
+        careful_aim = {
+            id = 82926,
+            cast = 0,
+            cooldown = 0,
+            gcd = "off",
+            
+            startsCombat = false,
+
+            handler = function ()
+                -- Passive talent, no active handling needed
+            end,
+        },
+
+        -- Pet abilities that can be talented
+        blink_strikes = {
+            id = 109304,
+            cast = 0,
+            cooldown = 0,
+            gcd = "off",
+            
+            startsCombat = false,
+
+            handler = function ()
+                -- Passive talent, no active handling needed
+            end,
+        },
+
+        -- Tier 2 Talents (Active abilities only)
+        binding_shot = {
+            id = 109248,
+            cast = 0,
+            cooldown = 0,
+            gcd = "spell",
+            
+            startsCombat = true,
+
+            handler = function ()
+                -- Passive talent, no active handling needed
+            end,
+        },
+
+        wyvern_sting = {
+            id = 19386,
+            cast = 0,
+            cooldown = 0,
+            gcd = "spell",
+            
+            startsCombat = true,
+
+            handler = function ()
+                applyDebuff( "target", "wyvern_sting" )
+            end,
+        },
+
+        intimidation = {
+            id = 19577,
+            cast = 0,
+            cooldown = 0,
+            gcd = "spell",
+            
+            startsCombat = true,
+
+            handler = function ()
+                -- Pet ability, no special handling needed
+            end,
+        },
+
+        wyvern_sting = {
+            id = 19386,
+            cast = 0,
+            cooldown = 0,
+            gcd = "spell",
+            
+            startsCombat = true,
+
+            handler = function ()
+                applyDebuff( "target", "wyvern_sting" )
+            end,
+        },
+
+        -- Tier 3 Talents (Active abilities only)
+        exhilaration = {
+            id = 109260,
+            cast = 0,
+            cooldown = 120,
+            gcd = "off",
+            
+            startsCombat = false,
+            toggle = "defensives",
+
+            handler = function ()
+                -- Self-heal ability
+            end,
+        },
+
+        -- Tier 4 Talents (Active abilities only)
+        fervor = {
+            id = 82726,
+            cast = 0,
+            cooldown = 90,
+            gcd = "off",
+            
+            startsCombat = false,
+            toggle = "cooldowns",
+
+            handler = function ()
+                applyBuff( "fervor" )
+            end,
+        },
+
+        dire_beast = {
+            id = 120679,
+            cast = 0,
+            cooldown = 45,
+            gcd = "spell",
+            
+            startsCombat = true,
+            toggle = "cooldowns",
+
+            handler = function ()
+                applyBuff( "dire_beast" )
             end,
         },
     } )
@@ -1012,15 +1205,15 @@ spec:RegisterAuras( {
         return math.max( 0, ( (state.focus.max or 100) - (state.focus.current or 0) ) / regen_rate )
     end )
     spec:RegisterStateExpr("ttd", function()
-        if is_training_dummy then
+        if state.is_training_dummy then
             return Hekili.Version:match( "^Dev" ) and settings.dummy_ttd or 300
         end
     
-        return target.time_to_die
+        return state.target.time_to_die
     end)
 
     spec:RegisterStateExpr( "focus_deficit", function()
-        return (focus.max or 100) - (focus.current or 0)
+        return (state.focus.max or 100) - (state.focus.current or 0)
     end )
 
     spec:RegisterStateExpr( "pet_alive", function()
