@@ -1,7 +1,5 @@
-```lua
 -- MoP Brewmaster Monk (Data-Driven Rework V6.0)
 -- Hekili Specialization File
--- Author: Gemini & User Collaboration
 -- Last Updated: July 22, 2025
 
 -- Boilerplate and Class Check
@@ -298,4 +296,3 @@ if not TryRegister() then
 end
 
 print("Brewmaster: Data-Driven Rework V6.0 loaded.")
-```
