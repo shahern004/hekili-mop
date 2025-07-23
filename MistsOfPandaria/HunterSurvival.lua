@@ -380,23 +380,16 @@ spec:RegisterAuras( {
 
         cobra_shot = {
             id = 77767,
-            cast = 2,
+            cast = function() return 2 / haste end,
             cooldown = 0,
             gcd = "spell",
             school = "nature",
-
-            spend = 35,
+            spend = function () return buff.thrill_of_the_hunt.up and 0 or -14 end,
             spendType = "focus",
-
             startsCombat = true,
-
             handler = function ()
-                -- Extend Serpent Sting duration if present
-                if debuff.serpent_sting.up then
-                    debuff.serpent_sting.expires = debuff.serpent_sting.expires + 6
-                    if debuff.serpent_sting.expires > query_time + 21 then
-                        debuff.serpent_sting.expires = query_time + 21
-                    end
+                if buff.thrill_of_the_hunt.up then
+                    removeBuff( "thrill_of_the_hunt" )
                 end
                 
                 -- Apply Cobra Shot debuff
@@ -500,7 +493,7 @@ spec:RegisterAuras( {
 
         steady_shot = {
             id = 56641,
-            cast = 2,
+            cast = function() return 2 / haste end,
             cooldown = 0,
             gcd = "spell",
             school = "physical",
