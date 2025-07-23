@@ -1559,7 +1559,7 @@ spec:RegisterAbilities( {
     },
 
     exorcism = {
-        id = 879,
+        id = function() return state.glyph.mass_exorcism.enabled and 122032 or 879 end,
         cast = 0,
 		cooldown = 15,
         gcd = "spell",
@@ -1767,6 +1767,23 @@ spec:RegisterAbilities( {
 
         handler = function()
             applyBuff("divine_protection")
+        end
+    },
+
+    flash_of_light = {
+        id = 19750,
+        cast = 1.5,
+        cooldown = 0,
+        gcd = "spell",
+
+        spend = 0.378,
+        spendType = "mana",
+
+        startsCombat = false,
+        texture = 135907,
+
+        handler = function()
+            -- Heals target for some amount of health
         end
     },
 
