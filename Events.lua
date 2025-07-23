@@ -1970,6 +1970,18 @@ end
 Hekili:ProfileCPU( "CLEU_HANDLER", CLEU_HANDLER )
 RegisterEvent( "COMBAT_LOG_EVENT_UNFILTERED", function ( event ) CLEU_HANDLER( event, CombatLogGetCurrentEventInfo() ) end )
 
+-- Initialize damage detection settings when addon loads
+RegisterEvent( "PLAYER_ENTERING_WORLD", function( event )
+    Hekili:UpdateDamageDetectionForCLEU()
+end )
+
+-- Update damage detection when spec changes
+RegisterEvent( "PLAYER_SPECIALIZATION_CHANGED", function( event, unit )
+    if unit == "player" then
+        Hekili:UpdateDamageDetectionForCLEU()
+    end
+end )
+
 
 do
     local function UNIT_COMBAT( event, unit, action, _, amount )
