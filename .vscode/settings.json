@@ -115,7 +115,8 @@
         "WeakAuras",
         "haste",
         "action",
-        "pet"
+        "pet",
+        "class"
     ],
     "Lua.runtime.version": "Lua 5.1",
     "Lua.runtime.builtin": {

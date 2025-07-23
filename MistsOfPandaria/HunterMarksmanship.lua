@@ -229,6 +229,11 @@ spec:RegisterTalents( {
     glaive_toss            = { 6, 1, 109215 }, -- Throw a glaive at your target and another nearby enemy within 10 yards for 7,750 to 8,750 damage, and reduce their movement speed by 70% for 3 sec.
     powershot              = { 6, 2, 109259 }, -- A powerful attack that deals 100% weapon damage to all targets in front of you, knocking them back.
     barrage                = { 6, 3, 120360 }, -- Rapidly fires a spray of shots for 3 sec, dealing 60% weapon damage to all enemies in front of you.
+    
+    -- Additional talents
+    piercing_shots         = { 7, 1, 82924 }, -- Your critical strikes have a chance to apply Piercing Shots, dealing damage over time.
+    lock_and_load          = { 7, 2, 56453 }, -- Your critical strikes have a chance to reset the cooldown on Aimed Shot.
+    careful_aim            = { 7, 3, 82926 }, -- After killing a target, your next 2 shots deal increased damage.
 } )
 
 -- Enhanced Glyphs System (MoP Complete)
@@ -1891,6 +1896,14 @@ spec:RegisterStateExpr( "threat", function()
     return {
         situation = 0 -- Default to no threat situation
     }
+end )
+
+spec:RegisterStateExpr( "pet_alive", function()
+    return pet.alive
+end )
+
+spec:RegisterStateExpr( "bloodlust", function()
+    return buff.bloodlust
 end )
 
 -- Combat Log Event Tracking for Marksmanship mechanics

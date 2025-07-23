@@ -1254,6 +1254,11 @@ spec:RegisterAbilities( {
         spend = -60,
         spendType = "energy",
         startsCombat = false,
+        
+        usable = function()
+            return not buff.berserk.up, "cannot use while Berserk is active"
+        end,
+        
         handler = function ()
             shift( "cat_form" )
             applyBuff( "tigers_fury" )

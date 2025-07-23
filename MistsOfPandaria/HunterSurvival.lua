@@ -107,6 +107,11 @@ local strformat = string.format
         glaive_toss = { 6, 1, 117050 }, -- Throws a glaive at the target, dealing 0 Physical damage to the target and 0 Physical damage to all enemies in a line between you and the target. The glaive returns to you, damaging enemies in its path again.
         powershot = { 6, 2, 109259 }, -- A powerful shot that deals 0 Physical damage and reduces the target's movement speed by 50% for 6 sec.
         barrage = { 6, 3, 120360 }, -- Rapidly fires a spray of shots for 3 sec, dealing 0 Physical damage to all enemies in front of you.
+        
+        -- Additional talents
+        piercing_shots = { 7, 1, 82924 }, -- Your critical strikes have a chance to apply Piercing Shots, dealing damage over time.
+        lock_and_load = { 7, 2, 56453 }, -- Your critical strikes have a chance to reset the cooldown on Aimed Shot.
+        careful_aim = { 7, 3, 82926 }, -- After killing a target, your next 2 shots deal increased damage.
     } )
 
     -- Auras
@@ -315,7 +320,18 @@ spec:RegisterAuras( {
             duration = 20,
             max_stack = 1
         },
+
+        
     } )
+
+    spec:RegisterStateFunction( "apply_aspect", function( name )
+        removeBuff( "aspect_of_the_hawk" )
+        removeBuff( "aspect_of_the_iron_hawk" )
+        removeBuff( "aspect_of_the_cheetah" )
+        removeBuff( "aspect_of_the_pack" )
+
+        if name then applyBuff( name ) end
+    end )
 
     -- Abilities
     spec:RegisterAbilities( {
@@ -356,7 +372,6 @@ spec:RegisterAuras( {
             gcd = "spell",
 
             startsCombat = true,
-            texture = 132212,
 
             handler = function ()
                 applyDebuff( "target", "black_arrow" )
@@ -364,18 +379,27 @@ spec:RegisterAuras( {
         },
 
         cobra_shot = {
-            id = 19386,
-            cast = 2.5,
+            id = 77767,
+            cast = 2,
             cooldown = 0,
             gcd = "spell",
+            school = "nature",
 
             spend = 35,
             spendType = "focus",
 
             startsCombat = true,
-            texture = 136189,
 
             handler = function ()
+                -- Extend Serpent Sting duration if present
+                if debuff.serpent_sting.up then
+                    debuff.serpent_sting.expires = debuff.serpent_sting.expires + 6
+                    if debuff.serpent_sting.expires > query_time + 21 then
+                        debuff.serpent_sting.expires = query_time + 21
+                    end
+                end
+                
+                -- Apply Cobra Shot debuff
                 applyDebuff( "target", "cobra_shot" )
             end,
         },
@@ -479,15 +503,35 @@ spec:RegisterAuras( {
             cast = 2,
             cooldown = 0,
             gcd = "spell",
+            school = "physical",
 
-            spend = -9,
+            spend = function () return buff.thrill_of_the_hunt.up and 0 or -14 end,
             spendType = "focus",
 
             startsCombat = true,
             texture = 132213,
 
             handler = function ()
-                -- Steady Shot generates focus
+                if buff.thrill_of_the_hunt.up then
+                    removeBuff( "thrill_of_the_hunt" )
+                end
+            end,
+        },
+
+        serpent_sting = {
+            id = 1978,
+            cast = 0,
+            cooldown = 0,
+            gcd = "spell",
+            school = "nature",
+            
+            spend = 25,
+            spendType = "focus",
+            
+            startsCombat = true,
+
+            handler = function ()
+                applyDebuff( "target", "serpent_sting" )
             end,
         },
 
@@ -614,23 +658,6 @@ spec:RegisterAuras( {
                         debuff.serpent_sting.expires = query_time + 18
                     end
                 end
-            end,
-        },
-
-        serpent_sting = {
-            id = 118253,
-            cast = 0,
-            cooldown = 0,
-            gcd = "spell",
-            
-            spend = 15,
-            spendType = "focus",
-            
-            startsCombat = true,
-            texture = 132204,
-
-            handler = function ()
-                applyDebuff( "target", "serpent_sting", 15 )
             end,
         },
 
@@ -761,7 +788,7 @@ spec:RegisterAuras( {
             startsCombat = false,
             usable = function () return not pet.exists, "requires no active pet" end,
             handler = function ()
-                spec:summonPet( "hunter_pet", 3600 )
+                summonPet( "hunter_pet", 3600 )
             end,
         },
 
@@ -773,7 +800,7 @@ spec:RegisterAuras( {
             startsCombat = false,
             usable = function () return not pet.exists, "requires no active pet" end,
             handler = function ()
-                spec:summonPet( "ferocity" )
+                summonPet( "ferocity" )
             end,
         },
 
@@ -785,7 +812,7 @@ spec:RegisterAuras( {
             startsCombat = false,
             usable = function () return not pet.exists, "requires no active pet" end,
             handler = function ()
-                spec:summonPet( "cunning" )
+                summonPet( "cunning" )
             end,
         },
 
@@ -801,7 +828,7 @@ spec:RegisterAuras( {
             usable = function() return pet.alive, "requires active pet" end,
             
             handler = function ()
-                spec:dismissPet()
+                dismissPet()
             end,
         },
 
@@ -961,19 +988,15 @@ spec:RegisterAuras( {
         },
     } )
 
-    spec:RegisterStateFunction( "apply_aspect", function( name )
-        removeBuff( "aspect_of_the_hawk" )
-        removeBuff( "aspect_of_the_iron_hawk" )
-        removeBuff( "aspect_of_the_cheetah" )
-        removeBuff( "aspect_of_the_pack" )
-
-        if name then applyBuff( name ) end
-    end )
-
     -- Pet Registration
     spec:RegisterPet( "tenacity", 1, "call_pet_1" )
     spec:RegisterPet( "ferocity", 2, "call_pet_2" )
     spec:RegisterPet( "cunning", 3, "call_pet_3" )
+
+    -- Gear Registration
+    spec:RegisterGear( "tier16", 99169, 99170, 99171, 99172, 99173 )
+    spec:RegisterGear( "tier15", 95307, 95308, 95309, 95310, 95311 )
+    spec:RegisterGear( "tier14", 84242, 84243, 84244, 84245, 84246 )
 
     -- State Expressions
     spec:RegisterStateExpr( "focus_time_to_max", function()
@@ -981,7 +1004,26 @@ spec:RegisterAuras( {
         if buff.aspect_of_the_iron_hawk.up then regen_rate = regen_rate * 1.3 end
         if buff.rapid_fire.up then regen_rate = regen_rate * 1.5 end
         
-        return math.max( 0, ( (focus.max or 100) - (focus.current or 0) ) / regen_rate )
+        return math.max( 0, ( (state.focus.max or 100) - (state.focus.current or 0) ) / regen_rate )
+    end )
+    spec:RegisterStateExpr("ttd", function()
+        if is_training_dummy then
+            return Hekili.Version:match( "^Dev" ) and settings.dummy_ttd or 300
+        end
+    
+        return target.time_to_die
+    end)
+
+    spec:RegisterStateExpr( "focus_deficit", function()
+        return (focus.max or 100) - (focus.current or 0)
+    end )
+
+    spec:RegisterStateExpr( "pet_alive", function()
+        return pet.alive
+    end )
+
+    spec:RegisterStateExpr( "bloodlust", function()
+        return buff.bloodlust
     end )
 
     -- Options
@@ -1021,4 +1063,4 @@ spec:RegisterAuras( {
         width = "full"
     } )
 
-    spec:RegisterPack( "Survival", 20250723, [[Hekili:fNvBtnoos4FltT1LcQzUSobcWwfzQkdt2zzogcfj3D1(LyR4OquHJvozzy4kk)B)A9ITLSLmWEZE3h2zb3sD)OUB19JAwoy5ILZxJ44Lxpmy4OGthEu)GGrdcgSCo)P94LZ3JIVhDh8dPODW)opN9a5buIqWtju0AHcYO5Syq4Y5RYjj8ltxUYLwdgDgS294y4ZJgTC(wY61y1AXzXlNVyljRis8FOIiTDlIOBGFpMtOPfrjKmoiEdLve9B47jjK(lNl)OagiHUL)41YZfofTkbVE5NarsfuUKq6Mq(wC4w0J3RmoJSxTGjZVz6flkI(2KRN8LPFB61GEaPCmJGwo)DfrRY3SPFB10pFFruVIi3RGWOPLlBjho(nG3pyl454wTgacCX5EdkpH7YDz5s(2KlVUi62zlMS4YzWpDZTxo72lx87frxD5CWvnOFr0KCongLXlIMbwcIoxqPjRPpMcrRdoc(hozhMDynYIrjjHQFjuean9bI1we9XXfrhPIUHQCV4sD6YfwQy833NqZipGdZ2s5nokdbOoTCbfrZHva47kA89qow6A4ebz0qUhJqb080HMOs60tGLgcRmuK6RdMh5bjq6zIlqCeaI)giR0(eiXg)DCCohGedLks6pyyWFPiAlgLW3AHcoIDhM3xjP)(yy)NdoQHbcKCSVS(WD5S1yMiriMrFmRbIowebHCE5Iu34UqTmtdNGt59BPQ(A7vMBUgRYoBToLZAKhiUbZEGYAGRraU(vPaWJ84wCQ4QFCEM6mpk4qhauPiluzThR7q6fRG2jEGwghTBpEnUb4oba3CTib8i8TqSKJ3jYFOXGBKPs7lIIPPRjIDLzH4d0OGH2twhUHWWY74p)S(7RsO01j5zC5NpuI8Y7a9lrvFggT(jb(p1d(xLGejTmik04iCkCe(Kqke(fIR8Ym8oejLKEx5jqCz8mB0xhRnmqzrkTlxEhEK8l6exH6c50W1KsTkG(zEGEYtPFpKLNTTbWpda(vGmOSKuyRSGQn6j9SwUk2)lEaWE6JyMJ7W)caGBQL1Y(v7R0(cJmiWJvwdH(WvyuwtZmiaSZNbPqCsjULLQ3RLP81aCfeMKTZTTJOg(Nkf1Yg6nzzaF1FZWS9WEcZ4q6ttZiQ)oxTaXLhzcgA)(esms3wWr6LLgltWCMob9IgjbNVsYX0vmKRAYdefLVqiTSQmNkUgSHHZ22eZMWSlm6uM6QLOCur0jVIJIVA63LGen540SMvZhikN)fP4IOfs5TIOg72kQ6R8mIfJsD2sDGOi9eP4QgQwLQ)y7s1ws6YhCIeunlmBB)tS7PVaQM6Inax8DH28vM0FUXPnZnoydjfb9V3aDXLSACE0gosXZApdht3Tc5KPLBMAXBXyoQzvVFlpLl6pxYbVi6VcnTP3uejiLn9IzF7ttwi)XBMCRKS2lZSuBjdYL7OcZOkyUJ(GiF))Bmw1KvBrX6)nw3KVClUvwqypMhIsG0SgeCfFFGlApwKaYWCrPHS(7qmb7YNuCa03jizHRGRPLeae6hsNxdTw2kZhYcfBRicY468UeC3UcCM7uLKwZTUJK0AIknYmVy2SR(8S)51(E3ufRfdQosElwrOg8G0smib1DI4ps6uTj)1brFoJKEpMpOHtzH6Zq53SerrLQL1btD9Ag2ypd7I6SU2mNYyqP9gG4wumruPaTcESmNGZCuS6CbjTkgWvmfGeem7Ez)UARwYZSMCj4ud3KZEQXQAsPZ(v23jqde93tfFaAvMZKKbG3osjz7(5Qyv5ChEGW2HtHRca2B9QmRCedUBY)F5BDHDlUG2r6n(7BjjiMMkIfG)80FD61ZV8Fmf61D9NlI(7lU8k4jWMiX6jzIgBDNT2y5hhyC7ukkJttDM2z0mFlKTY7Nr45iLFu23Pwt7izc(HXAhrhfX0fnwtGkGjjIfyMuIs)x5qe7FdXivhsPtfrFb3zhVeFYSPMZu4GJEp06EYTFz6I5VUxD73Z6M0AZNLCAqBsXD7S9YCQlvBstRZaG1(LAugjcvbgO3qEcNi9KvJgPkkxjQ7wn)HPu7HCVJ3m788yMB3iPWXZw9qt03XTzDgpv3CrZtNg)auOtiQCwLqD8hrmXRFHILxUBpLjPdDsJXq2V4RGwZ5BfJTaa1gg5EbzpkWkeU88tfrDWx7RfF9N8rAR4Rk7K1VI547h)ZoPT9bYMXVRtwD9ENMpxpfxUxJYfuE8PznLPEUKzYP61yNQ1)NJXQzGj1Ffhn3R2KsKy9h0Iv2ZpBZi7WEE4InoOx77sFCWiDu)fMNQArVHHQwDEkpZQFvow1pi6EoUICN4Gj20hhFK2oV1jIAAm77YcD7SAT2sV5XEAAQQzPkpbnNb65JhgOTIVrzAQSwZMuP0UNVzV31XKn1g)fNxPjkuZE0W02tUSNCNNpEuGo9VAwLAJ9hB(JMiOKBRmDVn15NFUf5Qd75HWSgtV5bkAchJXikVW6C6Ik3cK)oY1DSXNPbI9acnTs1K)m88TMwyvW2CoHAvBn6ptnxnZpdn3AoGLxVBmypt9uprpdf1EmFLAYy0DwEt1Nmurtcr69)cZKZkHXS9VzmQjFIoR)9MM1MvXTQw3cB7Z0Dn1TZpPBK1CYzMw3GjNHt1fDqTYELdgZQYu9y2e2qNRpYz)KtkTJJbG5UknxkrTPxAMw(97AqnS0P1(VyADdw9Fr2)Kzy4Zk)a5xipPEEeynqQELP0Tx)ysH9n6wnkW9wmE3xJDCSNDy((ozszJhecHj3BS9t6mASA8iq9j318DQvCf9cqX1Dqek07CF0UCR(nW3mNqJt1)JVLv5uACBV8mita6P(bX4ygxobN3WAhQntR5W4wh2ZYP6625hnY96RhsJh5vJNP826REYlUvOABkALMZKPI9NDmuzZoERVXTyk(TWP0EBVy3UsEdNg0CRV666(vr9lsnkqEAqpFVGxs)2wf)x3A9LCJAuD8Rd8JATmhnbo)i1FHJL)Np]] )
+    spec:RegisterPack( "Survival", 20250723, [[Hekili:fJ1EVTnos8plfhUax0UQ(rCskqCbCs9TRZLyhe5DxC)JKOLORiISOokQKnhc0N9BiPEqjljBVnDxu0GeX5XVz48KwdSwzz6H4yRfd7pCC)ZhoYyWOthC6ilt(lrylZiK7JOVb)siAl8tZe2tKNqbIdEjGI8eciMMWCHdTmxNqc4ZdTw3GuhoEaqAe2f(64XwM(eppSIuCSRL5kFsCQJ4)OuNm1M6q3a)TlNqdtDciXC44nuwQZVGFKeqmaCWOBibG2)hWhtc5y4WCuM68tPo3rVp1j9M0BacU)HzxV8URMUs(R3p9HPRMVCr6nkneBeXWU0TRr8pm5tibw520n2CFSTRpgZr(FKSzY7wNSzJrJhBKeDY72sfWW7KT0NiHF7qeUp65hBtYIZKITHZimAyobhIEkO)hJYCrbb2ryU9aP8f)gkG8eUzQ9LxwX2BrmjE6fJ5CWHfBi(Ink8LxFLJyFdZniX2RPXXV)eHCEcB7r5g6SpP)jzuYjBX2CQThb)LbJZU1VB68fPopSCL62gU6NV8H5R(pPo3o3CvgrdmsDUMsd8Ophcbz9gb)qin27lGFUjQ(tBr44hfPftCZ5tyhcM(YKrzIDii2VI3GdJfochuOxQZVYHqx(l7xUEfmQe2iqytLxkGrHcHeKT4q((LJ6ImotkNkKYYzGhHYrQmREJ(ayTsxy8byVikwyPGuHtZyZyBsaNyh7t5Lw)yqvxLWIb8EVpkgCa9E2hdkC2FefqvUetGdvEpdJ8EjZh5wEvGEcrcqRdWhaYwluMaBYa4aQRiqYZwuPsg2kr1zgnaGE3ceNP8BbYHAqmcLb3tvuloNpPLUpnDoOP)njiOWkbth)hy3eoOxgkuuHR3W()ZuhFmkG7xrvqbUGcTKfFRiZiYLF5KH9Z0YfcVCasa)Pmg9zqMBrKqo8)kcCTGgBKGezcQhwIDTplY93qDtIHRWXnLtn5ImD(zqNMywKi(ZXuK3cAffffaxGeOMDOWCvPRvWqSIh7ybl6OOYbcC0vg9G(IyyMlkS8(tfyjrFQZxMabFJROzKK8chAMzoUrZ8SC9OQkSMHkud0SjOErbbb1f8WCSE1V(GPOFZVm1C2Bv8VHmo)ychRZymhTnc7jZJZ1Lr(hnuizhMyOiIN9gcRkBLFUngpKq5688gfTwxShzyqD27(UEQ59ZUELOJZIP)8S7MTyvPeYkc)dU5FBA5nS1V0s)6S)1SfMZ)niKE6IVc90wn)wrl1cGu07sgL6drWmzZgH(1U6h3VzwuKeZPH4ACCAlCSLe7bHGU5kH7dbJCJycprQy4AQzg5qH4)lm4k5)bvEQhL6rKD5ePFzw(1lxE7xx(7lA(wUiV9WtxYC5AFwEneqPEbjX8kxV6IxpfU3UI41xZYxkLZ7pP1uDPPTIrcFelguOj9LedrcC82pghq5t4kAhCe0omtnpGCjIHZrRfZbrWTOVSmvoLXGgdfPBxoACZ0VggheZESYm3vox4jS3KWYn3PFtnhMtevqDQJxct2iZhZOK4TFQW31SavSPg84jcdMfdMtfS6IYWvVdv6uo4vXOOYbVwn9HFE2ktTY7Waw)zkURyRCqmTsuN3)KohxRQi(U7sVpdjdv65YDa(X7qwlLHTmFccca6k380Y8zeluSxHL58TrugSAgmywTTknsVXYeLW9Pmyj3TjByKhTmLhj2WnRQk8RlKRmJdffe8SUsT8kJejKLL5U1)TmHtHfviilZ3L60EH3uNtsDAMc9YVawCv6AxPyXbZUg8(Rr7f0aqGl8jBqW94EDx7zXSo2jRei13dq3Kf0QMfCK6Y0w9kgfjXn5XAxWvWEhl2vrxfDAe6A0FoD18EFvutEekOKt7YLVVL)omhBBLsAYzdjScunUlu9gVN4HzenwmTc0Ld9ja)zDb(JDDYdad5WVAHtbsoVlKC0RBwjzP(y5PoxcxMd7xcNIX4fi5IUqsxRKwROuJZ1lRhPTlh0Zx8LD72Oo(IsmQjhbk)CxO8ywITzuxVFy7OeQMnUeLv4tGZb97cOh6(U6GSYjDHRZ0QQxUCKeuDw9U9LJBbgd1CaLnWvTmkEzW920OJh5TL33D)DblF(28gHzpIR8pvpKBB9(Y49VVMV5T(R3C5VgTR36FNwpvGqX7bxR8S8fJBQfrj39sD251HtDE91Iy6Sxio159sZrLZUZ7eN6arH9p0CuDovbPLZnSVG0Mwsu3GA)Tt0VnQSpxXjAlvuc2ss7oqSxZIw4k3DLLmVzllnQvnl77nffwXTKVGzjR5Rrccb2uu7VBiAQgpdRXZW9oMXolE2qHQlfnB2PIy2sOfZcu0TPyNtDTM3NUSNu(MN1OQEpu1yh67swFbJdEL1DMYO54gLCuH3QXD2xO9B47z(Dnju7X4FxXRhqoABzDTx97yNTQ9kH)WhyQ(OUVPduuF61JEmHYTP2xyAlpqPUoRCDagvF9WTYxSS7GTAc5unHO9gMDhPv)PkZ8dLss)TnpOinTNTuVUz9h6u5ufBOTp3zxVB1pO0yTqIZvnT37ANf(RIJ27GrV1dY3(vJM9CA)UCjTN9RNc2VnZ9GYG7ijt9pR))]] )

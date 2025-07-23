@@ -537,6 +537,14 @@ end )
         return focus.time_to_max
     end )
 
+    spec:RegisterStateExpr( "pet_alive", function()
+        return pet.alive
+    end )
+
+    spec:RegisterStateExpr( "bloodlust", function()
+        return buff.bloodlust
+    end )
+
     -- Abilities
     spec:RegisterAbilities( {
         a_murder_of_crows = {
