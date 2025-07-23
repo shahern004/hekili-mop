@@ -1,4 +1,4 @@
-# Hunter Survival - MoP 
+# Hunter Survival - MoP
 
 # PRECOMBAT PREPARATION
 actions.precombat+=/aspect_of_the_cheetah,if=!buff.aspect_of_the_cheetah.up&!mounted&moving
@@ -9,38 +9,41 @@ actions.precombat+=/hunters_mark,if=(settings.mark_any|target.is_boss)&active_do
 
 # MAIN ROTATION PRIORITY LIST
 
-# 1. Cooldowns (3s timer)
-actions+=/call_action_list,name=cooldowns,if=time>=3
-
-# 2. Defensive and Utility
-actions+=/call_action_list,name=defensive
-
-# 3. Aspect Management
-actions+=/call_action_list,name=aspects
-
-# 4. AOE Rotation (3+ targets)
-actions+=/call_action_list,name=aoe,if=spell_targets.multi_shot>=3
-
-# 5. Burst Phase (when Explosive Shot is ready and cooldowns available)
-actions+=/call_action_list,name=burst,if=buff.lock_and_load.up
-
-# 6. Explosive Shot (Lock and Load priority)
-actions+=/explosive_shot,if=buff.lock_and_load.up
-
-# 7. Kill Shot in execute range (20% health)
+# 1. Kill Shot in execute range (20% health) - TOP PRIORITY
 actions+=/kill_shot,if=target.health.pct<=20
 
-# 8. Black Arrow (maintain)
+# 2. Cooldowns (3s timer)
+actions+=/call_action_list,name=cooldowns,if=time>=3
+
+# 3. Defensive and Utility
+actions+=/call_action_list,name=defensive
+
+# 4. Aspect Management
+actions+=/call_action_list,name=aspects
+
+# 5. AOE Rotation (3+ targets)
+actions+=/call_action_list,name=aoe,if=spell_targets.multi_shot>=3
+
+# 6. Burst Phase (when Explosive Shot is ready and cooldowns available)
+actions+=/call_action_list,name=burst,if=buff.lock_and_load.up
+
+# 7. Explosive Shot (Lock and Load priority)
+actions+=/explosive_shot,if=buff.lock_and_load.up
+
+# 8. Explosive Shot (added without Lock and Load condition)
+actions+=/explosive_shot,if=focus>=40
+
+# 9. Black Arrow (maintain)
 actions+=/black_arrow,if=!debuff.black_arrow.up&focus>=35&target.time_to_die>=8
 
-# 9. Serpent Sting (apply if not active)
+# 10. Serpent Sting (apply if not active)
 actions+=/serpent_sting,if=!debuff.serpent_sting.up&target.time_to_die>15
 
-# 10. Arcane Shot (when focus >= 55)
+# 11. Arcane Shot (when focus >= 55)
 actions+=/arcane_shot,if=focus>=55&target.time_to_die>6
 
-# 11. Cobra Shot (filler)
-actions+=/cobra_shot,if=focus>=25
+# 12. Cobra Shot (filler - no focus condition)
+actions+=/cobra_shot
 
 # BURST PHASE (when Explosive Shot is ready and cooldowns available)
 actions.burst+=/explosive_shot,if=buff.lock_and_load.up
@@ -49,7 +52,7 @@ actions.burst+=/rapid_fire,if=cooldown.rapid_fire.ready
 actions.burst+=/kill_shot,if=target.health.pct<=20
 actions.burst+=/black_arrow,if=!debuff.black_arrow.up&focus>=35&target.time_to_die>=8
 actions.burst+=/arcane_shot,if=focus>=55&target.time_to_die>6
-actions.burst+=/cobra_shot,if=focus>=25
+actions.burst+=/cobra_shot
 
 # ASPECT MANAGEMENT
 actions.aspects+=/aspect_of_the_hawk,if=!buff.aspect_of_the_hawk.up&!buff.aspect_of_the_iron_hawk.up
@@ -83,4 +86,4 @@ actions.aoe+=/multi_shot,if=focus>=70&spell_targets.multi_shot>=3
 actions.aoe+=/serpent_sting,if=!debuff.serpent_sting.up&target.time_to_die>15
 actions.aoe+=/explosive_shot,if=focus>=40
 actions.aoe+=/multi_shot,if=focus>=50
-actions.aoe+=/cobra_shot,if=focus>=25
+actions.aoe+=/cobra_shot
