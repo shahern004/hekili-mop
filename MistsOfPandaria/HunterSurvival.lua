@@ -333,6 +333,14 @@ spec:RegisterAuras( {
         if name then applyBuff( name ) end
     end )
 
+    -- Lock and Load state tracking
+    spec:RegisterStateExpr( "lock_and_load_shots", function()
+        if buff.lock_and_load.up then
+            return 3
+        end
+        return 0
+    end )
+
     -- Abilities
     spec:RegisterAbilities( {
         arcane_shot = {
@@ -361,7 +369,7 @@ spec:RegisterAuras( {
             texture = 136076,
             
             handler = function ()
-                spec:apply_aspect( "aspect_of_the_hawk" )
+                apply_aspect( "aspect_of_the_hawk" )
             end,
         },
         
@@ -548,7 +556,7 @@ spec:RegisterAuras( {
             cooldown = 6,
             gcd = "spell",
             
-            spend = 25,
+            spend = function() return buff.lock_and_load.up and 0 or 25 end,
             spendType = "focus",
 
             startsCombat = true,
@@ -556,6 +564,11 @@ spec:RegisterAuras( {
 
             handler = function ()
                 applyDebuff( "target", "explosive_shot" )
+                
+                -- If this was a Lock and Load shot, reduce the count
+                if buff.lock_and_load.up then
+                    -- This will be handled by the state expression
+                end
             end,
         },
 
@@ -849,7 +862,7 @@ spec:RegisterAuras( {
             texture = 132242,
             
             handler = function ()
-                spec:apply_aspect( "aspect_of_the_cheetah" )
+                apply_aspect( "aspect_of_the_cheetah" )
             end,
         },
 
@@ -863,7 +876,7 @@ spec:RegisterAuras( {
             texture = 132242,
 
             handler = function ()
-                spec:apply_aspect( "aspect_of_the_iron_hawk" )
+                apply_aspect( "aspect_of_the_iron_hawk" )
             end,
         },
 
@@ -908,7 +921,6 @@ spec:RegisterAuras( {
             spendType = "focus",
 
             startsCombat = true,
-            texture = 132330,
 
             handler = function ()
                 -- Glaive Toss deals damage to target and enemies in line
@@ -1056,4 +1068,4 @@ spec:RegisterAuras( {
         width = "full"
     } )
 
-    spec:RegisterPack( "Survival", 20250723, [[Hekili:fNvFVTTnA8plfhUahSonBN4KuG6c426BZ5sCcI82W9psIwIUMiYI(OOsAoeOp73dj1lu0uYoTPByOfUIpV87HpVZ5nWBHNBeIJ9MpS)Wr9pF4jodoBWPJENNl)PTyp3TOW7rFb(rcAd83UzShipGIfh8umffjeqknJfch65UmJeZNL4T0QuhocODloe(8i4NRjrryfT40qp3fRjP5bI)GYdk0BEaDf8Vd5eAsEqmjLdhVIYYd(n89KyIdaegDfjgu))a(ywchdhwcZ8GFop4A6T5b5xMFjqWT3n9t3C9hNSq(ZBNC3KfZUzE(LknK6SLHdPBwI4)04FbjWk3NUYNVg7hUgJ5O1VLSA8BwMTALJ1JDY2E0B2qfWi6On0hijF5qe(A0J33MKfNjfRLZimAsjbhIEQO)hJYcrXX(BXC)bs5l(fkM8a2o1RLoRu)niMep9sXCoCHL6i(Ipk5PNFMJyFbZDiP(lPPPhFKqopG9JOChD2h3)Ock5KnyFo1pIG)WGrfE9RNmBEEWD3Sq5Tbx)SBUB2I)tEWvZCxuq0aN8GprPXr0htGGSENa)LqASJRGFPjQ(N(IWX3kYlghwYNWoem9HXNui2HGy)mEfojvCreGsIYd(Doe6YFA)YnQIrLWobe2ePtbmkucKGSbNW3VCuoY0cPCQqk3mfUrOCKkZQ3j)eyTYRW0dWEruSWsbPcNwWMZMSyoXpDnLxB9Jav9XmwkG3BxJsHlGEpUgdkC6x3gtvxjUahQ8Eggf9uXDuyTRa9aIeJwgJpaKTuOmb2KbWX0qrGuKVOuLmSvIQZCSaGExbexO8RaYHAqmcLb(PgQfxYN0s3NMoh00)MehxzLGPJ)komJd6LHsev46nS))mpyngfZx3qvqbU4kTueFRiZzBi)9Jh2VqlxiULJrc4pHXOpcYCdIKWH)0qGlf04JeKitqJWsSR9zrU)kAywk4chzlNA8ff68DGoDXSTI4VaxrElOv02TXGdKa1SteMRkDTbgsv84NkyrhfnoqGJUYOh0xedZcrj1(pvGLe95bFyme8nQHMrsYRUqlmZrwnZZk1JQQWsgQsnqZMyZIcccmf8WsS(XF)oxr)MFBI70xR4FhzC(ljC0KXuoAZwCKmpUuxoLF0rHKDyIH2sI8xrynzR(ZTX4HekBYZRu0QPyFHHbMS3TVEI7Tt)0crhN5t(1PxpD(IAjuue(hCZ)20YRyRFPL(5P)RPZDN9hqi9K5Fg6PTy2vIwQvaPQ3LmkDnebZKnBe6xZ1pQVDwuKKYPjydooTfo2qsJGqWWsLWxdbJCNucptQyWnzNroui()ctUs(FqLhZO0iISlNi9RWY)0n3C1NV5pNB3lxL3E4Plfx5AFw6gIP0O4SuEd3RU41tH7TRiE(5I8LA5C8rTMQlnTfmsY9yXGc20xwkejWXBEBAmLpMRODWlG2HfQ5ouirmCoAPyoicUf9vKPYPmg0yOkD79NmYo9lHXbXS7BmZDJZf3e(RYyLM7KVOMdlylvqDEqugt2iBnMrjPB(LQ7o7cuXMAWJhimywmyovWQRkd30hQ0PCWRQrrLdETyYD)60fUAL3HbS(wkURyREqmTsuN3)OohxRPi(U7sVpdPav65YDa(r7qwlLH9CFacca6Qx90Z9relrSxHN7SnBPmy1myWmJTkDYV0ZfLXxtzWwUBYwXi375kpsSIBrvv4NZL7mJtefeI8(iCKumLKOxnvTylJSvrWU9g8CHtHLyiip33Kh0Er58GJYdStHEPzpoy2gW7vwdTyUv0aqGlS7viWpA76QXvYEwmRJDYQbI5Ea6MSGw1SGNOCM(QNXOkj22nwde2X6BDbbnDv1PrORt6sx23U7avtzekOKt7sj7B5Vd7ITTsj2USHewbQg1fQEL3t8WmcRftBaD5qFcWFwlj9nlSzyuV01m3p2aKCEliPAcBdq8I3aTr(J5K65bVh8Vd7lqYfTGeTb0nWsx7PAuPY6W(YIuAl4bdci(YUTGuhFHaLVRfu2OrMboFj72Ah3MTjBhNqrUrcCoOFB9vQ3xXaMh6sW6qSXjDHQZKGQZQ3TVCSw(xvFAvNHQha8WBLw80QgkVJN6TLx5D)9cRFe3Y2HfpLR8FQEo3)(6Xw0EDNEi)1OD9o870HPbeQE2xJQWYhg2wNGAU7LhSZJaNh88ZvrPfpeCEWXsZrLdUZZbNhaH393toxf405ufKwpEqhbP17AzezAB)qDJS9Nnr3d1yvUQt02NO7aXE2fJ4QC3ntkUnBz3qTAMfF3wuyjnLRfACPuUzjiKyrHSkYSenziQHg8m0wmKr1YIDgnaXo7DAPY47fTvQA5x1tRA1sDTw2oUUZx5cMguz2QS5Ebh8wOL)FHtFxZDgAOrmsf0uYwfERMQPJq7oNQ5v85mpObEApg)7kE9aYhTMR3z1V2NxYYCADwj8vBeiRJLzzI2VPreSoKILHuTk8HJAFmH6LM6mmT(vfncsB51j1rsdNeyQ97oyZG8t1CPApvz3rAMVizX9qTK0FcZdkst71j1RBA(EMQlvXIyFRz9D9SvFNPXAHeNRAAV3TlRUVQoAVdg9TnyElRl0PRrZE0JsmUE7m7xpfSFBM7bLb3rsM6)8())]] )
+    spec:RegisterPack( "Survival", 20250723, [[Hekili:fNvBVTnos4FlfhUGeSD16yhNKfOoaUT(219sTdI8EhUVijAj6yIil6JIkzZHa9B)gsQxOOPKDtDVdlsrI4WzEMHZ7R35El8CJqCS3S(96pS3v9h4C(19717cpx(lBXEUBrHpIEa(Le0g4FDZyprEcflo4LykksWGuAgleo0ZDzgjMpnXBPnUceUfhcFB4qp31KOiSIqCAON7I1K08aXpO8GcHMhqxb)DiNqtYdIjPC44vuwEWVJFKetCauWORiXGS)lWhZs4y4WsmMh8Z5bFLEx(xY)cC8D3p5tZ)6hhVq(R3n((XlMoFw(xu8p1zldhs3SeX)Pr)csGuUpDLpFn2pCngZrRFpz1O3TmB1khRh7KT9K3THkar0jBOprsE4qy(A0Zp2gNfNjzRLZimAsjbhICQO)hJWcrXX(BXC)ZL8x8BOyYty7uVw(uL6VbXK450umNdgSuhXx8rjV86RCe7bm3HK6VKMME2jc(8e2pIYD0V(OENuqjNSb7ZP(re8nNpS4v)RJNolp4(5luV2Wt)053pDX)kp42PUlki6CN8G)ojg8yCxt5GBi4UH)tCygh8bzOeHR4P979xZdwJrX81NjDTwm)on(vQNG2b(MX(PaNeQwb4ux0zBi)dJ63RqU9b5(jknoI(Cc4AF6a4FeAb7mD2jnTQ)0xee8ErO4OWY7jfcCPBgnOGTda2(z8kCsQ4biaLeLh8hCiGH)Y(5Bu1fvm7cGzJLodGXeLaHLBWj89ZhLduAbxgk4Y8jWlbLJuXZNo4NaTvADspa9frXcnf4kCAX1C2KfZjstDT2FjiQpMXsb8E3AuQ4P751yqGt(ZTXuLjP4zgm3mmk6LcBuy9tb6jejgTmgFaiBPqycSjdCIPHch4iFr2rz4Ievx5ybaNElqCHWVfihY8XiuM4Ds4GfIekbs4xoas8XWWff6AtZfUKRvUCwXXjn(GK20BkDeV2k6qqkAatpt4RPzCbenqBinjIiWXEa0kAyw6nJUOuC)Q4jkgj42ygJ(miRnisch(PbNwkOXhjirMvjclvnTpluScUpyOTebJUUmgVhiuxmBRW7nWvKTrOIB3gdgBcuNjrOZQKmnarQ6o(PIROdJghiasx5HoxKJzmleLuBFvULs4NhCZiikzydjJKKBAfhAvpVSuoQCklzOkXafiJf1f)zHowjp7VDHIBkLyb)(4FCVROI5Vp2DYXksYrgX8976AYUuoAZwCKmprjcCk)OJcF7CjgAljYFfH18A1FUTlEiz5nVZrYH2KTFJokMxFNh9XU3n5tlefpNn(3M81jZwuFPI86)G7JPnPCe7IrQPFEYFBYm3P)dW3E8SpdLjxm9w9Q5ovLdLURRbxzMS(Lq(AV2d7z)kkss50eSXnUOLBSHKgbEDHLcHVg8)4oPeEMuW3mQV9lYHgv(3q)3K)dKoY0XmIilCkIdl08pnF(TFE()CM9x5Qa4dpcPWKR9z5ZqmLgfNLYB88QZE9O2t3LfV(ArisnFo7KwJULQ2cgj5rSO3dBYllf8e44nVpnMYhXv0E(3aT9leZ9OqIykd0srRveClYRi4KtzmOArv85hgm0o9lHoBXShBm(qJZfwc)vzSs1D8dQw7c2sfuNheLXKv3wJzus6MFPY2zNHQRP6L5jcdAVdA5g06Q8XnFdvYu2lxvx1YE5wm((FBYcxT88qpBhVS8kMv3XNwMUR6DsN9f2KfF3f03N6P1UZba(H7qwD(yp3NaVb4O6jP9CFgXseZk55oDZwkJl6r7kJ5KDY)INlkdACJbdTVjBfJ8ONR8iXe7fPxHFDMCfa4erMHiVpchjztjj6PvvJQZiBveSBrcpx4uyWmcYZ9D5bTNDop4K8a7uONJ2JdQTb8oYsOf1TIgacCHEVcbpDDzUQ6gWWkTN5ppgJEQBu2PpK8Gpanw2VNnBzdG2(SO1kP58pnKmqRQl2bkhnF1gJQY0iqWGUqqhJT2fe0Kvv5qHSUOlzzFQ2dumLrpGqg2Lq23qVhMHTTmB2m2q(dbQUSluDKNp(WucRz8BaDzZOcWFvlrynZZAOuh3XR3lYLPxSuVcEtYdKXAx)w0IV7XW1bU2CLxiH0V2cK0M(WapDnNUrQyRtYintA4aA5r8LDlRQo(AbkpVxlWSr1zdG(nnCVDKBw8VDKcjThkrARLoRhhZeNh4waA5DCyh2V8GlLGQZK8VHTdOfFx3wISQy1cDp82ikwvUbQADX9TSZ(93fq9k5lBeOyX8Y)uTC())1DrrJf7un8)nsxV3MDks2acvlX3ihVCn)2Q(vF7tHuPMR0pp41xRCElwRFEWzs1rfAUZY9ZdaV(E7juScC63u5Iw38rhUO1JBA4xABezDLS9LfP)c1yA2Qt0gPQBhXtTZgHPC3HZkSMTmESwU0IVBZlSKMYjJnmkLdxdmjwKFRImlEtgSQVXD6BZhYijAXyZgGyNrVTKW8dI6nvDdvvSRA6ADPw22rDjXYzSnOYSSEZjIo4bXl)FNQ(42700rdFKkOP4TY9w1ZuhU2D2TXrC1UhHgMApc47YB(aIwTMjOZCJTpLLL5b7mp5rRZjRDZzzuG3uFfw7SXmMrFRf6XmC95Y60xTE7QgEQTSLwDTPXBbOr7XNYG8l0E50wzB3ouMBMvzl7xZj9v5EqouABPvp5P5EDvgvXSEV1q)UwF3p0yznNURu11374TvwZQJ2BVtVTw6BzsJoF4AoKvBg)otbOhh2Rn19Ydlst9FE)3]] )

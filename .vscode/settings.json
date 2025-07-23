@@ -117,7 +117,8 @@
         "action",
         "pet",
         "class",
-        "level"
+        "level",
+        "apply_aspect"
     ],
     "Lua.runtime.version": "Lua 5.1",
     "Lua.runtime.builtin": {

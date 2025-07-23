@@ -34,7 +34,7 @@ end
 -- MoP compatible item and spell functions
 local GetItemCooldown = _G.GetItemCooldown or function(item)
     if type(item) == "number" then
-        return GetItemCooldown(item)
+        return _G.GetItemCooldown and _G.GetItemCooldown(item) or 0, 0
     else
         return 0, 0
     end
@@ -64,16 +64,16 @@ local GetSpellInfo = _G.GetSpellInfo
 
 -- MoP compatible item functions
 local GetItemSpell = _G.GetItemSpell or function(item)
-    local spellName, spellID = GetItemSpell(item)
+    local spellName, spellID = _G.GetItemSpell and _G.GetItemSpell(item) or nil, nil
     return spellName, spellID
 end
 
 local GetItemCount = _G.GetItemCount or function(item, includeBank, includeCharges)
-    return GetItemCount(item, includeBank, includeCharges) or 0
+    return _G.GetItemCount and _G.GetItemCount(item, includeBank, includeCharges) or 0
 end
 
 local IsUsableItem = _G.IsUsableItem or function(item)
-    local usable, noMana = IsUsableItem(item)
+    local usable, noMana = _G.IsUsableItem and _G.IsUsableItem(item) or false, false
     return usable, noMana
 end
 

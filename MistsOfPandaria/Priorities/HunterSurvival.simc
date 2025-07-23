@@ -27,8 +27,8 @@ actions+=/call_action_list,name=aoe,if=spell_targets.multi_shot>=3
 # 6. Burst Phase (when Explosive Shot is ready and cooldowns available)
 actions+=/call_action_list,name=burst,if=buff.lock_and_load.up
 
-# 7. Explosive Shot (Lock and Load priority)
-actions+=/explosive_shot,if=buff.lock_and_load.up
+# 7. Explosive Shot (Lock and Load priority - cast all 3 free shots)
+actions+=/explosive_shot,if=buff.lock_and_load.up&lock_and_load_shots>0
 
 # 8. Explosive Shot (added without Lock and Load condition)
 actions+=/explosive_shot,if=focus>=40
@@ -46,7 +46,7 @@ actions+=/arcane_shot,if=focus>=55&target.time_to_die>6
 actions+=/cobra_shot
 
 # BURST PHASE (when Explosive Shot is ready and cooldowns available)
-actions.burst+=/explosive_shot,if=buff.lock_and_load.up
+actions.burst+=/explosive_shot,if=buff.lock_and_load.up&lock_and_load_shots>0
 actions.burst+=/stampede,if=cooldown.stampede.ready
 actions.burst+=/rapid_fire,if=cooldown.rapid_fire.ready
 actions.burst+=/kill_shot,if=target.health.pct<=20
@@ -81,7 +81,7 @@ actions.cooldowns+=/blood_fury
 actions.cooldowns+=/potion,name=virmens_bite,if=buff.bloodlust.up
 
 # AOE ROTATION (3+ TARGETS)
-actions.aoe+=/explosive_shot,if=buff.lock_and_load.up
+actions.aoe+=/explosive_shot,if=buff.lock_and_load.up&lock_and_load_shots>0
 actions.aoe+=/multi_shot,if=focus>=70&spell_targets.multi_shot>=3
 actions.aoe+=/serpent_sting,if=!debuff.serpent_sting.up&target.time_to_die>15
 actions.aoe+=/explosive_shot,if=focus>=40

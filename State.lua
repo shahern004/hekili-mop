@@ -3324,7 +3324,7 @@ do
                 local start, duration = 0, 0
 
                 if id > 0 then
-                    start, duration = GetCooldown( id )
+                    start, duration = GetSpellCooldown( id )
                     local lossStart, lossDuration = GetSpellLossOfControlCooldown( id )
                     if lossStart and lossDuration and lossStart + lossDuration > start + duration then
                         start = lossStart
