@@ -2812,7 +2812,7 @@ if self.HasRecommendations then
         b.EmpowerLevel:ClearAllPoints()
         b.EmpowerLevel:SetPoint( empAnchor, b, empAnchor, conf.empowerment.x or 0, conf.empowerment.y or 0 )
         -- b.EmpowerLevel:SetHeight( b:GetHeight() * 0.6 )
-        b.EmpowerLevel:SetJustifyV( empAnchor:match("RIGHT") and "RIGHT" or ( empAnchor:match( "LEFT" ) and "LEFT" or "MIDDLE" ) )
+        b.EmpowerLevel:SetJustifyV( empAnchor:match("RIGHT") and "MIDDLE" or ( empAnchor:match( "LEFT" ) and "MIDDLE" or "MIDDLE" ) )
         b.EmpowerLevel:SetJustifyH( conf.empowerment.align or "CENTER" )
         b.EmpowerLevel:SetTextColor( unpack( conf.empowerment.color ) )
         b.EmpowerLevel:SetWordWrap( false )

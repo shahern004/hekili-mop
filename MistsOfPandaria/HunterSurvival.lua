@@ -641,7 +641,7 @@ spec:RegisterAuras( {
             spendType = "focus",
 
             startsCombat = true,
-            texture = 236176,
+            texture = 132215,
 
             handler = function ()
                 -- Refresh Serpent Sting if present
@@ -908,7 +908,7 @@ spec:RegisterAuras( {
             spendType = "focus",
 
             startsCombat = true,
-            texture = 236176,
+            texture = 132330,
 
             handler = function ()
                 -- Glaive Toss deals damage to target and enemies in line
@@ -925,7 +925,7 @@ spec:RegisterAuras( {
             spendType = "focus",
             
             startsCombat = true,
-            texture = 236176,
+            texture = 132215,
 
             handler = function ()
                 -- Power Shot deals damage and knocks back enemies
@@ -943,7 +943,7 @@ spec:RegisterAuras( {
             spendType = "focus",
 
             startsCombat = true,
-            texture = 236176,
+            texture = 132215,
 
             handler = function ()
                 applyBuff( "barrage" )
