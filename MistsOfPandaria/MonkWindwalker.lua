@@ -1,5 +1,4 @@
 -- MonkWindwalker.lua
--- Last Updated: July 22, 2025 - Reworked by Gemini
 -- A complete data-driven overhaul for Mists of Pandaria (MoP) Windwalker.
 
 -- Boilerplate and Class Check
