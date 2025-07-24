@@ -24,78 +24,58 @@ local strformat = string.format
     -- Use MoP power type numbers instead of Enum
     -- Focus = 2 in MoP Classic
     spec:RegisterResource( 2, {
-        -- Steady Shot focus generation (MoP standard: generates 14 focus)
         steady_shot = {
             resource = "focus",
+            cast = function(x) return x > 0 and x or nil end,
+            aura = function(x) return x > 0 and "casting" or nil end,
+
             last = function()
-                local app = (state.last_cast_time and state.last_cast_time.steady_shot) or 0
-                local t = state.query_time
-                return app + floor( ( t - app ) / 2.0 ) * 2.0
+                return state.buff.casting.applied
             end,
-            interval = function() return 2.0 / state.haste end, -- Standard 2.0s cast time in MoP
-            value = 14, -- Steady Shot generates 14 focus in MoP
+
+            interval = function() return state.buff.casting.duration end,
+            value = 9,
         },
 
-        -- Cobra Shot focus generation (MoP standard: generates 14 focus)
         cobra_shot = {
             resource = "focus",
+            cast = function(x) return x > 0 and x or nil end,
+            aura = function(x) return x > 0 and "casting" or nil end,
+
             last = function()
-                local app = (state.last_cast_time and state.last_cast_time.cobra_shot) or 0
-                local t = state.query_time
-                return app + floor( ( t - app ) / 2.0 ) * 2.0
+                return state.buff.casting.applied
             end,
-            interval = function() return 2.0 / state.haste end, -- Cast time
-            value = 14, -- Cobra Shot generates 14 focus in MoP
+
+            interval = function() return state.buff.casting.duration end,
+            value = 14,
         },
-        
-        -- Fervor talent focus restoration
-        fervor = {
-            resource = "focus",
-            aura = "fervor",
-            last = function()
-                local app = state.buff.fervor.applied
-                local t = state.query_time
-                return app + floor( ( t - app ) / 1 ) * 1
-            end,
-            interval = 1,
-            value = function() return state.buff.fervor.up and 50 or 0 end, -- Instant 50 focus
-        },
-        
-        -- Dire Beast focus generation (if talented)
+
         dire_beast = {
             resource = "focus",
             aura = "dire_beast",
+
             last = function()
                 local app = state.buff.dire_beast.applied
                 local t = state.query_time
+
                 return app + floor( ( t - app ) / 2 ) * 2
             end,
+
             interval = 2,
-            value = 2, -- Dire Beast generates 2 focus every 2 seconds
+            value = 5,
         },
-    }, {
-        -- Enhanced base focus regeneration for MoP
-        base_regen = 6, -- Base 6 focus per second in MoP
-        haste_scaling = true,
-        
-        regenerates = function()
-            local base = 6 * state.haste
-            local bonus = 0
-            
-            -- Aspect bonuses
-            if state.buff.aspect_of_the_iron_hawk.up then
-                bonus = bonus + 0.3 -- 30% increased focus regen
-            elseif state.buff.aspect_of_the_hawk.up then
-                bonus = bonus + 0.15 -- 15% increased focus regen
-            end
-            
-            -- Rapid Fire bonus
-            if state.buff.rapid_fire.up then
-                bonus = bonus + 0.5 -- 50% increased focus regen during Rapid Fire
-            end
-            
-            return base * (1 + bonus)
-        end,
+
+        fervor = {
+            resource = "focus",
+            aura = "fervor",
+
+            last = function()
+                return state.buff.fervor.applied
+            end,
+
+            interval = 0.1,
+            value = 50,
+        },
     } )
 
     -- Talents
@@ -1398,7 +1378,7 @@ end )
         -- 2. We need to maintain Serpent Sting
         -- 3. General focus generation
         
-        if focus.current > 86 then return false end -- Don't cast if we'll cap focus
+        if (focus.current or 0) > 86 then return false end -- Don't cast if we'll cap focus
         
         -- Always prioritize Cobra Shot for Survival
         return true
@@ -1431,7 +1411,7 @@ end )
         -- 2. When we have focus room
         -- 3. When maintaining DoTs
         
-        if focus.current < 25 then return false end
+        if (focus.current or 0) < 25 then return false end
         if cooldown.explosive_shot.ready then return false end -- Save focus for Explosive Shot
         
         return true
