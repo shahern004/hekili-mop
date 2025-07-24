@@ -110,7 +110,7 @@ local function RegisterBrewmasterSpec()
     }, {
         -- Enhanced base energy regeneration for MoP Brewmaster
         base_regen = 10, -- Base 10 energy per second in MoP
-        haste_scaling = false, -- Energy doesn't scale with haste in MoP
+        haste_scaling = true, -- Energy doesn't scale with haste in MoP
         
         regenerates = function()
             local base = 10 -- Standard energy regen
