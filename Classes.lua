@@ -40,7 +40,8 @@ local GetItemCooldown = _G.GetItemCooldown or function(item)
     end
 end
 
-local GetSpellDescription = _G.GetSpellDescription or function(spellID)
+-- Use modern C_Spell.GetSpellDescription when available, fallback to deprecated GetSpellDescription for older versions
+local GetSpellDescription = (C_Spell and C_Spell.GetSpellDescription) or _G.GetSpellDescription or function(spellID)
     local tooltip = CreateFrame("GameTooltip", "HekiliTooltip", nil, "GameTooltipTemplate")
     tooltip:SetSpell(spellID)
     return _G[tooltip:GetName() .. "TextLeft2"]:GetText() or ""

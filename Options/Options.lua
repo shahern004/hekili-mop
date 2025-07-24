@@ -4996,9 +4996,9 @@ found = true end
                                             local spell = Hekili:GetPetBasedTargetSpell()
                                             local link = Hekili:GetSpellLinkWithTexture( spell )
 
-                                            msg = msg .. "\n\n" .. link .. "|w|r is on your action bar and will be used for all your " .. UnitClass( "player" ) .. " pets."
+                                            msg = msg .. "\n\n" .. link .. "|w|r is configured and will be used for all your " .. UnitClass( "player" ) .. " pets."
                                         else
-                                            msg = msg .. "\n\n|cFFFF0000Requires pet ability on one of your action bars.|r"
+                                            msg = msg .. "\n\n|cFFFFD100Note:|r Pet-based detection will automatically check your pet's action bar for suitable abilities."
                                         end
 
                                         if GetCVar( "nameplateShowEnemies" ) == "1" then
@@ -5022,7 +5022,10 @@ found = true end
                                         local out
 
                                         if not self:HasPetBasedTargetSpell() then
-                                            out = "For pet-based detection to work, you must take an ability from your |cFF00FF00pet's spellbook|r and place it on one of |cFF00FF00your|r action bars.\n\n"
+                                            out = "Pet-based detection will automatically check your pet's action bar for suitable abilities.\n\n"
+                                            out = out .. "|cFFFFD100Setup Methods:|r\n"
+                                            out = out .. "• |cFF00FF00Automatic|r: Pet abilities on pet action bar (recommended)\n"
+                                            out = out .. "• |cFF00FF00Macro|r: Create a macro with (/cast [@pet] Bite) or (/cast [@pet] Whiplash) and place on action bar\n\n"
                                             local spells = Hekili:GetPetBasedTargetSpells()
 
                                             if not spells then return " " end
@@ -5076,9 +5079,9 @@ found = true end
 
                                         if GetCVar( "nameplateShowEnemies" ) ~= "1" then
                                             if not out then
-                                                out = "|cFFFF0000WARNING!|r  Pet-based target detection requires |cFFFFD100enemy nameplates|r to be enabled."
+                                                out = "|cFFFFD100Note:|r Pet-based detection works without nameplates, but will only detect your target and focus."
                                             else
-                                                out = out .. "\n\n|cFFFF0000WARNING!|r  Pet-based target detection requires |cFFFFD100enemy nameplates|r to be enabled."
+                                                out = out .. "\n\n|cFFFFD100Note:|r Pet-based detection works without nameplates, but will only detect your target and focus."
                                             end
                                         end
 
@@ -5089,7 +5092,7 @@ found = true end
                                     disabled = function ( info, val )
                                         if Hekili:GetPetBasedTargetSpells() == nil then return true end
                                         if self.DB.profile.specs[ id ].petbased == false then return true end
-                                        if self:HasPetBasedTargetSpell() and GetCVar( "nameplateShowEnemies" ) == "1" then return true end
+                                        if self:HasPetBasedTargetSpell() then return true end
 
                                         return false
                                     end,
