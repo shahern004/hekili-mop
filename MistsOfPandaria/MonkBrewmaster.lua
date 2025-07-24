@@ -297,4 +297,3 @@ if not TryRegister() then
     end)
 end
 
-print("Brewmaster: Data-Driven Rework V6.0 (FINAL CORRECTED) loaded.")
