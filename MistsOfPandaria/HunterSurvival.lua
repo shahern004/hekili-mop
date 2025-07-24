@@ -19,86 +19,83 @@ local strformat = string.format
 
     local spec = Hekili:NewSpecialization( 255, true )
 
--- Combat log tracking for Survival mechanics
-local survivalCombatLogEvents = {}
 
-local function RegisterSurvivalCombatLogEvent(event, callback)
-    if not survivalCombatLogEvents[event] then
-        survivalCombatLogEvents[event] = {}
-    end
-    table.insert(survivalCombatLogEvents[event], callback)
-end
-
--- Combat log frame for Survival-specific tracking
-local survivalCombatLogFrame = CreateFrame("Frame")
-survivalCombatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-survivalCombatLogFrame:SetScript("OnEvent", function(self, event)
-    local timestamp, subevent, _, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags = CombatLogGetCurrentEventInfo()
-    
-    if sourceGUID == UnitGUID("player") then
-        if survivalCombatLogEvents[subevent] then
-            for _, callback in ipairs(survivalCombatLogEvents[subevent]) do
-                callback(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, select(12, CombatLogGetCurrentEventInfo()))
-            end
-        end
-    end
-end)
 
     -- Use MoP power type numbers instead of Enum
     -- Focus = 2 in MoP Classic
     spec:RegisterResource( 2, {
+        -- Steady Shot focus generation (MoP standard: generates 14 focus)
         steady_shot = {
             resource = "focus",
-            cast = function(x) return x > 0 and x or nil end,
-            aura = function(x) return x > 0 and "casting" or nil end,
-
             last = function()
-                return state.buff.casting.applied
+                local app = state.last_cast_time.steady_shot or 0
+                local t = state.query_time
+                return app + floor( ( t - app ) / 2.0 ) * 2.0
             end,
-
-            interval = function() return state.buff.casting.duration end,
-            value = 9,
+            interval = function() return 2.0 / state.haste end, -- Standard 2.0s cast time in MoP
+            value = 14, -- Steady Shot generates 14 focus in MoP
         },
 
+        -- Cobra Shot focus generation (MoP standard: generates 14 focus)
         cobra_shot = {
             resource = "focus",
-            cast = function(x) return x > 0 and x or nil end,
-            aura = function(x) return x > 0 and "casting" or nil end,
-
             last = function()
-                return state.buff.casting.applied
-            end,
-
-            interval = function() return state.buff.casting.duration end,
-            value = 14,
-        },
-
-        dire_beast = {
-            resource = "focus",
-            aura = "dire_beast",
-
-            last = function()
-                local app = state.buff.dire_beast.applied
+                local app = state.last_cast_time.cobra_shot or 0
                 local t = state.query_time
-
-                return app + floor( ( t - app ) / 2 ) * 2
+                return app + floor( ( t - app ) / 2.0 ) * 2.0
             end,
-
-            interval = 2,
-            value = 5,
+            interval = function() return 2.0 / state.haste end, -- Cast time
+            value = 14, -- Cobra Shot generates 14 focus in MoP
         },
-
+        
+        -- Fervor talent focus restoration
         fervor = {
             resource = "focus",
             aura = "fervor",
-
             last = function()
-                return state.buff.fervor.applied
+                local app = state.buff.fervor.applied
+                local t = state.query_time
+                return app + floor( ( t - app ) / 1 ) * 1
             end,
-
-            interval = 0.1,
-            value = 50,
+            interval = 1,
+            value = function() return state.buff.fervor.up and 50 or 0 end, -- Instant 50 focus
         },
+        
+        -- Dire Beast focus generation (if talented)
+        dire_beast = {
+            resource = "focus",
+            aura = "dire_beast",
+            last = function()
+                local app = state.buff.dire_beast.applied
+                local t = state.query_time
+                return app + floor( ( t - app ) / 2 ) * 2
+            end,
+            interval = 2,
+            value = 2, -- Dire Beast generates 2 focus every 2 seconds
+        },
+    }, {
+        -- Enhanced base focus regeneration for MoP
+        base_regen = 6, -- Base 6 focus per second in MoP
+        haste_scaling = true,
+        
+        regenerates = function()
+            local base = 6 * state.haste
+            local bonus = 0
+            
+            -- Aspect bonuses
+            if state.buff.aspect_of_the_iron_hawk.up then
+                bonus = bonus + 0.3 -- 30% increased focus regen
+            elseif state.buff.aspect_of_the_hawk.up then
+                bonus = bonus + 0.15 -- 15% increased focus regen
+            end
+            
+            -- Rapid Fire bonus
+            if state.buff.rapid_fire.up then
+                bonus = bonus + 0.5 -- 50% increased focus regen during Rapid Fire
+            end
+            
+            return base * (1 + bonus)
+        end,
     } )
 
     -- Talents
@@ -106,7 +103,7 @@ end)
         -- Tier 1 (Level 15)
         posthaste = { 1, 1, 109215 }, -- Disengage also frees you from all movement impairing effects and increases your movement speed by 60% for 4 sec.
         narrow_escape = { 1, 2, 109298 }, -- When Disengage is activated, you also activate a web trap which encases all targets within 8 yards in sticky webs, preventing movement for 8 sec. Damage caused may interrupt the effect.
-        crouching_tiger_hidden_chimera = { 1, 3, 109215 }, -- Reduces the cooldown of Disengage by 6 sec and Deterrence by 10 sec.
+        crouching_tiger_hidden_chimera = { 1, 3, 118675 }, -- Reduces the cooldown of Disengage by 6 sec and Deterrence by 10 sec.
 
         -- Tier 2 (Level 30)
         binding_shot = { 2, 1, 109248 }, -- Your next Arcane Shot, Chimera Shot, or Multi-Shot also deals 50% of its damage to all other enemies within 8 yards of the target, and reduces the movement speed of those enemies by 50% for 4 sec.
@@ -121,7 +118,7 @@ end)
         -- Tier 4 (Level 60)
         fervor = { 4, 1, 82726 }, -- Instantly resets the cooldown on your Kill Command and causes you and your pet to generate 50 Focus over 3 sec.
         dire_beast = { 4, 2, 120679 }, -- Summons a powerful wild beast that attacks your target and roars, increasing your Focus regeneration by 50% for 8 sec.
-        thrill_of_the_hunt = { 4, 3, 109306 }, -- Your successful Auto Shots have a 30% chance to make your next Arcane Shot, Chimera Shot, or Aimed Shot cost no Focus.
+        thrill_of_the_hunt = { 4, 3, 34720 }, -- You have a 30% chance when you fire a ranged attack that costs Focus to reduce the Focus cost of your next 3 Arcane Shots or Multi-Shots by 20.
 
         -- Tier 5 (Level 75)
         a_murder_of_crows = { 5, 1, 131894 }, -- Sends a murder of crows to attack the target, dealing 0 Physical damage over 15 sec. If the target dies while under attack, A Murder of Crows' cooldown is reset.
@@ -227,7 +224,7 @@ spec:RegisterAuras( {
     },
 
         thrill_of_the_hunt = {
-            id = 109306,
+            id = 34720,
             duration = 8,
             max_stack = 1
         },
@@ -392,8 +389,8 @@ spec:RegisterAuras( {
 
         explosive_shot = {
             id = 53301,
-        duration = 4,
-            max_stack = 1,
+            duration = 4, -- DoT duration
+            max_stack = 1
         },
 
         stampede = {
@@ -407,6 +404,54 @@ spec:RegisterAuras( {
             id = 13813,
             duration = 20,
             max_stack = 1
+        },
+
+        -- === PET ABILITY AURAS ===
+        -- Pet basic abilities
+        pet_dash = {
+            id = 61684,
+            duration = 16,
+            max_stack = 1,
+            generate = function( t )
+                if state.pet.alive then
+                    t.count = 1
+                    t.expires = 0
+                    t.applied = 0
+                    t.caster = "pet"
+                    return
+                end
+                t.count = 0
+                t.expires = 0
+                t.applied = 0
+                t.caster = "nobody"
+            end,
+        },
+        
+        pet_prowl = {
+            id = 24450,
+            duration = 3600,
+            max_stack = 1,
+            generate = function( t )
+                if state.pet.alive and state.pet.family == "cat" then
+                    t.count = 1
+                    t.expires = 0
+                    t.applied = 0
+                    t.caster = "pet"
+                    return
+                end
+                t.count = 0
+                t.expires = 0
+                t.applied = 0
+                t.caster = "nobody"
+            end,
+        },
+        
+        -- Pet debuffs on targets
+        growl = {
+            id = 2649,
+            duration = 3,
+            max_stack = 1,
+            type = "Taunt",
         },
 
         
@@ -478,20 +523,31 @@ spec:RegisterAuras( {
 
         cobra_shot = {
             id = 77767,
-            cast = function() return 2 / haste end,
+            cast = function() return 2.0 / haste end,
             cooldown = 0,
             gcd = "spell",
             school = "nature",
             spend = function () return buff.thrill_of_the_hunt.up and 0 or -14 end,
             spendType = "focus",
             startsCombat = true,
+            
             handler = function ()
                 if buff.thrill_of_the_hunt.up then
                     removeBuff( "thrill_of_the_hunt" )
                 end
                 
-                -- Apply Cobra Shot debuff
-                applyDebuff( "target", "cobra_shot" )
+                -- Cobra Shot maintains Serpent Sting in MoP (key Survival mechanic)
+                if debuff.serpent_sting.up then
+                    debuff.serpent_sting.expires = debuff.serpent_sting.expires + 6
+                    if debuff.serpent_sting.expires > query_time + 15 then
+                        debuff.serpent_sting.expires = query_time + 15 -- Cap at max duration
+                    end
+                end
+                
+                -- Thrill of the Hunt proc chance (30% on focus-costing shots)
+                if talent.thrill_of_the_hunt.enabled and math.random() <= 0.3 then
+                    applyBuff( "thrill_of_the_hunt", 20 )
+                end
             end,
         },
 
@@ -539,7 +595,20 @@ spec:RegisterAuras( {
             startsCombat = true,
 
             handler = function ()
+                -- Apply Multi-Shot buff for tracking
                 applyBuff( "multi_shot" )
+                
+                -- Serpent Spread: Multi-Shot spreads Serpent Sting to all targets hit (Survival passive)
+                if debuff.serpent_sting.up then
+                    -- In MoP, Multi-Shot spreads Serpent Sting to all enemies within range
+                    applyDebuff( "target", "serpent_sting" )
+                    -- Note: In a real implementation, this would spread to all targets in AoE range
+                end
+                
+                -- Thrill of the Hunt proc chance (30% chance for Multi-Shot to proc in MoP)
+                if talent.thrill_of_the_hunt.enabled and math.random() <= 0.3 then
+                    applyBuff( "thrill_of_the_hunt", 20 )
+                end
             end,
         },
 
@@ -559,7 +628,7 @@ spec:RegisterAuras( {
 
         steady_shot = {
             id = 56641,
-            cast = function() return 2 / haste end,
+            cast = function() return 2.0 / haste end,
             cooldown = 0,
             gcd = "spell",
             school = "physical",
@@ -574,11 +643,16 @@ spec:RegisterAuras( {
                 if buff.thrill_of_the_hunt.up then
                     removeBuff( "thrill_of_the_hunt" )
                 end
+                
+                -- Thrill of the Hunt proc chance (30% on focus-costing shots)
+                if talent.thrill_of_the_hunt.enabled and math.random() <= 0.3 then
+                    applyBuff( "thrill_of_the_hunt", 20 )
+                end
             end,
         },
 
         serpent_sting = {
-            id = 1978,
+            id = 118253,
             cast = 0,
             cooldown = 0,
             gcd = "spell",
@@ -597,7 +671,7 @@ spec:RegisterAuras( {
         explosive_shot = {
             id = 53301,
             cast = 0,
-            cooldown = 6,
+            cooldown = 6, -- 6-second cooldown in MoP
             gcd = "spell",
             
             spend = function() return buff.lock_and_load.up and 0 or 25 end,
@@ -606,12 +680,22 @@ spec:RegisterAuras( {
             startsCombat = true,
 
             handler = function ()
+                -- Apply Explosive Shot DoT (fires a shot that explodes after a delay)
                 applyDebuff( "target", "explosive_shot" )
                 
-                -- If this was a Lock and Load shot, reduce the count
+                -- Handle Lock and Load charge consumption
                 if buff.lock_and_load.up then
-                    -- This will be handled by the state expression
+                    -- In MoP, Lock and Load gives 3 free Explosive Shots
+                    -- The buff should be consumed when all charges are used
+                    -- Note: This is simplified - real implementation would track charges
+                    local remaining = lock_and_load_shots - 1
+                    if remaining <= 0 then
+                        removeBuff( "lock_and_load" )
+                    end
                 end
+                
+                -- Explosive Shot is the signature Survival ability
+                -- It does high fire damage and is central to the rotation
             end,
         },
 
@@ -715,18 +799,16 @@ spec:RegisterAuras( {
             end,
         },
 
+        -- === AUTO SHOT (PASSIVE) ===
         auto_shot = {
             id = 75,
             cast = 0,
-            cooldown = 0,
+            cooldown = function() return ranged_speed or 2.8 end,
             gcd = "off",
+            school = "physical",
             
             startsCombat = true,
             texture = 132215,
-            
-            handler = function ()
-                -- Auto Shot is automatic
-            end,
         },
 
         kill_shot = {
@@ -879,6 +961,88 @@ spec:RegisterAuras( {
             
             handler = function ()
                 -- dismissPet() handled by the system
+            end,
+        },
+
+        -- === BASIC PET ABILITIES ===
+        pet_growl = {
+            id = 2649,
+            cast = 0,
+            cooldown = 5,
+            gcd = "off",
+            school = "physical",
+
+            startsCombat = true,
+
+            usable = function() return pet.alive, "requires a living pet" end,
+
+            handler = function ()
+                -- Pet taunt - forces target to attack pet
+                applyDebuff( "target", "growl", 3 )
+            end,
+        },
+
+        pet_claw = {
+            id = 16827,
+            cast = 0,
+            cooldown = 6,
+            gcd = "off",
+            school = "physical",
+
+            startsCombat = true,
+
+            usable = function() return pet.alive and pet.family == "cat", "requires cat pet" end,
+
+            handler = function ()
+                -- Basic cat attack
+            end,
+        },
+
+        pet_bite = {
+            id = 17253,
+            cast = 0,
+            cooldown = 6,
+            gcd = "off",
+            school = "physical",
+
+            startsCombat = true,
+
+            usable = function() return pet.alive and (pet.family == "wolf" or pet.family == "dog"), "requires wolf or dog pet" end,
+
+            handler = function ()
+                -- Basic canine attack
+            end,
+        },
+
+        pet_dash = {
+            id = 61684,
+            cast = 0,
+            cooldown = 30,
+            gcd = "off",
+            school = "physical",
+
+            startsCombat = false,
+
+            usable = function() return pet.alive, "requires a living pet" end,
+
+            handler = function ()
+                applyBuff( "pet_dash", 16 )
+            end,
+        },
+
+        pet_prowl = {
+            id = 24450,
+            cast = 0,
+            cooldown = 0,
+            gcd = "off",
+            school = "physical",
+
+            startsCombat = false,
+
+            usable = function() return pet.alive and pet.family == "cat", "requires cat pet" end,
+
+            handler = function ()
+                applyBuff( "pet_prowl" )
             end,
         },
 
@@ -1168,20 +1332,31 @@ spec:RegisterAuras( {
     spec:RegisterGear( "tier14", 84242, 84243, 84244, 84245, 84246 )
 
 -- Combat log event handlers for Survival mechanics
-RegisterSurvivalCombatLogEvent( "SPELL_CAST_SUCCESS", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
+spec:RegisterCombatLogEvent( function( _, subtype, _, sourceGUID, sourceName, sourceFlags, _, destGUID, destName, destFlags, _, spellID, spellName )
+    if sourceGUID ~= state.GUID then return end
+    
     -- Track auto shot for Thrill of the Hunt procs
-    if spellID == 75 then -- Auto Shot
+    if ( subtype == "SPELL_CAST_SUCCESS" or subtype == "SPELL_DAMAGE" ) and spellID == 75 then -- Auto Shot
         if state.talent.thrill_of_the_hunt.enabled and math.random() <= 0.3 then -- 30% chance
             state.applyBuff( "thrill_of_the_hunt", 8 )
         end
     end
-end )
-
-RegisterSurvivalCombatLogEvent( "SPELL_DAMAGE", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing, isOffHand)
-    -- Alternative tracking for auto shot hits (in case SPELL_CAST_SUCCESS doesn't capture all auto shots)
-    if spellID == 75 then -- Auto Shot
-        if state.talent.thrill_of_the_hunt.enabled and math.random() <= 0.3 then -- 30% chance
-            state.applyBuff( "thrill_of_the_hunt", 8 )
+    
+    -- Lock and Load procs from Auto Shot crits and other ranged abilities
+    if subtype == "SPELL_DAMAGE" and ( spellID == 75 or spellID == 2643 or spellID == 3044 ) then -- Auto Shot, Multi-Shot, Arcane Shot
+        if state.talent.lock_and_load.enabled then
+            local crit_chance = math.random()
+            -- 15% chance for Lock and Load to proc on ranged crits in MoP
+            if crit_chance <= 0.15 then
+                state.applyBuff( "lock_and_load", 8 ) -- 8-second duration, 3 charges
+            end
+        end
+    end
+    
+    -- Lock and Load procs from trap activation (important Survival mechanic)
+    if subtype == "SPELL_CAST_SUCCESS" and ( spellID == 1499 or spellID == 13813 or spellID == 13809 ) then -- Freezing, Explosive, Ice Trap
+        if state.talent.lock_and_load.enabled and math.random() <= 0.25 then -- 25% chance from traps
+            state.applyBuff( "lock_and_load", 8 )
         end
     end
 end )
@@ -1212,6 +1387,54 @@ end )
 
     spec:RegisterStateExpr( "bloodlust", function()
         return buff.bloodlust
+    end )
+
+    -- === SHOT ROTATION STATE EXPRESSIONS ===
+    
+    -- For Survival, Cobra Shot is the primary focus generator and maintains Serpent Sting
+    spec:RegisterStateExpr( "should_cobra_shot", function()
+        -- Cobra Shot is preferred for Survival when:
+        -- 1. We need focus and aren't at cap
+        -- 2. We need to maintain Serpent Sting
+        -- 3. General focus generation
+        
+        if focus.current > 86 then return false end -- Don't cast if we'll cap focus
+        
+        -- Always prioritize Cobra Shot for Survival
+        return true
+    end )
+    
+    -- Steady Shot is not used in Survival, only as emergency fallback
+    spec:RegisterStateExpr( "should_steady_shot", function()
+        -- Survival should never use Steady Shot - always use Cobra Shot for focus generation
+        return false
+    end )
+    
+    -- Focus management for Explosive Shot priority
+    spec:RegisterStateExpr( "focus_spender_threshold", function()
+        -- Survival focus priorities:
+        -- Explosive Shot: 25 focus (highest priority)
+        -- Black Arrow: 35 focus
+        -- Arcane Shot: 20 focus
+        
+        -- During Lock and Load, save focus for multiple Explosive Shots
+        if buff.lock_and_load.up then return 50 end
+        
+        -- Normal threshold allows for Explosive Shot priority
+        return 75
+    end )
+    
+    -- Determines priority for shot rotation based on buffs and cooldowns
+    spec:RegisterStateExpr( "optimal_shot_window", function()
+        -- Optimal windows for Survival shot rotation:
+        -- 1. When Explosive Shot is on cooldown
+        -- 2. When we have focus room
+        -- 3. When maintaining DoTs
+        
+        if focus.current < 25 then return false end
+        if cooldown.explosive_shot.ready then return false end -- Save focus for Explosive Shot
+        
+        return true
     end )
 
     -- Options
