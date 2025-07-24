@@ -74,7 +74,7 @@ spec:RegisterResource( 2, { -- Focus = 2 in MoP
     steady_shot = {
         resource = "focus",
         last = function()
-            local app = state.last_cast_time.steady_shot or 0
+            local app = (state.last_cast_time and state.last_cast_time.steady_shot) or 0
             local t = state.query_time
             return app + floor( ( t - app ) / 2.0 ) * 2.0
         end,
@@ -86,7 +86,7 @@ spec:RegisterResource( 2, { -- Focus = 2 in MoP
     cobra_shot = {
         resource = "focus",
         last = function()
-            local app = state.last_cast_time.cobra_shot or 0
+            local app = (state.last_cast_time and state.last_cast_time.cobra_shot) or 0
             local t = state.query_time
             return app + floor( ( t - app ) / 2.0 ) * 2.0
         end,

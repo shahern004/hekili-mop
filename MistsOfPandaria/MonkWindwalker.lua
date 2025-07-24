@@ -174,7 +174,7 @@ local function RegisterWindwalkerSpec()
         -- Chi Brew instant generation (Windwalker talent)
         chi_brew_generation = {
             last = function ()
-                return state.last_cast_time.chi_brew or 0
+                return (state.last_cast_time and state.last_cast_time.chi_brew) or 0
             end,
             interval = 1,
             value = function()

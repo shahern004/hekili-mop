@@ -21,23 +21,23 @@ local spec = Hekili:NewSpecialization( 253, true )
     -- Use MoP power type numbers instead of Enum
     -- Focus = 2 in MoP Classic
     spec:RegisterResource( 2, {
-        -- Steady Shot focus generation (MoP standard: generates 14 focus)
+                -- Steady Shot focus generation (MoP standard: generates 14 focus)
         steady_shot = {
             resource = "focus",
             last = function()
-                local app = state.last_cast_time.steady_shot or 0
+                local app = (state.last_cast_time and state.last_cast_time.steady_shot) or 0
                 local t = state.query_time
                 return app + floor( ( t - app ) / 2.0 ) * 2.0
             end,
             interval = function() return 2.0 / state.haste end, -- Standard 2.0s cast time in MoP
             value = 14, -- Steady Shot generates 14 focus in MoP
         },
-        
+
         -- Cobra Shot focus generation (MoP standard: generates 14 focus)
         cobra_shot = {
             resource = "focus",
             last = function()
-                local app = state.last_cast_time.cobra_shot or 0
+                local app = (state.last_cast_time and state.last_cast_time.cobra_shot) or 0
                 local t = state.query_time
                 return app + floor( ( t - app ) / 2.0 ) * 2.0
             end,
