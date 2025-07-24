@@ -1,6 +1,6 @@
--- MoP Brewmaster Monk (Data-Driven Rework V6.0)
+-- MoP Brewmaster Monk
 -- Hekili Specialization File
--- Last Updated: July 22, 2025
+-- Update July 23, 2025
 
 -- Boilerplate and Class Check
 if not Hekili or not Hekili.NewSpecialization then return end
@@ -47,18 +47,17 @@ local function RegisterBrewmasterSpec()
 
     --[[
         Resource registration for Energy (3) and Chi (12).
+        This section is now correctly structured to prevent LUA errors.
     ]]
-    spec:RegisterResource(3, { -- Energy
-        base_regen = function()
-            local base = 10
-            if state.talent.ascension.enabled then base = base * 1.15 end
-            if state.buff.energizing_brew.up then base = base + 20 end
-            return base * state.haste
-        end,
-    })
-    spec:RegisterResource(12, { -- Chi
-        max = function() return state.talent.ascension.enabled and 5 or 4 end,
-    })
+    spec:RegisterResource(3, -- Energy
+        {} -- The 'regen' table is empty because Energy does not have discrete gain events.
+    )
+    spec:RegisterResource(12, -- Chi
+        {}, -- The 'regen' table is empty because Chi does not passively regenerate.
+        {   -- The 'model' table contains other properties like 'max'.
+            max = function() return state.talent.ascension.enabled and 5 or 4 end
+        }
+    )
 
     --[[
         Comprehensive Gear, Talent, and Glyph Registration
@@ -151,14 +150,14 @@ local function RegisterBrewmasterSpec()
     spec:RegisterAbilities({
         -- Core Rotational Abilities
         keg_smash = { id = 121253, cooldown = 8, spend = 40, spendType = "energy",
-            handler = function() state.gainResource(2, "chi"); state.applyDebuff("target", "weakened_blows", 30) end },
+            handler = function() state.gain(2, "chi"); state.applyDebuff("target", "weakened_blows", 30) end },
         blackout_kick = { id = 100784, spend = 2, spendType = "chi",
             handler = function() state.applyBuff("player", "shuffle", 6) end },
         jab = { id = 100780, spend = 40, spendType = "energy",
-            handler = function() state.gainResource(1, "chi") end },
+            handler = function() state.gain(1, "chi") end },
         tiger_palm = { id = 100787, spend = 25, spendType = "energy" },
         expel_harm = { id = 115072, cooldown = 15, spend = 40, spendType = "energy",
-            handler = function() state.gainResource(1, "chi") end },
+            handler = function() state.gain(1, "chi") end },
         breath_of_fire = { id = 115181, spend = 2, spendType = "chi",
             handler = function() state.applyDebuff("target", "breath_of_fire_dot", 8) end },
 
@@ -184,13 +183,13 @@ local function RegisterBrewmasterSpec()
         fortifying_brew = { id = 115203, cooldown = 180, toggle = "cooldowns",
             handler = function() state.applyBuff("player", "fortifying_brew", 20) end },
         energizing_brew = { id = 115288, cooldown = 60, toggle = "cooldowns",
-            handler = function() state.applyBuff("player", "energizing_brew", 20); state.gainResource(state.chi.max, "chi") end },
+            handler = function() state.applyBuff("player", "energizing_brew", 20); state.gain(state.chi.max, "chi") end },
         invoke_xuen = { id = 123904, cooldown = 180, toggle = "cooldowns", talent = "invoke_xuen" },
         summon_black_ox_statue = { id = 115315, cooldown = 30, toggle = "cooldowns" },
 
         -- Talent Abilities
         chi_brew = { id = 115399, cooldown = 45, charges = 2, talent = "chi_brew",
-            handler = function() state.gainResource(2, "chi"); state.addBuffStack("player", "elusive_brew_stack", 2) end },
+            handler = function() state.gain(2, "chi"); state.addStack("elusive_brew_stack", nil, 2) end },
         chi_wave = { id = 115098, cooldown = 15, talent = "chi_wave" },
 
         -- Defensives / Utility
@@ -231,8 +230,10 @@ local function RegisterBrewmasterSpec()
         return math.min(time_to_keg, energy_for_kick)
     end)
     spec:RegisterStateExpr("time_to_die", function()
-        if state.stagger_dtps == 0 and state.unmitigated_dtps == 0 then return 999 end
+        -- NOTE: unmitigated_dtps is not tracked by this script, so time_to_die will only factor in Stagger.
+        if state.stagger_dtps == 0 then return 999 end
         local total_dtps = state.stagger_dtps + (state.unmitigated_dtps or 0)
+        if total_dtps == 0 then return 999 end
         return state.health.current / total_dtps
     end)
 
@@ -246,7 +247,7 @@ local function RegisterBrewmasterSpec()
 
     RegisterBMCombatLogEvent("SPELL_DAMAGE", function(timestamp, subevent, sourceGUID, destGUID, spellID, amount, critical)
         if sourceGUID == state.GUID and critical and (spellID == 100780 or spellID == 115072 or spellID == 121253) then
-            state.addBuffStack("player", 128938, 1) -- Elusive Brew Stack
+            state.addStack(128938, nil, 1) -- Elusive Brew Stack
         end
     end)
 
@@ -273,7 +274,8 @@ local function RegisterBrewmasterSpec()
     })
 
     -- Default APL Pack
-    spec:RegisterPack("Brewmaster", 20250724, [[Hekili:vEvBZTTnm4)nURDnQo2XTzBX5U1RFyn3wVEZD9l7QKOLGSynLOgjvC8UC63(aOKSOSLCY(qDJibFWdaXle(x6)f)vXmd4)PztNTy67Mn37Y3n)Qz(Rm7la)vfSOTSn4FKZYWFFVc2rlUxizX0z1YsveUH)Q1LCH5J5(RhcWzlwGYwar4YV9A)vP84yOwwqh5V6lPCDvi9pwvyJoRcLj43rgUmVkuW1gC7ePQk83GTCb3ZFLDrIgrsPiwUlN(4twJcYzRfqS)7XnvCdO4m0Myci34XZVxUfcEOeY9ALBvTI8x5SPVbP7OGb5GAZEVOsLcbTk8MLvHxnTkCsvyukV)6x2HV9y8)LNVjyn5nrDm)PimINv4w2oSsOfYypufErv4Sof2EyutgYFNWkfMd(PwP2cBc0zmDQltoR9J4wfElQ3zw68dvHRlts80P4VcWtbzmEUUMAZRcF8XQqnymOHR9kussX3dbnIBHy8ZVjkU20ELfRx2X71cmArwAc2YJ2EENzkWeMuVcaJyB9zxVO1xIFFWf6CB9qbicszQmc7REUoJyWAlOBNzsdKjbjCfeelnEuuQvKg7hdhY4GU5Wo2vVJskFXtfLOk1Puy13zXqWoEE8XHl1k5YoF9PNGOxhjozFIhVDuEmKjn3QTrzymxFu(NUGNNtcfPy5WHR13DEx)XX)ojCFNTMa46NY9r5j7y3dNwsODhcMF6zxpGS(RN2HIHVbubfmr2HmrixJoSNOOL2W2qNua3dIAy7YJkv8K9TB17wUtX1c5wWz8K6HYroOTnLmvCqTibMufOtXYU91RtiSv8ZNsAJcbrj5gSSlaT2OTE2FpYw7j2bT7KQ6S)5twpRrIDymKpTXmlImwdKNhjZiFymldBofSOj((ySWcut9w0XQg4C9(pzImQIci3w1Pxk8q8EX0))07Qo65OQZNB3snEssPgcqLWJ6rUdmWU1ZIhZD4HlU15hfkarCn70Evy0rEeq1gnPyhetPkEFG8H(DUSySJPOAjA6fgypgEwbED08kIx00k8fvHk4FkXQSOHOLzOCSsJmdFetmfyZY3aAVQ7SiKifcjw5AdjKIHw3oqHRJCpM8byPosm3xTq1AnTYLlTQVmVN0XXKW4ZMyRzA4NRUZwd7KQL463v)sjS)zcN6AsFKX1AlJ0Lfo23gQGepc1HINVfmOnewf(rt9HSo3mipM4TjLHlJfru7jS5s8AFV9kvugtvYbosuvlX(7)sdesqM(BVgTSuEuQR0S89DATXMXgPcEe3i6W11f0Q0FbF1NQvnFPgcSy23iqJDxAMJM3XfchlQbstROwVHDP8YS1q99Sa7fxD3hTbe0cxD0tnXnXaUstQuHbpSi566N(w749xDbsW)q(5Qq6jX47MW0eAHCSQ1V(5FV6oA)VckTfXl9MATO6hUwf(b8M(IpOWQv4M)jStQWJ913IsDx9jTXAV4qgWlooIsvsVmsIzby0fGgi()1IIMMHPS8V(i0JTAGz5ijo91AxFPtulV9f4S1ODySn5RJDWAXLuRG1hYfW3VyFoGyVxn6TgF9Tvukqv4rEqXsuCqbtXecQp2omARkCpoAbgCZO9usdJiIJv1rZL9BW9AEYYE9mVD5G9lNG9SUD5LdH4pU8n2Mxeu9RCDZYNOBynQZgbv3Eue4NT)NdVhU33ik5OwoN1ioTB3KtBLC7rN)vyhUr0Tt)esVJ3qBYXuAX0NNMVAmn72bXv3d1XAYyDRgqHZ7NECyuZXZoAJC)o9HmPHKVP0qjn7Pm1giCcNpS2sNbqDmJbMzDGdtHy9NVKGO)ltVz5vtN4m84nU5aUi1o4OdloEq0(408a8lMDsbLM(SN6VgkjNj66h0u7G6Avx3GkWaparL2Q2jkzgwerwq)GBkngAbshnDZS1z68ZlpmN7HLqlT3qKK5wNep5hgAI0Bwo)XhhFs2jdFgCc2xn)LUkTB0YHYqVEb5BVPDMgxY2BYqh2E(HoN0qZMPZCRrHGEYBnCU0hDUYMkOtoZSKU6yGj7iTCmVMp5jNw0fvC8UgFqxa4LUc0o92rHXUJ65kE3yANM6C7sCGo6HL()h]])
+spec:RegisterPack("Brewmaster", 20250724, [[Hekili:nEvBtUPnq4)n(AstC8zF(Y12Z3mn9ln30MjZ40(LobqgwmkwGOsIZN7Cd)27UcWimGD(qCoKw9Sp7Q9fTEx79fV1rmd49P5ZMVC27NVy68Rx((536T2Cih8wNZc3X2I)rglf)LPJO1oiKSi6SAzHkex3B9McUW8XmVndd4su2Ciex(278wNWJIGkzbDO36VKW1Lb0)yLb1QSmqgJFhA4YSYabxBWTJLQYGFh2Xf8PERTls0iukfrY9z0hFYAuqgBJaI8(aUPIBafNHMetazMP8SNK7a)NlGSPnYTUsrERD20ZG0DuWGmqT9W0WcLcbTm4(vLb3mRmyszqycV76x3IV9y8)JNT1FJc2t6yXLimINv4g2oSsOfszpxg82YG5TkS5WOMmK)oMvimh9tnsTd26Rtz6exMCw7hXTm4buVZT05hkd2uehpvNG)kGPkiLXZ0vuBrzWlVugObJbnC90CLKu8tGFT4wig)8BdJQmTxBX6vT8EJaJwKfg)D8WDN3zMamHjzAoGrSn(S7w24lXVp6cDUTEohe(jmvkH9nFVoJiWAlOBNzs8LX(XCf4hjntPOuRi12pgoKYbD9HDSRohLu(YlfLOk0juy13yrG)EEw0PHlvk56wFD)tq0RLe92N4XTJYJHmPfwTnkdJ46tY)058SmsOqfldoET((Z76pn(3jH7BSnea3Dj3hLNSN9e0VKqZoem)03D9aY6VBwlkg(wq5NZePhZeHmn6WUqrlTHTLoPaEcevW2MhvO4XhA2QZTCRIReYTGZ4j1dLJCuBBlyQi)kr8njkqNGLD7QxNqyR4NpL0gfcIcYnyzNpATH7MA)9eBTJyh1UtQQZ(Npz9Sgj2HXq(0AZmp00QI69CDLxmRmILMdz2siDYhhIelDcxCo35Z6A0dpoUqd(PST8WlQPBD1K7jRInZvqOmDdRFFc8MjleO6sMeS6TPqfDWx(C3Ugwm2ZuuESM6UJ135P5O3RUd(v1THUQmqb)BbwHdPQwMIYXkmYu8beruqflBlONw(OfHyPqiXQgBjHumSaZEqHRJChfMJLvnKyUVyGQZzAKltAvFrwhPJIiHXNSW2W0Wpx(OT(rVkv46pw9kfS3vmN6yrFKY1AlJ0f5o23wQyape1HINTdmOneug8rt1HSo3uilI4TjHHlJjWQde2CjEXEGiyOOiIQIcCKOQgI9p)LgiKGu9xFdAzj8WexPzzhA1ATnJnXe8qUr0IRRlOrP)c(IlvJA(sfeyHKVsGg5U0ChnVNleowunKMgrTEd7szfPBGQ7zb2hS8XpAdiOfU5KN5HBIbCfMePcdEyHsBY26AhV363Ie8pLFUm4d464BwWebAHmSIXV(5)aFkYVjtZzg(g8vIKV8VbLgr)vLpsNS(l0mMoJUvP1SXxxDmQ)QtJIuf0lrKyKpgrbOrH)FLOO5yyklNRoc94MAywnsYsxT22hONAtOG8naGlOX8hbpMBdzK2GEYTl4uwxtooLYaH7Cjtl6R62h4n84vDAT8WQbBRmblT)WQRhcXFC17S14jO6wK5(vxOPrfQZhbv3s5e4NTnHdVhUfXik5KI5N1i63uyeqDQAtaoEpGjNQRLZgds3YZUGoub)EWE7jX4hNuQxWgVz8Qd4mDyLn23OpKX1u5DfM60PJq4eMDCTvoZp5q2bg5AGdtx9DhpIGO7dRUF1nZM4m7Z9UXMUi1m3JdloDoQU4u)(X3oVx(zDRQ((RgxfvlvjnmAFMOTKA3ercMvhh0Q3wiN7mndr8Q0Kj)WqJgD)QfV8Y4Junz4ZGJs96fVAiL3oRZq5c3TK8w338i7HiFNrwCy)5NgAsnTRhB40Qc1G3RHSZ16Od(ux7AYzg2ziDnWiiK2oLNlMCXXAgcDCEKAFtBi31djyZyhNea7oJYqhRDoJ(jppScNiHEDM3))]])
+
 end
 
 -- Deferred loading mechanism
@@ -295,4 +297,4 @@ if not TryRegister() then
     end)
 end
 
-print("Brewmaster: Data-Driven Rework V6.0 loaded.")
+print("Brewmaster: Data-Driven Rework V6.0 (FINAL CORRECTED) loaded.")
