@@ -44,6 +44,23 @@ end
 
 shadowCombatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
+-- Main combat log event handler
+shadowCombatLogFrame:SetScript("OnEvent", function(self, event, ...)
+    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        local timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool = CombatLogGetCurrentEventInfo()
+
+        -- Only process events involving the player
+        if sourceGUID == UnitGUID("player") or destGUID == UnitGUID("player") then
+            -- Dispatch to registered handlers
+            if shadowCombatLogEvents[subevent] then
+                for _, handler in ipairs(shadowCombatLogEvents[subevent]) do
+                    handler(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool, ...)
+                end
+            end
+        end
+    end
+end)
+
 -- Shadow Orb generation tracking with advanced optimization
 RegisterShadowCombatLogEvent("SPELL_CAST_SUCCESS", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
     if spellID == 8092 then -- Mind Blast
@@ -52,40 +69,44 @@ RegisterShadowCombatLogEvent("SPELL_CAST_SUCCESS", function(timestamp, subevent,
         -- Enhanced: Track for Surge of Darkness cooldown reset potential
         ns.shadow_priest_mind_blast_count = (ns.shadow_priest_mind_blast_count or 0) + 1
         ns.shadow_priest_last_mind_blast = timestamp
-        
+
         -- Enhanced tracking for tier set bonuses
         if ns.shadow_priest_tier14_4pc then
             -- T14 4-piece: Mind Blast has chance to reset SW:D cooldown
             ns.shadow_priest_tier14_proc_opportunity = timestamp
         end
-        
+
     elseif spellID == 32379 then -- Shadow Word: Death
         -- Track SW:D usage for execute optimization and backlash management
         ns.shadow_priest_swd_count = (ns.shadow_priest_swd_count or 0) + 1
         ns.shadow_priest_last_swd = timestamp
-        
+
         -- Track for potential backlash damage (when target doesn't die)
         ns.shadow_priest_swd_pending_backlash = timestamp + 0.1 -- Small delay for death check
-        
+
+        -- Track for reset mechanics
+        ns.shadow_priest_swd_cast_timestamp = GetTime() -- Use GetTime() for consistency with Hekili
+        ns.shadow_priest_swd_awaiting_result = true -- Will be cleared by death or backlash
+
     elseif spellID == 15407 then -- Mind Flay
         -- Track Mind Flay channel initiation for Shadowy Apparition tracking
         ns.shadow_priest_mind_flay_start = timestamp
         ns.shadow_priest_mind_flay_channels = (ns.shadow_priest_mind_flay_channels or 0) + 1
-        
+
     elseif spellID == 2944 then -- Devouring Plague
         -- Track DP application for Shadow Orb consumption optimization
         ns.shadow_priest_devouring_plague_cast = timestamp
-        
+
         -- Track for enhanced healing effect monitoring
         if ns.shadow_priest_glyph_dp_healing then
             ns.shadow_priest_dp_healing_window = timestamp + 24 -- DP duration
         end
-        
+
     elseif spellID == 589 then -- Shadow Word: Pain
         -- Track SWP application for pandemic optimization
         ns.shadow_priest_swp_applications = (ns.shadow_priest_swp_applications or 0) + 1
         ns.shadow_priest_last_swp_cast = timestamp
-        
+
     elseif spellID == 34914 then -- Vampiric Touch
         -- Track VT application for pandemic optimization
         ns.shadow_priest_vt_applications = (ns.shadow_priest_vt_applications or 0) + 1
@@ -99,34 +120,34 @@ RegisterShadowCombatLogEvent("SPELL_PERIODIC_DAMAGE", function(timestamp, subeve
     if spellID == 589 then
         ns.shadow_priest_swp_ticks = (ns.shadow_priest_swp_ticks or 0) + 1
         ns.shadow_priest_last_swp_tick = timestamp
-        
+
         -- Track for Shadowy Apparition proc potential
         if critical and ns.shadow_priest_mastery_shadowy_recall then
             ns.shadow_priest_apparition_proc_opportunity = timestamp
         end
-        
+
     -- Vampiric Touch tick tracking
     elseif spellID == 34914 then
         ns.shadow_priest_vt_ticks = (ns.shadow_priest_vt_ticks or 0) + 1
         ns.shadow_priest_last_vt_tick = timestamp
-        
+
         -- Track mana return from VT ticks
         ns.shadow_priest_vt_mana_return = timestamp
-        
+
     -- Devouring Plague tick tracking
     elseif spellID == 2944 then
         ns.shadow_priest_dp_ticks = (ns.shadow_priest_dp_ticks or 0) + 1
         ns.shadow_priest_last_dp_tick = timestamp
-        
+
         -- Track enhanced healing from DP ticks (if glyphed)
         if ns.shadow_priest_glyph_dp_healing then
             ns.shadow_priest_dp_healing_tick = timestamp
         end
-        
+
     -- Mind Flay tick tracking
     elseif spellID == 15407 then
         ns.shadow_priest_mind_flay_ticks = (ns.shadow_priest_mind_flay_ticks or 0) + 1
-        
+
         -- Track for Shadowy Apparition generation (each tick has proc chance)
         if ns.shadow_priest_mastery_shadowy_recall then
             local proc_chance = 0.04 * (ns.shadow_priest_mastery_rating or 8) -- 4% per mastery point
@@ -144,21 +165,21 @@ RegisterShadowCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subevent,
             -- Track Surge of Darkness proc for instant Mind Spike
             ns.shadow_priest_surge_of_darkness_proc = timestamp
             ns.shadow_priest_surge_procs = (ns.shadow_priest_surge_procs or 0) + 1
-            
+
         elseif spellID == 15473 then -- Shadowform
             -- Track Shadowform application for damage bonus
             ns.shadow_priest_shadowform_active = timestamp
-            
+
         elseif spellID == 77487 then -- Shadow Orb
             -- Track Shadow Orb stacking for optimal consumption
-            local current_orbs = UnitPower("player", 13) or 0 -- Shadow Orbs power type
+            local current_orbs = UnitPower("player", 28) or 0 -- Shadow Orbs power type
             ns.shadow_priest_shadow_orbs = current_orbs
             ns.shadow_priest_orb_gain_time = timestamp
-            
+
         elseif spellID == 47585 then -- Dispersion
             -- Track Dispersion for mana regeneration and damage reduction
             ns.shadow_priest_dispersion_start = timestamp
-            
+
         elseif spellID == 15286 then -- Vampiric Embrace
             -- Track Vampiric Embrace for group healing
             ns.shadow_priest_vampiric_embrace_active = timestamp
@@ -174,7 +195,7 @@ RegisterShadowCombatLogEvent("SPELL_AURA_REMOVED", function(timestamp, subevent,
             ns.shadow_priest_surge_consumed = timestamp
             local duration_held = timestamp - (ns.shadow_priest_surge_of_darkness_proc or timestamp)
             ns.shadow_priest_surge_efficiency = duration_held <= 10 -- Good efficiency if used within 10 seconds
-            
+
         elseif spellID == 47585 then -- Dispersion removed
             -- Track Dispersion usage efficiency
             local dispersion_duration = timestamp - (ns.shadow_priest_dispersion_start or timestamp)
@@ -184,7 +205,7 @@ RegisterShadowCombatLogEvent("SPELL_AURA_REMOVED", function(timestamp, subevent,
         -- Track DoT removals for refresh timing
         if spellID == 589 then -- Shadow Word: Pain removed
             ns.shadow_priest_swp_removed = timestamp
-        elseif spellID == 34914 then -- Vampiric Touch removed  
+        elseif spellID == 34914 then -- Vampiric Touch removed
             ns.shadow_priest_vt_removed = timestamp
         elseif spellID == 2944 then -- Devouring Plague removed
             ns.shadow_priest_dp_removed = timestamp
@@ -192,15 +213,51 @@ RegisterShadowCombatLogEvent("SPELL_AURA_REMOVED", function(timestamp, subevent,
     end
 end)
 
--- Shadow Word: Death backlash damage tracking
+-- Shadow Word: Death reset mechanic tracking
+-- In MoP Classic: SW:D can only be used on targets < 20% health
+-- If target survives the SW:D, the cooldown resets but doesn't grant a Shadow Orb
+-- This reset has a 9-second internal cooldown
 RegisterShadowCombatLogEvent("SPELL_DAMAGE", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical)
-    -- Track SW:D backlash when target survives
-    if destGUID == UnitGUID("player") and spellID == 32409 then -- SW:D backlash
-        ns.shadow_priest_swd_backlash_count = (ns.shadow_priest_swd_backlash_count or 0) + 1
-        ns.shadow_priest_swd_backlash_damage = amount
-        
-        -- Track efficiency - backlash indicates suboptimal usage
-        ns.shadow_priest_swd_efficiency_warning = timestamp
+    -- Track SW:D damage to see if it killed the target
+    if sourceGUID == UnitGUID("player") and spellID == 32379 then -- Shadow Word: Death
+        if Hekili.ActiveDebug then
+            Hekili:Debug("SW:D Hit for %d damage (overkill: %d)", amount, overkill or 0)
+        end
+
+        -- Store the damage info for death determination
+        ns.shadow_priest_swd_damage_timestamp = GetTime()
+        ns.shadow_priest_swd_damage_amount = amount
+        ns.shadow_priest_swd_overkill = overkill or 0
+
+        -- Schedule a check slightly after the damage to see if target died
+        C_Timer.After(0.1, function()
+            if ns.shadow_priest_swd_awaiting_result then
+                -- If we're still awaiting result after 0.1 seconds, target likely survived
+                local current_time = GetTime()
+                local last_reset_time = ns.shadow_priest_last_reset_time or 0
+
+                if Hekili.ActiveDebug then
+                    Hekili:Debug("SW:D Target survived - checking reset availability")
+                end
+
+                -- Target survived, check if reset is available (not on internal cooldown)
+                if current_time - last_reset_time >= 9 then
+                    -- Reset is available
+                    ns.shadow_priest_swd_reset_available = true
+                    ns.shadow_priest_swd_reset_available_time = current_time
+                    ns.shadow_priest_swd_awaiting_result = false
+
+                    if Hekili.ActiveDebug then
+                        Hekili:Debug("SW:D Reset now available at %.3f", current_time)
+                    end
+                else
+                    if Hekili.ActiveDebug then
+                        Hekili:Debug("SW:D Reset blocked by internal cooldown - %.1f seconds remaining", 9 - (current_time - last_reset_time))
+                    end
+                    ns.shadow_priest_swd_awaiting_result = false
+                end
+            end
+        end)
     end
 end)
 
@@ -208,13 +265,24 @@ end)
 RegisterShadowCombatLogEvent("UNIT_DIED", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags)
     -- Track enemy deaths for execute timing optimization
     if destGUID and destName then
-        ns.shadow_priest_target_death = timestamp
-        
-        -- Check if recent SW:D contributed to kill (no backlash)
-        local recent_swd = ns.shadow_priest_last_swd or 0
-        if timestamp - recent_swd <= 2 then
-            ns.shadow_priest_swd_kill_contribution = timestamp
+        local current_time = GetTime()
+        ns.shadow_priest_target_death = current_time
+
+        -- Check if recent SW:D contributed to kill
+        local recent_swd = ns.shadow_priest_swd_cast_timestamp or 0
+        if current_time - recent_swd <= 1 and ns.shadow_priest_swd_awaiting_result then
+            ns.shadow_priest_swd_kill_contribution = current_time
             ns.shadow_priest_swd_efficiency_bonus = true
+
+            if Hekili.ActiveDebug then
+                Hekili:Debug("Target died from SW:D - no reset available")
+            end
+
+            -- Clear reset tracking - target died, so no reset available
+            ns.shadow_priest_swd_awaiting_result = false
+            ns.shadow_priest_swd_target_killed = true
+            -- Ensure reset doesn't become available when target dies
+            ns.shadow_priest_swd_reset_available = false
         end
     end
 end)
@@ -224,10 +292,10 @@ RegisterShadowCombatLogEvent("SPELL_ENERGIZE", function(timestamp, subevent, sou
     if destGUID == UnitGUID("player") and powerType == 0 then -- Mana
         if spellID == 34914 then -- Vampiric Touch mana return
             ns.shadow_priest_vt_mana_gained = (ns.shadow_priest_vt_mana_gained or 0) + amount
-            
+
         elseif spellID == 47585 then -- Dispersion mana return
             ns.shadow_priest_dispersion_mana_gained = (ns.shadow_priest_dispersion_mana_gained or 0) + amount
-            
+
         elseif spellID == 15286 then -- Vampiric Embrace potential mana return
             ns.shadow_priest_ve_mana_efficiency = timestamp
         end
@@ -262,8 +330,6 @@ end)
 RegisterShadowCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
     if spellID == 124430 then -- Divine Insight (Shadow)
         -- Track Divine Insight proc for instant Mind Blast
-    elseif spellID == 87118 then -- Dark Evangelism
-        -- Track Evangelism stacks for Archangel
     end
 end)
 
@@ -274,12 +340,16 @@ RegisterShadowCombatLogEvent("SPELL_AURA_REMOVED", function(timestamp, subevent,
     end
 end)
 
+-- Hook into state reset to manage SW:D reset tracking
+spec:RegisterHook( "reset_precast", function()
+    check_swd_reset()
+end )
+
 -- ============================================================================
 -- ADVANCED RESOURCE SYSTEMS - Enhanced MoP Shadow Priest Resource Management
 -- ============================================================================
 -- Comprehensive resource tracking featuring:
 -- - Mana efficiency optimization across all Shadow abilities
--- - Shadow Orb generation timing and optimal consumption patterns  
 -- - Dispersion usage optimization for maximum mana recovery
 -- - Vampiric Touch mana return tracking with pandemic mechanics
 -- - Shadowfiend/Mindbender coordination with mana deficit timing
@@ -289,266 +359,226 @@ end)
 -- ============================================================================
 
 -- Enhanced Mana resource system with comprehensive tracking
-spec:RegisterResource( 0, { -- Mana = 0 in MoP
-    -- Dispersion: Primary mana recovery cooldown
-    dispersion = {
-        aura = "dispersion",
-        last = function ()
-            local app = state.buff.dispersion.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 1 ) * 1
-        end,
-        interval = 1,
-        value = function()
-            local base_return = state.max_mana * 0.06 -- 6% max mana per second
-            
-            -- Enhanced return with Glyph of Dispersion
-            if state.glyph.dispersion.enabled then
-                base_return = base_return * 1.2 -- 20% increased effectiveness
-            end
-            
-            -- Reduced return if not in Shadowform
-            if not state.buff.shadowform.up then
-                base_return = base_return * 0.5 -- 50% reduced without Shadowform
-            end
-            
-            return base_return
-        end,
-    },
-    
-    -- Shadowfiend/Mindbender: Pet-based mana restoration
-    shadowfiend = {
-        aura = "shadowfiend",
-        last = function ()
-            local app = state.buff.shadowfiend.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 1.5 ) * 1.5
-        end,
-        interval = 1.5,
-        value = function()
-            local base_return = state.max_mana * 0.03 -- 3% per melee hit
-            
-            -- Mindbender talent enhancement
-            if state.talent.mindbender.enabled then
-                base_return = base_return * 1.25 -- 25% more efficient
-                -- Also returns slightly more per hit
-                base_return = base_return + (state.max_mana * 0.005) -- Additional 0.5%
-            end
-            
-            -- Enhanced return with multiple targets (Shadowfiend cleave)
-            if state.active_enemies >= 2 then
-                base_return = base_return * math.min(1.5, 1 + (state.active_enemies * 0.1))
-            end
-            
-            -- Glyph of Shadowfiend enhancement
-            if state.glyph.shadowfiend.enabled then
-                base_return = base_return * 1.1 -- 10% increased mana return
-            end
-            
-            return base_return
-        end,
-    },
-    
-    -- Vampiric Touch: DoT-based mana return with pandemic optimization
-    vampiric_touch = {
-        aura = "vampiric_touch",
-        last = function ()
-            local app = state.debuff.vampiric_touch.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 3 ) * 3
-        end,
-        interval = 3,
-        value = function()
-            local base_return = state.max_mana * 0.02 -- 2% mana per tick
-            
-            -- Enhanced return based on spell power
-            local sp_bonus = (state.stat.spell_power or 0) * 0.00025 -- 0.025% per 100 SP
-            base_return = base_return + (state.max_mana * sp_bonus)
-            
-            -- Multiple target efficiency (VT on multiple targets)
-            local vt_targets = state.debuff.vampiric_touch.count or 1
-            if vt_targets > 1 then
-                base_return = base_return * vt_targets
-            end
-            
-            -- Mastery: Shadowy Recall enhancement
-            if state.mastery_value > 0 then
-                local mastery_bonus = state.mastery_value * 0.0025 -- 0.25% per mastery point
-                base_return = base_return * (1 + mastery_bonus)
-            end
-            
-            -- Glyph of Vampiric Touch enhancement
-            if state.glyph.vampiric_touch.enabled then
-                base_return = base_return * 1.15 -- 15% increased mana return
-            end
-            
-            return base_return
-        end,
-    },
-    
-    -- Archangel: Evangelism stacks conversion to mana
-    archangel = {
-        aura = "archangel",
-        last = function ()
-            local app = state.buff.archangel.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 1 ) * 1
-        end,
-        interval = 1,
-        value = function()
-            if not state.buff.archangel.up then return 0 end
-            
-            local stacks_consumed = state.buff.archangel.stacks or 5 -- Usually 5 Evangelism stacks
-            local base_return = state.max_mana * 0.01 * stacks_consumed -- 1% per stack per second
-            
-            -- Enhanced duration and effectiveness at higher stacks
-            if stacks_consumed >= 5 then
-                base_return = base_return * 1.25 -- 25% bonus at max stacks
-            end
-            
-            return base_return
-        end,
-    },
-    
-    -- Shadow Word: Death mana return (when target dies)
-    shadow_word_death = {
-        channel = "shadow_word_death_kill",
-        last = function()
-            return state.shadow_word_death_kill_time or 0
-        end,
-        interval = 0.1,
-        value = function()
-            -- Instant mana return when SW:D kills target
-            return state.max_mana * 0.25 -- 25% mana return on kill
-        end,
-    },
-    
-    -- Hymn of Hope: Raid utility mana restoration
-    hymn_of_hope = {
-        aura = "hymn_of_hope",
-        last = function ()
-            local app = state.buff.hymn_of_hope.applied
-            local t = state.query_time
-            return app + floor( ( t - app ) / 2 ) * 2
-        end,
-        interval = 2,
-        value = function()
-            return state.max_mana * 0.04 -- 4% max mana every 2 seconds
-        end,
-    },
-} )
+-- spec:RegisterResource( 0, { -- Mana = 0 in MoP
+--     -- Dispersion: Primary mana recovery cooldown
+--     dispersion = {
+--         aura = "dispersion",
+--         last = function ()
+--             local app = state.buff.dispersion.applied
+--             local t = state.query_time
+--             return app + floor( ( t - app ) / 1 ) * 1
+--         end,
+--         interval = 1,
+--         value = function()
+--             local base_return = state.max_mana * 0.06 -- 6% max mana per second
+
+--             -- Enhanced return with Glyph of Dispersion
+--             if state.glyph.dispersion.enabled then
+--                 base_return = base_return * 1.2 -- 20% increased effectiveness
+--             end
+
+--             -- Reduced return if not in Shadowform
+--             if not state.buff.shadowform.up then
+--                 base_return = base_return * 0.5 -- 50% reduced without Shadowform
+--             end
+
+--             return base_return
+--         end,
+--     },
+
+--     -- Shadowfiend/Mindbender: Pet-based mana restoration
+--     shadowfiend = {
+--         aura = "shadowfiend",
+--         last = function ()
+--             local app = state.buff.shadowfiend.applied
+--             local t = state.query_time
+--             return app + floor( ( t - app ) / 1.5 ) * 1.5
+--         end,
+--         interval = 1.5,
+--         value = function()
+--             local base_return = state.max_mana * 0.03 -- 3% per melee hit
+
+--             -- Mindbender talent enhancement
+--             if state.talent.mindbender.enabled then
+--                 base_return = base_return * 1.25 -- 25% more efficient
+--                 -- Also returns slightly more per hit
+--                 base_return = base_return + (state.max_mana * 0.005) -- Additional 0.5%
+--             end
+
+--             -- Enhanced return with multiple targets (Shadowfiend cleave)
+--             if state.active_enemies >= 2 then
+--                 base_return = base_return * math.min(1.5, 1 + (state.active_enemies * 0.1))
+--             end
+
+--             -- Glyph of Shadowfiend enhancement
+--             if state.glyph.shadowfiend.enabled then
+--                 base_return = base_return * 1.1 -- 10% increased mana return
+--             end
+
+--             return base_return
+--         end,
+--     },
+
+--     -- Vampiric Touch: DoT-based mana return with pandemic optimization
+--     vampiric_touch = {
+--         aura = "vampiric_touch",
+--         last = function ()
+--             local app = state.debuff.vampiric_touch.applied
+--             local t = state.query_time
+--             return app + floor( ( t - app ) / 3 ) * 3
+--         end,
+--         interval = 3,
+--         value = function()
+--             local base_return = state.max_mana * 0.02 -- 2% mana per tick
+
+--             -- Enhanced return based on spell power
+--             local sp_bonus = (state.stat.spell_power or 0) * 0.00025 -- 0.025% per 100 SP
+--             base_return = base_return + (state.max_mana * sp_bonus)
+
+--             -- Multiple target efficiency (VT on multiple targets)
+--             local vt_targets = state.debuff.vampiric_touch.count or 1
+--             if vt_targets > 1 then
+--                 base_return = base_return * vt_targets
+--             end
+
+--             -- Mastery: Shadowy Recall enhancement
+--             if state.mastery_value > 0 then
+--                 local mastery_bonus = state.mastery_value * 0.0025 -- 0.25% per mastery point
+--                 base_return = base_return * (1 + mastery_bonus)
+--             end
+
+--             -- Glyph of Vampiric Touch enhancement
+--             if state.glyph.vampiric_touch.enabled then
+--                 base_return = base_return * 1.15 -- 15% increased mana return
+--             end
+
+--             return base_return
+--         end,
+--     },
+
+--     -- Hymn of Hope: Raid utility mana restoration
+--     hymn_of_hope = {
+--         aura = "hymn_of_hope",
+--         last = function ()
+--             local app = state.buff.hymn_of_hope.applied
+--             local t = state.query_time
+--             return app + floor( ( t - app ) / 2 ) * 2
+--         end,
+--         interval = 2,
+--         value = function()
+--             return state.max_mana * 0.04 -- 4% max mana every 2 seconds
+--         end,
+--     },
+-- } )
+
+spec:RegisterResource( 0 ) -- Mana = 0 in MoP (primary resource)
 
 -- ============================================================================
--- SHADOW ORB POWER SYSTEM - Advanced Orb Management
+-- SHADOW ORB DETECTION
 -- ============================================================================
-
--- Enhanced Shadow Orb resource tracking
-spec:RegisterResource( 10, { -- AlternatePower = 10 in MoP (Shadow Orbs)
-    -- Mind Blast: Primary Shadow Orb generation
+spec:RegisterResource( 28, { -- Shadow Orbs = 28 in MoP
     mind_blast = {
-        channel = "mind_blast_orb_gen",
-        last = function()
-            return state.mind_blast_orb_gen_time or 0
+        last = function ()
+            return state.abilities.mind_blast.lastCast
         end,
-        interval = 0.1,
-        value = function()
-            -- Mind Blast generates 1 Shadow Orb on cast
-            return 1
-        end,
-    },
-    
-    -- Critical DoT ticks: Chance to generate Shadow Orbs
-    dot_critical = {
-        channel = "dot_crit_orb_gen",
-        last = function()
-            return state.dot_crit_orb_gen_time or 0
-        end,
-        interval = 0.1,
-        value = function()
-            -- DoT crits have chance to generate Shadow Orbs
-            local crit_chance = state.stat.spell_crit / 100
-            local mastery_bonus = (state.mastery_value or 8) * 0.025 -- 2.5% per mastery point
-            
-            if math.random() < (crit_chance + mastery_bonus) then
-                return 1
-            end
-            return 0
-        end,
-    },
-} )
 
--- ============================================================================
--- ENHANCED BASE REGENERATION WITH TALENT INTERACTIONS
--- ============================================================================
+        interval = function ()
+            return state.abilities.mind_blast.cooldown
+        end,
 
--- Base mana regeneration with comprehensive bonus calculations
-spec:RegisterResource( 0, {}, { -- Mana = 0 in MoP
-    base_regen = function ()
-        local base = state.max_mana * 0.02 -- 2% base regeneration per 5 seconds
-        
-        -- Spirit-based regeneration (primary stat for mana regen)
-        local spirit_regen = (state.stat.spirit or 0) * 0.56 -- ~0.56 mana per spirit per 5 sec
-        
-        -- Meditation bonus (in-combat regeneration)
-        local meditation_bonus = 0
-        if state.talent.meditation.enabled then
-            meditation_bonus = spirit_regen * 0.5 -- 50% of normal spirit regen in combat
-        end
-        
-        -- Shadowform mana efficiency bonus
-        local shadowform_efficiency = 1.0
-        if state.buff.shadowform.up then
-            shadowform_efficiency = 1.15 -- 15% improved mana efficiency
-        end
-        
-        -- Inner Fire/Inner Will mana considerations
-        local inner_bonus = 0
-        if state.buff.inner_will.up then
-            inner_bonus = spirit_regen * 0.1 -- 10% bonus spirit regen with Inner Will
-        end
-        
-        -- Intellect-based mana bonus
-        local int_bonus = (state.stat.intellect or 0) * 15 -- Mana pool scaling
-        
-        -- Discipline talent bonuses (if talented)
-        local disc_bonus = 0
-        if state.talent.archangel.enabled then
-            disc_bonus = base * 0.05 -- 5% bonus if Archangel talented
-        end
-        
-        -- Gear-based mana regeneration bonuses
-        local gear_bonus = 0
-        
-        -- Tier set bonuses affecting mana efficiency
-        if state.set_bonus.tier14_2pc == 1 then
-            gear_bonus = gear_bonus + (base * 0.03) -- 3% mana efficiency
-        end
-        if state.set_bonus.tier15_4pc == 1 then
-            gear_bonus = gear_bonus + (base * 0.05) -- 5% mana efficiency  
-        end
-        
-        -- Meta gem bonuses
-        if state.meta_gem and state.meta_gem.mana_bonus then
-            gear_bonus = gear_bonus + (state.max_mana * 0.02) -- 2% max mana bonus
-        end
-          local total_regen = base + spirit_regen + meditation_bonus + inner_bonus + disc_bonus + gear_bonus
-        return total_regen * shadowform_efficiency / 5 -- Convert to per-second
-    end,
-} )
+        stop = function ()
+            return state.abilities.mind_blast.lastCast == 0
+        end,
+
+        value = 1, -- Mind Blast generates 1 Shadow Orb
+    },
+
+    shadow_word_death = {
+        last = function ()
+            return state.abilities.shadow_word_death.lastCast
+        end,
+
+        interval = function ()
+            return state.abilities.shadow_word_death.cooldown
+        end,
+
+        stop = function ()
+            return state.abilities.shadow_word_death.lastCast == 0 or not state.talent.shadow_word_death.enabled
+        end,
+
+        value = 1, -- Shadow Word: Death generates 1 Shadow Orb on first cast
+    },
+})
 
 -- Shadow Orbs resource system
 spec:RegisterStateTable( "shadow_orb", setmetatable({}, {
     __index = function( t, k )
         if k == "count" then
-            return FindUnitBuffByID("player", 77487) and FindUnitBuffByID("player", 77487).count or 0
+            return UnitPower("player", 28) or 0 -- Read Shadow Orb resource
         elseif k == "max" then
-            return 3 -- Maximum Shadow Orbs
+            return UnitPowerMax("player", 28) or 3 -- Maximum Shadow Orbs
         elseif k == "deficit" then
             return t.max - t.count
         end
         return 0
     end,
 }))
+
+-- Base mana regeneration with comprehensive bonus calculations
+-- spec:RegisterResource( 0, {}, { -- Mana = 0 in MoP
+--     base_regen = function ()
+--         local base = state.max_mana * 0.02 -- 2% base regeneration per 5 seconds
+        
+--         -- Spirit-based regeneration (primary stat for mana regen)
+--         local spirit_regen = (state.stat.spirit or 0) * 0.56 -- ~0.56 mana per spirit per 5 sec
+        
+--         -- Meditation bonus (in-combat regeneration)
+--         local meditation_bonus = 0
+--         if state.talent.meditation.enabled then
+--             meditation_bonus = spirit_regen * 0.5 -- 50% of normal spirit regen in combat
+--         end
+        
+--         -- Shadowform mana efficiency bonus
+--         local shadowform_efficiency = 1.0
+--         if state.buff.shadowform.up then
+--             shadowform_efficiency = 1.15 -- 15% improved mana efficiency
+--         end
+        
+--         -- Inner Fire/Inner Will mana considerations
+--         local inner_bonus = 0
+--         if state.buff.inner_will.up then
+--             inner_bonus = spirit_regen * 0.1 -- 10% bonus spirit regen with Inner Will
+--         end
+        
+--         -- Intellect-based mana bonus
+--         local int_bonus = (state.stat.intellect or 0) * 15 -- Mana pool scaling
+        
+--         -- Discipline talent bonuses (if talented)
+--         local disc_bonus = 0
+--         if state.talent.archangel.enabled then
+--             disc_bonus = base * 0.05 -- 5% bonus if Archangel talented
+--         end
+        
+--         -- Gear-based mana regeneration bonuses
+--         local gear_bonus = 0
+        
+--         -- Tier set bonuses affecting mana efficiency
+--         if state.set_bonus.tier14_2pc == 1 then
+--             gear_bonus = gear_bonus + (base * 0.03) -- 3% mana efficiency
+--         end
+--         if state.set_bonus.tier15_4pc == 1 then
+--             gear_bonus = gear_bonus + (base * 0.05) -- 5% mana efficiency  
+--         end
+        
+--         -- Meta gem bonuses
+--         if state.meta_gem and state.meta_gem.mana_bonus then
+--             gear_bonus = gear_bonus + (state.max_mana * 0.02) -- 2% max mana bonus
+--         end
+--           local total_regen = base + spirit_regen + meditation_bonus + inner_bonus + disc_bonus + gear_bonus
+--         return total_regen * shadowform_efficiency / 5 -- Convert to per-second
+--     end,
+-- } )
+
 -- Tier 14: Vestments of the Lost Cataphract (Heart of Fear/Terrace of Endless Spring)
 spec:RegisterGear( "tier14", 86919, 86920, 86921, 86922, 86923 ) -- Base tier references
 
@@ -564,14 +594,14 @@ spec:RegisterAura( "tier14_2pc_shadow", {
             t.expires = query_time + 3600
             t.applied = query_time
             t.caster = "player"
-            
+
             -- Enhanced Shadow Word: Pain damage by 15%
             t.swp_damage_bonus = 0.15
             t.optimal_for_multidot = true
-            
+
             return
         end
-        
+
         t.count = 0
         t.expires = 0
         t.applied = 0
@@ -590,15 +620,15 @@ spec:RegisterAura( "tier14_4pc_shadow", {
             t.expires = query_time + 3600
             t.applied = query_time
             t.caster = "player"
-            
+
             -- Mind Blast has 25% chance to reset Shadow Word: Death cooldown
             t.swd_reset_chance = 0.25
             t.enhances_mind_blast = true
             t.execute_optimization = true
-            
+
             return
         end
-        
+
         t.count = 0
         t.expires = 0
         t.applied = 0
@@ -631,15 +661,15 @@ spec:RegisterAura( "tier15_2pc_shadow", {
             t.expires = query_time + 3600
             t.applied = query_time
             t.caster = "player"
-            
+
             -- Shadow Word: Pain critical strikes reduce Mind Blast cooldown by 0.5 seconds
             t.cooldown_reduction = 0.5
             t.enhances_swp_crits = true
             t.mind_blast_synergy = true
-            
+
             return
         end
-        
+
         t.count = 0
         t.expires = 0
         t.applied = 0
@@ -658,15 +688,15 @@ spec:RegisterAura( "tier15_4pc_shadow", {
             t.expires = query_time + 3600
             t.applied = query_time
             t.caster = "player"
-            
+
             -- Devouring Plague heals you for 100% of damage dealt
             t.devouring_plague_heal = 1.0 -- 100% healing
             t.survival_enhancement = true
             t.dp_priority_bonus = true
-            
+
             return
         end
-        
+
         t.count = 0
         t.expires = 0
         t.applied = 0
@@ -699,15 +729,15 @@ spec:RegisterAura( "tier16_2pc_shadow", {
             t.expires = query_time + 3600
             t.applied = query_time
             t.caster = "player"
-            
+
             -- Mind Flay increases Shadow damage dealt by 2% per tick, stacking up to 10 times
             t.shadow_damage_stacks = 10
             t.damage_per_stack = 0.02 -- 2% per stack
             t.mind_flay_enhancement = true
-            
+
             return
         end
-        
+
         t.count = 0
         t.expires = 0
         t.applied = 0
@@ -726,15 +756,15 @@ spec:RegisterAura( "tier16_4pc_shadow", {
             t.expires = query_time + 3600
             t.applied = query_time
             t.caster = "player"
-            
+
             -- Devouring Plague has 40% chance to not consume Shadow Orbs
             t.orb_preservation_chance = 0.40 -- 40% chance
             t.resource_efficiency = true
             t.dp_optimization = true
-            
+
             return
         end
-        
+
         t.count = 0
         t.expires = 0
         t.applied = 0
@@ -811,7 +841,7 @@ spec:RegisterGear( "pvp_s12", { 84406, 84407, 84408, 84409, 84410 }, {
     }
 } )
 
--- Season 13: Tyrannical Gladiator's Investiture  
+-- Season 13: Tyrannical Gladiator's Investiture
 spec:RegisterGear( "pvp_s13", { 91370, 91371, 91372, 91373, 91374 }, {
     bonus = {
         { pieces = 2, effect = "pvp_s13_2pc", resilience_bonus = 450 },
@@ -906,7 +936,7 @@ spec:RegisterTalents( {
     -- Tier 3 (Level 45) - Mana and Healing
     from_darkness_comes_light = { 3, 1, 109186 }, -- When you deal damage with Mind Flay, Mind Blast, or Shadow Word: Death, there is a 15% chance your next Flash Heal will not trigger a global cooldown and will cast 50% faster.
     mindbender                = { 3, 2, 123040 }, -- Replaces your Shadowfiend. The Mindbender's attacks restore 0.75% mana and have a 100% chance to trigger Replenishment.
-    archangel                 = { 3, 3, 81700  }, -- Consumes your Dark Evangelism effects to instantly restore 1% mana per stack consumed and increase your healing done by 5% per stack for 18 sec.
+    solace_and_insanity       = { 3, 3, 139139 }, -- Your Mind Flay is transformed into Mind Flay Insanity when cast on a target with Devouring Plague.
 
     -- Tier 4 (Level 60) - Survivability
     desperate_prayer          = { 4, 1, 19236  }, -- Instantly heals the caster for 30% of their maximum health. 90 sec cooldown.
@@ -957,7 +987,7 @@ spec:RegisterGlyphs( {
     [55701] = "Glyph of Mind Blast",          -- Your Mind Blast spell also slows the target's movement speed by 50% for 4 sec.
     [55702] = "Glyph of Devouring Plague",    -- Your Devouring Plague instantly deals damage equal to 1 tick when applied.
     [55703] = "Glyph of Vampiric Touch",      -- Your Vampiric Touch spell also silences the target for 3 sec when applied.
-    
+
     -- Minor Glyphs (convenience and visual)
     [57985] = "Glyph of Shadowfiend",         -- Your Shadowfiend appears as a Shadow Orb.
     [57986] = "Glyph of Shackle Undead",      -- Your Shackle Undead spell glows with a different color.
@@ -972,50 +1002,33 @@ spec:RegisterGlyphs( {
 
 -- Advanced Aura System for Shadow Priest
 spec:RegisterAuras( {
-    -- Primary Shadow Orb System with Advanced Tracking
     shadow_orb = {
         id = 77487,
         duration = 3600,
         max_stack = 3,
         generate = function( aura )
-            local applied = action.mind_blast.lastCast or 0
-            local count = 0
-            
-            -- Advanced Shadow Orb generation tracking
-            if query_time - applied < 3600 then
-                -- Calculate orbs based on Mind Blast, Mind Flay, and SW:D usage
-                count = min( 3, floor( ( query_time - applied ) / 8 ) ) -- Base from Mind Blast cooldown
-                
-                -- Add orbs from Mind Flay channels
-                if buff.mind_flay.up then
-                    count = min( 3, count + floor( buff.mind_flay.remains / 1 ) )
-                end
-                
-                -- Factor in Shadow Word: Death usage
-                if action.shadow_word_death.lastCast and query_time - action.shadow_word_death.lastCast < 8 then
-                    count = min( 3, count + 1 )
-                end
-            end
-            
+            -- Read actual Shadow Orb resource count
+            local count = UnitPower("player", 28) or 0
+
             aura.count = count
-            aura.applied = applied
-            aura.expires = applied + 3600
+            aura.applied = query_time - 60 -- Assuming orbs existed for a while
+            aura.expires = query_time + 3600 -- Long duration like a passive
             aura.caster = "player"
         end,
     },
-    
+
     -- Enhanced Shadowform with Combat State Tracking
     shadowform = {
         id = 15473,
         duration = 3600,
         max_stack = 1,
         generate = function( aura )
-            local applied = action.shadowform.lastCast or 0
-            
-            if query_time - applied < 3600 then
+            local buff = FindUnitBuffByID("player", 15473)
+
+            if buff then
                 aura.count = 1
-                aura.applied = applied
-                aura.expires = applied + 3600
+                aura.applied = buff.applied or query_time
+                aura.expires = buff.expires or (query_time + 3600)
                 aura.caster = "player"
             else
                 aura.count = 0
@@ -1025,7 +1038,7 @@ spec:RegisterAuras( {
             end
         end,
     },
-    
+
     -- Shadow Word: Pain with Pandemic and DoT Optimization
     shadow_word_pain = {
         id = 589,
@@ -1033,27 +1046,33 @@ spec:RegisterAuras( {
         tick_time = 3,
         max_stack = 1,
         generate = function( aura )
-            local applied = action.shadow_word_pain.lastCast or 0
-            local duration = 18 + ( glyph.shadow_word_pain.enabled and 6 or 0 )
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID("target", 589, "PLAYER")
             
-            if query_time - applied < duration then
-                aura.count = 1
-                aura.applied = applied
-                aura.expires = applied + duration
-                aura.caster = "player"
-                
+            if name then
+                aura.count = count or 1
+                aura.applied = expirationTime - duration
+                aura.expires = expirationTime
+                aura.caster = caster
+
+                -- DoT tracking properties
+                aura.ticking = aura.expires > query_time and 1 or 0
+                aura.ticks_remain = math.max(0, math.ceil((aura.expires - query_time) / 3))
+
                 -- Advanced pandemic timing
-                aura.pandemic_threshold = aura.expires - ( duration * 0.3 )
+                local actual_duration = aura.expires - aura.applied
+                aura.pandemic_threshold = aura.expires - ( actual_duration * 0.3 )
                 aura.optimal_refresh = aura.expires - 5.4 -- 30% of base duration
             else
                 aura.count = 0
                 aura.applied = 0
                 aura.expires = 0
                 aura.caster = "nobody"
+                aura.ticking = 0
+                aura.ticks_remain = 0
             end
         end,
     },
-    
+
     -- Vampiric Touch with Enhanced Mana Tracking
     vampiric_touch = {
         id = 34914,
@@ -1061,27 +1080,37 @@ spec:RegisterAuras( {
         tick_time = 3,
         max_stack = 1,
         generate = function( aura )
-            local applied = action.vampiric_touch.lastCast or 0
-            local duration = 15 + ( glyph.vampiric_touch.enabled and 3 or 0 )
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID("target", 34914, "PLAYER")
             
-            if query_time - applied < duration then
-                aura.count = 1
-                aura.applied = applied
-                aura.expires = applied + duration
-                aura.caster = "player"
-                
+            if name then
+                aura.count = count or 1
+                aura.applied = expirationTime - duration
+                aura.expires = expirationTime
+                aura.caster = caster
+
+                -- DoT tracking properties
+                aura.ticking = aura.expires > query_time and 1 or 0
+                aura.ticks_remain = math.max(0, math.ceil((aura.expires - query_time) / 3))
+
                 -- Mana regeneration tracking
-                aura.mana_per_tick = mana.max * 0.02 -- 2% base mana per tick
+                aura.mana_per_tick = state.mana.max * 0.02 -- 2% base mana per tick
                 aura.total_mana_return = ( aura.expires - query_time ) / 3 * aura.mana_per_tick
+                
+                -- Advanced pandemic timing
+                local actual_duration = aura.expires - aura.applied
+                aura.pandemic_threshold = aura.expires - ( actual_duration * 0.3 )
+                aura.optimal_refresh = aura.expires - 4.5 -- 30% of base duration
             else
                 aura.count = 0
                 aura.applied = 0
                 aura.expires = 0
                 aura.caster = "nobody"
+                aura.ticking = 0
+                aura.ticks_remain = 0
             end
         end,
     },
-    
+
     -- Devouring Plague with Orb Consumption Optimization
     devouring_plague = {
         id = 2944,
@@ -1089,28 +1118,38 @@ spec:RegisterAuras( {
         tick_time = 3,
         max_stack = 1,
         generate = function( aura )
-            local applied = action.devouring_plague.lastCast or 0
-            local duration = 24 + ( glyph.devouring_plague.enabled and 6 or 0 )
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID("target", 2944, "PLAYER")
             
-            if query_time - applied < duration then
-                aura.count = 1
-                aura.applied = applied
-                aura.expires = applied + duration
-                aura.caster = "player"
-                
+            if name then
+                aura.count = count or 1
+                aura.applied = expirationTime - duration
+                aura.expires = expirationTime
+                aura.caster = caster
+
+                -- DoT tracking properties
+                aura.ticking = aura.expires > query_time and 1 or 0
+                aura.ticks_remain = math.max(0, math.ceil((aura.expires - query_time) / 3))
+
                 -- Advanced damage per orb tracking
                 aura.orbs_consumed = 3 -- Always consumes 3 orbs
-                aura.damage_per_tick = spell_power * 0.4 * aura.orbs_consumed
-                aura.total_damage = aura.damage_per_tick * ( duration / 3 )
+                aura.damage_per_tick = (state.stat.spell_power or 0) * 0.4 * aura.orbs_consumed
+                local actual_duration = aura.expires - aura.applied
+                aura.total_damage = aura.damage_per_tick * ( actual_duration / 3 )
+                
+                -- Advanced pandemic timing
+                aura.pandemic_threshold = aura.expires - ( actual_duration * 0.3 )
+                aura.optimal_refresh = aura.expires - 7.2 -- 30% of base duration
             else
                 aura.count = 0
                 aura.applied = 0
                 aura.expires = 0
                 aura.caster = "nobody"
+                aura.ticking = 0
+                aura.ticks_remain = 0
             end
         end,
     },
-    
+
     -- Mind Flay with Enhanced Channel Optimization
     mind_flay = {
         id = 15407,
@@ -1119,17 +1158,17 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( aura )
             local applied = action.mind_flay.lastCast or 0
-            
+
             if query_time - applied < 3 and not action.mind_flay.interrupt then
                 aura.count = 1
                 aura.applied = applied
                 aura.expires = applied + 3
                 aura.caster = "player"
-                
+
                 -- Advanced channel tracking
                 aura.ticks_remaining = max( 0, ceil( ( aura.expires - query_time ) / 1 ) )
-                aura.orbs_generated = min( 3 - buff.shadow_orb.count, aura.ticks_remaining )
-                
+                -- aura.orbs_generated = min( 3 - buff.shadow_orb.count, aura.ticks_remaining )
+
                 -- Glyph enhancement
                 if glyph.mind_flay.enabled and debuff.shadow_word_pain.up then
                     aura.damage_bonus = 1.2
@@ -1142,7 +1181,33 @@ spec:RegisterAuras( {
             end
         end,
     },
-    
+
+    mind_sear = {
+        id = 48045,
+        duration = 5,
+        tick_time = 1,
+        max_stack = 1,
+        generate = function( aura )
+            local applied = action.mind_sear.lastCast or 0
+
+            if query_time - applied < 5 then
+                aura.count = 1
+                aura.applied = applied
+                aura.expires = applied + 5
+                aura.caster = "player"
+
+                -- Advanced channel tracking
+                aura.ticks_remaining = max( 0, ceil( ( aura.expires - query_time ) / 1 ) )
+
+            else
+                aura.count = 0
+                aura.applied = 0
+                aura.expires = 0
+                aura.caster = "nobody"
+            end
+        end,
+    },
+
     -- Dispersion with Advanced Mana Management
     dispersion = {
         id = 47585,
@@ -1151,15 +1216,15 @@ spec:RegisterAuras( {
         generate = function( aura )
             local applied = action.dispersion.lastCast or 0
             local duration = 6
-            
+
             if query_time - applied < duration then
                 aura.count = 1
                 aura.applied = applied
                 aura.expires = applied + duration
                 aura.caster = "player"
-                
+
                 -- Enhanced mana regeneration tracking
-                aura.mana_per_second = mana.max * 0.15 -- 15% mana per second
+                aura.mana_per_second = state.mana.max * 0.15 -- 15% mana per second
                 aura.total_mana_return = aura.mana_per_second * ( aura.expires - query_time )
                 aura.damage_reduction = 0.6 -- 60% damage reduction
             else
@@ -1170,7 +1235,7 @@ spec:RegisterAuras( {
             end
         end,
     },
-    
+
     -- Vampiric Embrace with Group Healing Tracking
     vampiric_embrace = {
         id = 15286,
@@ -1179,13 +1244,13 @@ spec:RegisterAuras( {
         generate = function( aura )
             local applied = action.vampiric_embrace.lastCast or 0
             local duration = 15 + ( glyph.vampiric_embrace.enabled and 5 or 0 )
-            
+
             if query_time - applied < duration then
                 aura.count = 1
                 aura.applied = applied
                 aura.expires = applied + duration
                 aura.caster = "player"
-                
+
                 -- Group healing enhancement
                 aura.healing_multiplier = glyph.vampiric_embrace.enabled and 1.5 or 1.0
                 aura.affected_members = glyph.vampiric_embrace.enabled and 5 or 3
@@ -1197,23 +1262,23 @@ spec:RegisterAuras( {
             end
         end,
     },
-    
+
     -- Inner Fire with Spell Power Optimization
     inner_fire = {
         id = 588,
         duration = 1800,
         max_stack = 1,
         generate = function( aura )
-            local applied = action.inner_fire.lastCast or 0
-            
-            if query_time - applied < 1800 then
+            -- Check for actual buff presence, not just cast tracking
+            local buff = FindUnitBuffByID("player", 588)
+
+            if buff then
                 aura.count = 1
-                aura.applied = applied
-                aura.expires = applied + 1800
+                aura.applied = buff.applied or query_time
+                aura.expires = buff.expires or (query_time + 1800)
                 aura.caster = "player"
-                
-                -- Enhanced spell power tracking
-                aura.spell_power_bonus = 531 + ( glyph.inner_fire.enabled and 264 or 0 )
+
+                aura.spell_power_bonus = (state.stat.spell_power or 0) * 0.10
                 aura.armor_bonus = 100 -- Base armor increase
             else
                 aura.count = 0
@@ -1223,7 +1288,7 @@ spec:RegisterAuras( {
             end
         end,
     },
-    
+
     -- Power Word: Shield with Advanced Absorption
     power_word_shield = {
         id = 17,
@@ -1231,15 +1296,15 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( aura )
             local applied = action.power_word_shield.lastCast or 0
-            
+
             if query_time - applied < 15 then
                 aura.count = 1
                 aura.applied = applied
                 aura.expires = applied + 15
                 aura.caster = "player"
-                
+
                 -- Advanced absorption calculation
-                aura.absorption_amount = spell_power * 1.2 + 2230 -- Base + SP scaling
+                aura.absorption_amount = (state.stat.spell_power or 0) * 1.2 + 2230 -- Base + SP scaling
                 aura.movement_bonus = talent.body_and_soul.enabled and 0.6 or 0
             else
                 aura.count = 0
@@ -1249,7 +1314,7 @@ spec:RegisterAuras( {
             end
         end,
     },
-    
+
     -- Weakened Soul with Shield Management
     weakened_soul = {
         id = 6788,
@@ -1257,7 +1322,7 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( aura )
             local applied = action.power_word_shield.lastCast or 0
-            
+
             if query_time - applied < 15 then
                 aura.count = 1
                 aura.applied = applied
@@ -1271,7 +1336,7 @@ spec:RegisterAuras( {
             end
         end,
     },
-    
+
     -- Surge of Darkness with Instant Cast Optimization
     surge_of_darkness = {
         id = 87160,
@@ -1280,18 +1345,18 @@ spec:RegisterAuras( {
         generate = function( aura )
             local applied = action.mind_spike.lastCast or 0
             local stacks = 0
-            
+
             -- Advanced proc tracking based on DoT damage
             if debuff.shadow_word_pain.up then
                 local pain_ticks = floor( ( query_time - debuff.shadow_word_pain.applied ) / 3 )
                 stacks = min( 3, pain_ticks * 0.15 ) -- 15% chance per tick
             end
-            
+
             if debuff.vampiric_touch.up then
                 local vt_ticks = floor( ( query_time - debuff.vampiric_touch.applied ) / 3 )
                 stacks = min( 3, stacks + vt_ticks * 0.15 )
             end
-            
+
             if stacks > 0 and query_time - applied < 10 then
                 aura.count = stacks
                 aura.applied = applied
@@ -1305,39 +1370,7 @@ spec:RegisterAuras( {
             end
         end,
     },
-    
-    -- Mind Melt with DoT Removal Tracking
-    mind_melt = {
-        id = 81292,
-        duration = 10,
-        max_stack = 3,
-        generate = function( aura )
-            local applied = action.mind_spike.lastCast or 0
-            local stacks = 1
-            
-            if query_time - applied < 10 then
-                -- Calculate stacks based on consecutive Mind Spike usage
-                local consecutive_spikes = 1
-                if action.mind_spike.lastCast and query_time - action.mind_spike.lastCast < 2.5 then
-                    consecutive_spikes = min( 3, consecutive_spikes + 1 )
-                end
-                
-                aura.count = consecutive_spikes
-                aura.applied = applied
-                aura.expires = applied + 10
-                aura.caster = "player"
-                
-                -- Damage bonus tracking
-                aura.damage_bonus = 1 + ( aura.count * 0.25 ) -- 25% per stack
-            else
-                aura.count = 0
-                aura.applied = 0
-                aura.expires = 0
-                aura.caster = "nobody"
-            end
-        end,
-    },
-    
+
     -- Advanced Shadowfiend/Mindbender Tracking
     shadowfiend = {
         id = 34433,
@@ -1346,16 +1379,16 @@ spec:RegisterAuras( {
         generate = function( aura )
             local applied = action.shadowfiend.lastCast or 0
             local duration = talent.mindbender.enabled and 15 or 12
-            
+
             if query_time - applied < duration then
                 aura.count = 1
                 aura.applied = applied
                 aura.expires = applied + duration
                 aura.caster = "player"
-                
+
                 -- Enhanced mana return tracking
                 aura.attacks_per_second = 1.5
-                aura.mana_per_attack = talent.mindbender.enabled and ( mana.max * 0.0075 ) or ( mana.max * 0.03 )
+                aura.mana_per_attack = talent.mindbender.enabled and ( state.mana.max * 0.0075 ) or ( state.mana.max * 0.03 )
                 aura.total_mana_return = aura.mana_per_attack * aura.attacks_per_second * ( aura.expires - query_time )
             else
                 aura.count = 0
@@ -1365,83 +1398,118 @@ spec:RegisterAuras( {
             end
         end,
     },
-    
-    -- Dark Evangelism for Archangel Talent
-    dark_evangelism = {
-        id = 87118,
+
+    -- Power Infusion for Power Infusion Talent
+    power_infusion = {
+        id = 10060,
         duration = 20,
-        max_stack = 5,
+        max_stack = 1,
         generate = function( aura )
-            local applied = action.mind_flay.lastCast or action.mind_blast.lastCast or action.shadow_word_pain.lastCast or 0
-            local stacks = 0
-            
-            if talent.archangel.enabled and query_time - applied < 20 then
-                -- Calculate stacks from damage spell usage
-                stacks = min( 5, floor( ( query_time - applied ) / 4 ) )
-                
-                if stacks > 0 then
-                    aura.count = stacks
-                    aura.applied = applied
-                    aura.expires = applied + 20
-                    aura.caster = "player"
-                    
-                    -- Archangel benefit tracking
-                    aura.mana_return = stacks * 0.01 -- 1% per stack
-                    aura.healing_bonus = stacks * 0.05 -- 5% per stack
-                else
-                    aura.count = 0
-                    aura.applied = 0
-                    aura.expires = 0
-                    aura.caster = "nobody"
-                end
+            local applied = action.power_infusion.lastCast or 0
+            local duration = 20
+
+            if talent.power_infusion.enabled and query_time - applied < 20 then
+                aura.count = 1
+                aura.applied = applied
+                aura.expires = applied + 20
+                aura.caster = "player"
             end
         end,
     },
-    
+
+    -- Divine Insight for talent
+    divine_insight = {
+        id = 124430,
+        duration = 8,
+        max_stack = 1,
+        generate = function( aura )
+            if talent.divine_insight.enabled and debuff.shadow_word_pain.up then
+                -- 40% chance per SW:P tick to proc
+                local pain_ticks = floor( ( query_time - debuff.shadow_word_pain.applied ) / 3 )
+                local proc_chance = pain_ticks * 0.4
+
+                -- Simple proc simulation based on SW:P activity
+                if proc_chance > 0 and query_time - debuff.shadow_word_pain.applied < 8 then
+                    aura.count = 1
+                    aura.applied = debuff.shadow_word_pain.applied
+                    aura.expires = debuff.shadow_word_pain.applied + 8
+                    aura.caster = "player"
+                    return
+                end
+            end
+
+            aura.count = 0
+            aura.applied = 0
+            aura.expires = 0
+            aura.caster = "nobody"
+        end,
+    },
+
+    power_word_fortitude = {
+        id = 21562,
+        duration = 3600,
+        max_stack = 1,
+        generate = function( aura )
+            local buff = FindUnitBuffByID("player", 21562)
+
+            if buff then
+                aura.count = 1
+                aura.applied = buff.applied or query_time
+                aura.expires = buff.expires or (query_time + 3600)
+                aura.caster = "player"
+            else
+                aura.count = 0
+                aura.applied = 0
+                aura.expires = 0
+                aura.caster = "nobody"
+            end
+        end,
+    },
+
     -- Tier Set and Proc Auras
     tier14_2pc_shadow = {
         id = 123254,
         duration = 8,
         max_stack = 1,
     },
-    
+
     tier14_4pc_shadow = {
         id = 123259,
         duration = 15,
         max_stack = 1,
     },
-    
+
     tier15_2pc_shadow = {
         id = 138322,
         duration = 12,
         max_stack = 1,
     },
-    
+
     tier15_4pc_shadow = {
         id = 138323,
         duration = 6,
         max_stack = 1,
     },
-    
+
     tier16_2pc_shadow = {
         id = 144912,
         duration = 20,
         max_stack = 1,
     },
-    
+
     tier16_4pc_shadow = {
         id = 144915,
         duration = 8,
         max_stack = 3,
     },
-    
+
     -- Legendary and Special Proc Tracking
     legendary_cloak_proc = {
         id = 148009,
         duration = 4,
         max_stack = 1,
     },
-    
+
     -- Enhanced Combat State Tracking
     twist_of_fate = {
         id = 123254,
@@ -1462,7 +1530,80 @@ spec:RegisterAuras( {
             end
         end,
     },
+
+    -- Shadow Word: Death Reset Available
+    -- Tracks when SW:D reset is available after target survives below 20% health
+    -- Only usable if 9-second internal cooldown has elapsed since last reset
+    shadow_word_death_reset_cooldown = {
+        id = 999999, -- Fake buff ID for tracking
+        duration = 3600,
+        max_stack = 1,
+        copy = "swd_reset_available",
+    }
 } )
+
+-- Add threat state table because there's a warning about a threat value and I dunno why ¯\_(ツ)_/¯
+-- TODO: Probably should remove this
+spec:RegisterStateTable( "threat", setmetatable({}, {
+    __index = function( t, k )
+        if k == "current" then
+            return 0 -- No threat management needed for Shadow Priest DPS
+        elseif k == "lead" then
+            return 0
+        elseif k == "total" then
+            return 0
+        end
+        return 0
+    end,
+}))
+
+-- State Functions for SW:D Reset Management
+spec:RegisterStateFunction( "check_swd_reset", function()
+    -- Initialize tracking variables if they don't exist
+    ns.shadow_priest_swd_reset_available = ns.shadow_priest_swd_reset_available or false
+    ns.shadow_priest_swd_reset_available_time = ns.shadow_priest_swd_reset_available_time or 0
+    ns.shadow_priest_last_reset_time = ns.shadow_priest_last_reset_time or 0
+
+    local current_time = GetTime()
+    local reset_available = ns.shadow_priest_swd_reset_available
+    local reset_time = ns.shadow_priest_swd_reset_available_time
+    local last_reset_used = ns.shadow_priest_last_reset_time
+
+    -- Clean up stale awaiting result flags (safety fallback)
+    if ns.shadow_priest_swd_awaiting_result and
+       (current_time - (ns.shadow_priest_swd_cast_timestamp or 0)) > 2 then
+        ns.shadow_priest_swd_awaiting_result = false
+
+        if Hekili.ActiveDebug then
+            Hekili:Debug("SW:D awaiting result timeout - assuming target survived")
+        end
+
+        -- Assume target survived after 2 seconds
+        if current_time - last_reset_used >= 9 then
+            ns.shadow_priest_swd_reset_available = true
+            ns.shadow_priest_swd_reset_available_time = current_time
+        end
+    end
+
+    -- Check if we have a reset available and it hasn't been consumed
+    if reset_available and current_time - reset_time < 3600 then
+        -- Check if we're not within the 9 second internal cooldown
+        if current_time - last_reset_used >= 9 then
+            if not state.buff.shadow_word_death_reset_cooldown.up then
+                applyBuff( "shadow_word_death_reset_cooldown" )
+            end
+        else
+            if state.buff.shadow_word_death_reset_cooldown.up then
+                removeBuff( "shadow_word_death_reset_cooldown" )
+            end
+        end
+    else
+        if state.buff.shadow_word_death_reset_cooldown.up then
+            removeBuff( "shadow_word_death_reset_cooldown" )
+        end
+    end
+end )
+
 
 -- Abilities
 spec:RegisterAbilities( {
@@ -1472,7 +1613,7 @@ spec:RegisterAbilities( {
         cast = 0,
         cooldown = 0,
         gcd = "spell",
-        
+
         handler = function ()
             if buff.shadowform.up then
                 removeBuff( "shadowform" )
@@ -1481,72 +1622,68 @@ spec:RegisterAbilities( {
             end
         end,
     },
-    
+
     -- Shadow Word: Pain
     shadow_word_pain = {
         id = 589,
         cast = 0,
         cooldown = 0,
         gcd = "spell",
-        
+
         spend = 0.22,
         spendType = "mana",
-        
+
         handler = function ()
             applyDebuff( "target", "shadow_word_pain" )
         end,
     },
-    
+
     -- Vampiric Touch
     vampiric_touch = {
         id = 34914,
         cast = 1.5,
         cooldown = 0,
         gcd = "spell",
-        
+
         spend = 0.20,
         spendType = "mana",
-        
+
         handler = function ()
             applyDebuff( "target", "vampiric_touch" )
         end,
     },
-    
+
     -- Devouring Plague
     devouring_plague = {
         id = 2944,
         cast = 0,
         cooldown = 0,
         gcd = "spell",
-        
-        spend = 3,
-        spendType = "shadow_orb",
-        
-        usable = function () return shadow_orb.count >= 3 end,
-        
+
+        spend = function() return shadow_orb.count end,
+        spendType = "shadow_orbs",
+
         handler = function ()
             applyDebuff( "target", "devouring_plague" )
-            shadow_orb.count = 0
+            -- Consumes all Shadow Orbs to empower the DoT
         end,
     },
-    
+
     -- Mind Blast
     mind_blast = {
         id = 8092,
         cast = 1.5,
         cooldown = 8,
         gcd = "spell",
-        
+
         spend = 0.17,
         spendType = "mana",
-        
+
         handler = function ()
-            if shadow_orb.count < 3 then
-                shadow_orb.count = shadow_orb.count + 1
-            end
+            -- Shadow Orb generation handled by resource system
         end,
     },
-    
+
     -- Mind Flay
     mind_flay = {
         id = 15407,
@@ -1554,142 +1691,172 @@ spec:RegisterAbilities( {
         channeled = true,
         cooldown = 0,
         gcd = "spell",
-        
+
         spend = 0.09,
         spendType = "mana",
-        
+
         start = function ()
             applyDebuff( "target", "mind_flay" )
         end,
-        
-        tick = function ()
-            if shadow_orb.count < 3 then
-                shadow_orb.count = shadow_orb.count + 1
-            end
-        end,
     },
-    
+
     -- Mind Spike
     mind_spike = {
         id = 73510,
         cast = function () return buff.surge_of_darkness.up and 0 or 1.5 end,
         cooldown = 0,
         gcd = "spell",
-        
+
         spend = function () return buff.surge_of_darkness.up and 0 or 0.18 end,
         spendType = "mana",
-        
+
         handler = function ()
             if buff.surge_of_darkness.up then
                 removeBuff( "surge_of_darkness" )
             end
-            
+
             if buff.mind_melt.up then
                 applyBuff( "mind_melt", nil, min( 3, buff.mind_melt.stack + 1 ) )
             else
                 applyBuff( "mind_melt" )
             end
-            
+
             -- Remove DoTs
             removeDebuff( "target", "shadow_word_pain" )
             removeDebuff( "target", "vampiric_touch" )
         end,
     },
-    
+
     -- Shadow Word: Death
     shadow_word_death = {
         id = 32379,
         cast = 0,
-        cooldown = 8,
+        cooldown = function()
+            -- If we have a reset available, no cooldown
+            if state.buff.shadow_word_death_reset_cooldown.up then
+                return 0
+            end
+            return 8
+        end,
         gcd = "spell",
-        
+
         spend = 0.12,
         spendType = "mana",
-        
+
+        usable = function()
+            -- Can only be used on targets below 20% health
+            if state.target.health.pct >= 20 then
+                return false
+            end
+
+            -- Can use if off cooldown normally, or if reset is available
+            return state.cooldown.shadow_word_death.remains == 0 or state.buff.shadow_word_death_reset_cooldown.up
+        end,
+
         handler = function ()
-            if shadow_orb.count < 3 then
-                shadow_orb.count = shadow_orb.count + 1
+            -- Shadow Orb resource tracked by resource system
+
+            -- Shadow Word: Death Reset Cooldown
+            local using_reset = state.buff.shadow_word_death_reset_cooldown.up
+
+            if Hekili.ActiveDebug then
+                Hekili:Debug("SW:D Cast - Using reset: %s Target Health: %.1f%% Awaiting result set to true at: %.3f",
+                    tostring(using_reset), state.target.health.pct, GetTime())
+            end
+
+            -- If we used a reset, consume it and set the 9 second internal cooldown
+            if using_reset then
+                removeBuff( "shadow_word_death_reset_cooldown" )
+                -- Clear the reset availability and set internal cooldown
+                ns.shadow_priest_swd_reset_available = false
+                ns.shadow_priest_last_reset_time = GetTime()
+            else
+                -- Set up tracking for potential reset (only if target < 20% health)
+                if state.target.health.pct < 20 then
+                    ns.shadow_priest_swd_cast_timestamp = GetTime()
+                    ns.shadow_priest_swd_awaiting_result = true
+                end
             end
         end,
     },
-    
+
     -- Psychic Horror
     psychic_horror = {
         id = 64044,
         cast = 0,
         cooldown = 45,
         gcd = "spell",
-        
+
         spend = 0.08,
         spendType = "mana",
     },
-    
+
     -- Psychic Scream
     psychic_scream = {
         id = 8122,
         cast = 0,
         cooldown = 30,
         gcd = "spell",
-        
+
         spend = 0.15,
         spendType = "mana",
     },
-    
+
     -- Dispersion
     dispersion = {
         id = 47585,
         cast = 0,
         cooldown = 120,
         gcd = "spell",
-        
+
         handler = function ()
             applyBuff( "dispersion" )
         end,
     },
-    
+
     -- Vampiric Embrace
     vampiric_embrace = {
         id = 15286,
         cast = 0,
         cooldown = 60,
         gcd = "spell",
-        
+
         handler = function ()
             applyBuff( "vampiric_embrace" )
         end,
     },
-    
+
     -- Power Word: Shield
     power_word_shield = {
         id = 17,
         cast = 0,
         cooldown = 0,
         gcd = "spell",
-        
+
         spend = 0.23,
         spendType = "mana",
-        
+
         handler = function ()
             applyBuff( "power_word_shield" )
             applyDebuff( "target", "weakened_soul" )
         end,
     },
-    
+
     -- Inner Fire
     inner_fire = {
         id = 588,
         cast = 0,
         cooldown = 0,
         gcd = "spell",
-        
+
         spend = 0.13,
         spendType = "mana",
-        
+
         handler = function ()
             applyBuff( "inner_fire" )
         end,
     },
-    
+
     -- Shadowfiend
     shadowfiend = {
         id = 34433,
@@ -1697,7 +1864,7 @@ spec:RegisterAbilities( {
         cooldown = 180,
         gcd = "spell",
     },
-    
+
     -- Fade
     fade = {
         id = 586,
@@ -1705,9 +1872,88 @@ spec:RegisterAbilities( {
         cooldown = 30,
         gcd = "spell",
     },
+
+    -- Mind Sear
+    mind_sear = {
+        id = 48045,
+        cast = 5,
+        channeled = true,
+        cooldown = 0,
+        gcd = "spell",
+
+        spend = 0.03,
+        spendType = "mana",
+
+        start = function()
+            applyDebuff( "target", "mind_sear" )
+        end,
+    },
+
+    -- Power Word: Fortitude
+    power_word_fortitude = {
+        id = 21562,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+
+        spend = 0.01,
+        spendType = "mana",
+
+        handler = function()
+            applyBuff( "power_word_fortitude" )
+        end,
+    },
+
+    -- Power Infusion
+    power_infusion = {
+        id = 10060,
+        cast = 0,
+        cooldown = 120,
+        gcd = "off",
+
+        toggle = "cooldowns",
+        talent = "power_infusion",
+
+        handler = function()
+            applyBuff( "power_infusion" )
+        end
+    },
+
+    -- Halo
+    halo = {
+        -- ID might change in Shadowform 120692 (Holy) and 120696 (Shadow)
+        id = 120517,
+        cast = 0,
+        cooldown = 40,
+        gcd = "spell",
+
+        talent = "halo",
+    },
+
+    -- Cascade
+    cascade = {
+        -- ID might change based on spec 120785 and 121148
+        id = 121135,
+        cast = 0,
+        cooldown = 25,
+        gcd = "spell",
+
+        talent = "cascade",
+    },
+
+    -- Divine Star
+    divine_star = {
+        -- ID might change in Shadowform 110745 (Holy) and 122128 (Shadow)
+        id = 110744,
+        cast = 0,
+        cooldown = 15,
+        gcd = "spell",
+
+        talent = "divine_star",
+    }
 } )
 
 -- Register default pack for MoP Shadow Priest
-spec:RegisterPack( "Shadow", 20250528, [[Hekili:T1PBVTTn04FlXjHj0Ofnr0i4Lvv9n0KxkzPORkyzyV1ikA2mzZ(fQ1Hm8kkjjjjlvQKKQKYfan1Y0YPpNvFupNLJLhum9DbDps9yVDJnLHrdlRJsrkzpNISnPnkTkUk(qNGYXnENRNpnS2)YBFm(nEF5(wB5OxZ)m45MyiytnisgMPzJfW2vZYwbpzw0aD6w)aW]] )
+spec:RegisterPack( "Shadow", 20250724, [[Hekili:nNvxpoQnu0FmvkAgTtPajSt62K5HTV0DEyvLy7tvlGd4myf(sgZKnsJ43EV2qaJXatNTTQQQRY4po3Z9AFp(EfEwEFXZncXWEF2202X8E7ng2RDU3Y2ZLDPa75wGcpHEc(rgkf(x3yuu(56GFJKIr1bFeZq81CjjhfXXQmVIgYxhj9xPOJS6aNnB)XTEUhQijSpL5DqN9EVdypufloN65kG2ZnMefHBwpUm0Z9lXKY6a()d2TLv1b5hH)oKrYZQdsiLmy6J5uGF4tKeIbWnA(rscWOFOo43PeCj7d1bTEXJWykeT(X6hBWR0OGIdZtpGyVB)pvKFgt9pNtJ8b8zewve(oYX9hQoE0q3KgGbY0Jfjldw(rcThH(HMzFLcwdwiTBF9dnZ(kYfXNhL8T)EO1Hr3kpKKNhLuvYmOyyrV8cdrFcZmyWzNpl3pIG3TFJPg7rWzrdbMh7izhRkBnadLGZygdNWaNHoKGhSvbj8pwrVmyumTetprYEsEueneLXPgLcGpMxnNEryelwjCinJpfxIz(H55j84JrvXkoopJ9Xz4u4U1U9oYqhHFgshaM4xKGEQsCC3cAo9GryEvgB)6v30bykjlY)qcsextrKSYDwgoDr3ymkHfBueY2zBUQBxJ4P8MVvMq94ZPYSC)7iSW)N5dmcECmbDHdAewaRAWcUlfEQ0VXv2T3A1uRtyU2lnL5jOqSpcGh8FugHD56nN7cJbG2BnLtwaZEx4LWe4wIiCxU36Uu038hoMJ24aFZJYzEgLwqOKq4wxvy8Rf7w3C4M7ordHZoFEw2)eUHse()mU)oUHh5fD7cNEGcNItKTiLeOOW8kt3MXRf3llliNWAZpw1CUxbESF(r)ie9ugUSSrdCVTmsXOKCjXm(FE9I4Q2S5i45kuwiiuU2uDSh2BDVmCqOle18ItlITJ0b6ndz7dwV8YnJa12zf8tMrkCsGPx8PigeU2z5yAAEBNmJ063E7y2UrhBhegJiptaXwysQeJLgDowRJGRbcQHj2BKT6zeHDxjoC)YcJnS6TPPAA4msCZAEEmwwNtG5u9x0idVPo39YxHsCjgoOALhVJKbrEAvbJ)B1KGh2VwVoUMDp)RjP5WTHN04unppDD6oVR92deCipf3w2Xu35K38mx(gFFARUConOPM8Pjhzw9zDopS5cO0f4V8CpJOzWckVw1BBrSnL)Mskl5v3euwvuaLB2wX7tWreOEwhWajWtGKSrDqDWNynBsuoyku7fucvalgbdJFgYW4ytYPW7KW6YctGkxHvJjSym9dqbJb)yDWF(hLyos40YVExDW5ysyS8Qrzx6TADqwoh8VvKqcjSKECJ4)IBCCVr)fOcE6vZ8LgiQdS(kh0i5HSLS8zssIKh1cj76sfrdXqzvPq1GCdxMKZmQF8tP8agFaBL2gGjHMxkWHqJjoq7kIbfnhHpIQsyWp)SOzP2JCVp65gcEaeYr8MBgx9m0qJWaaSDt4Xa4NhfLkRRdE5fWBgvDDDWU91bBm7Tstf6ClSMBbfJZl7w2SWY2mjrMTcCzlkpphshzl3xEUIHF)Gv1vUUYQUxEvdlFxzLBFnNlZwgFDWQM7d9kDnbyh1aPemCt)ZtAA1cpQda4wlm0n1bZO9dggYamCgCY3)kLyABtbql)Avpy327jQ1jXDelZj9KfIl9EGaNxvsYcnp8MpoSutUgqs(dvaH4Vu55AjtTxtlinmWsWT5AfrSGLBhrq31tqx1hmaUkxSnxkYDuj4EUoZgU76rryA1S)RMEyT7VfdpBtaIlKDnciyIZ)IbbnhGcB(()p491bVdUPCTvibVU)TONmqCq5vb1MQewzAbZzSIUq58sktloQn3wyL5QKvqgBLKArnWI3vNwbtttyTzPdkBRHhRn1p3dCp((ERZrty3Pv80xT413audcpiux4I(3mH5TBIrA6qQrNN3ghO0p4Ldfe2kMFkFFZC(U0XDRhjC)PRNz6sVxoemLpY7eCwxWEJ0TYEllOQQCl0KgW3fFeThqERDd9WV)xNnnCM89oHyLTQu9qApUcIP57sLDSmxufRvFVzQm3LFqxjBEkf6Ugw9C761S51CnVRp6(fp)waVQq7SfkmWq8DleqBAIt8Oqdq(TJmXBynvPmS0vBvnYriPeG11gS2AXKOhVLavXXzSZcPT6Z62QpRtHfQsLlZcDANtiDnwEsX62VLtTMkpgCOTEqdwY9TlVmg)Bp1(ry8009419R7Jh18nVOKIMLO(DRu)OvJULm5hKYB5gqv(uu9eTFcVRnzoJqWRRz4nYrY2oyvIIn)N3Fb]] )
 
 -- Register pack selector for Shadow
