@@ -18,8 +18,8 @@ actions+=/shadow_word_death,if=buff.shadow_word_death_reset_cooldown.up&active_e
 actions+=/devouring_plague,if=shadow_orb.count=3&(cooldown.mind_blast.remains<1.5|target.health.pct<20&cooldown.shadow_word_death.remains<1.5)
 actions+=/mind_blast,if=active_enemies<=5
 actions+=/shadow_word_death,if=buff.shadow_word_death_reset_cooldown.down&active_enemies<=5
-actions+=/mind_flay,if=debuff.devouring_plague.ticks_remain<=1&debuff.devouring_plague.down&talent.solace_and_insanity.enabled,chain=1
-actions+=/shadow_word_pain,cycle_targets=1,max_cycle_targets=5,if=buff.shadow_word_pain.down
+actions+=/mind_flay,if=debuff.devouring_plague.ticks_remain<=1&debuff.devouring_plague.up&talent.solace_and_insanity.enabled,chain=1
+actions+=/shadow_word_pain,cycle_targets=1,max_cycle_targets=5,if=debuff.shadow_word_pain.down
 actions+=/vampiric_touch,cycle_targets=1,max_cycle_targets=5,if=debuff.vampiric_touch.remains<cast_time
 actions+=/shadow_word_pain,cycle_targets=1,max_cycle_targets=5,if=ticks_remain<=1
 actions+=/vampiric_touch,cycle_targets=1,max_cycle_targets=5,if=debuff.vampiric_touch.remains<cast_time+tick_time
