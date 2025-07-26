@@ -1,37 +1,55 @@
+# Hunter Survival - MoP
+
+# PRECOMBAT PREPARATION
 actions.precombat+=/aspect_of_the_cheetah,if=!buff.aspect_of_the_cheetah.up&!mounted&moving
 actions.precombat+=/aspect_of_the_hawk,if=!buff.aspect_of_the_hawk.up&!talent.aspect_of_the_iron_hawk.enabled
 actions.precombat+=/aspect_of_the_iron_hawk,if=!buff.aspect_of_the_hawk.up&!buff.aspect_of_the_iron_hawk.up&!moving
 actions.precombat+=/call_pet_1,if=!pet_alive
 actions.precombat+=/hunters_mark,if=(settings.mark_any|target.is_boss)&active_dot.hunters_mark=0&target.time_to_die>15
 
+# MAIN ROTATION PRIORITY LIST
 actions+=/call_action_list,name=cooldowns,if=time>=3
+# 1. AOE Rotation (3+ targets) - TOP PRIORITY
 actions+=/call_action_list,name=aoe,if=active_enemies>3
 
+# 2. Burst Phase (when Explosive Shot is ready and cooldowns available)
 actions+=/call_action_list,name=burst,if=buff.lock_and_load.up
 
+# 3. MAIN ROTATION - Cast and maintain Serpent Sting
 actions+=/serpent_sting,if=!debuff.serpent_sting.up&target.time_to_die>15
 
+# 4. Explosive Shot (Lock and Load priority - cast all 3 free shots)
 actions+=/explosive_shot,if=buff.lock_and_load.up&lock_and_load_shots>0
 
+# 5. Explosive Shot (normal usage)
 actions+=/explosive_shot,if=focus>=40
 
+# 6. Kill Shot in execute range (20% health)
 actions+=/kill_shot,if=target.health.pct<=20
 
+# 7. A Murder of Crows (if talented)
 actions+=/a_murder_of_crows,if=talent.a_murder_of_crows.enabled&cooldown.a_murder_of_crows.ready&focus>=30
 
+# 8. Black Arrow (maintain)
 actions+=/black_arrow,if=!debuff.black_arrow.up&focus>=35&target.time_to_die>=8
 
+# 9. Glaive Toss (if talented)
 actions+=/glaive_toss,if=talent.glaive_toss.enabled&cooldown.glaive_toss.ready&focus>=15
 
+# 10. Arcane Shot (when focus >= 55)
 actions+=/arcane_shot,if=focus>=55
 
+# 11. Optimal shot rotation using state expressions
 actions+=/cobra_shot,if=should_cobra_shot&focus>=14
+actions+=/steady_shot,if=should_steady_shot&focus>=14
 
-
+# 13. Defensive and Utility - BOTTOM PRIORITY
 actions+=/call_action_list,name=defensive
 
+# 14. Aspect Management - BOTTOM PRIORITY
 actions+=/call_action_list,name=aspects
 
+# BURST PHASE (when Explosive Shot is ready and cooldowns available)
 actions.burst+=/explosive_shot,if=buff.lock_and_load.up&lock_and_load_shots>0
 actions.burst+=/stampede,if=cooldown.stampede.ready
 actions.burst+=/rapid_fire,if=cooldown.rapid_fire.ready
@@ -41,9 +59,11 @@ actions.burst+=/arcane_shot,if=focus>=55
 actions.burst+=/cobra_shot,if=should_cobra_shot&focus>=14
 actions.burst+=/steady_shot,if=should_steady_shot&focus>=14
 
+# ASPECT MANAGEMENT
 actions.aspects+=/aspect_of_the_hawk,if=!buff.aspect_of_the_hawk.up&!talent.aspect_of_the_iron_hawk.enabled
 actions.aspects+=/aspect_of_the_iron_hawk,if=!buff.aspect_of_the_hawk.up&!buff.aspect_of_the_iron_hawk.up
 
+# DEFENSIVE AND UTILITY
 actions.defensive+=/exhilaration,if=talent.exhilaration.enabled&health.pct<50
 actions.defensive+=/healthstone,if=health.pct<40
 actions.defensive+=/misdirection,if=threat.situation>=2
@@ -52,21 +72,26 @@ actions.defensive+=/silencing_shot,if=talent.silencing_shot.enabled&target.casti
 actions.defensive+=/wyvern_sting,if=talent.wyvern_sting.enabled&cooldown.wyvern_sting.ready&focus>=25
 actions.defensive+=/intimidation,if=talent.intimidation.enabled&cooldown.intimidation.ready&focus>=25
 
+# COOLDOWN MANAGEMENT
 actions.cooldowns+=/rapid_fire,if=cooldown.rapid_fire.ready&!buff.rapid_fire.up&!bloodlust.up
 actions.cooldowns+=/stampede,if=(buff.rapid_fire.up|buff.bloodlust.up)&cooldown.stampede.ready
 actions.cooldowns+=/lynx_rush,if=talent.lynx_rush.enabled&cooldown.lynx_rush.ready&focus>=25
 actions.cooldowns+=/dire_beast,if=talent.dire_beast.enabled&cooldown.dire_beast.ready&focus>=25
 actions.cooldowns+=/fervor,if=talent.fervor.enabled&cooldown.fervor.ready&focus<50
 
+# Trinkets
 actions.cooldowns+=/use_item,slot=trinket1
 actions.cooldowns+=/use_item,slot=trinket2
 
+# Racial abilities
 actions.cooldowns+=/arcane_torrent,if=focus<35
 actions.cooldowns+=/berserking
 actions.cooldowns+=/blood_fury
 
+# Agility potion during heroism/bloodlust
 actions.cooldowns+=/potion,name=virmens_bite,if=buff.bloodlust.up
 
+# AOE ROTATION (3+ TARGETS)
 actions.aoe+=/explosive_shot,if=buff.lock_and_load.up&lock_and_load_shots>0
 actions.aoe+=/serpent_sting,if=!debuff.serpent_sting.up&target.time_to_die>15
 actions.aoe+=/explosive_shot,if=focus>=40
