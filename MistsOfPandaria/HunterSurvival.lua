@@ -448,7 +448,7 @@ spec:RegisterAuras( {
 
     -- Lock and Load state tracking
     spec:RegisterStateExpr( "lock_and_load_shots", function()
-        if buff.lock_and_load.up then
+        if state.buff.lock_and_load.up then
             return 3
         end
         return 0
@@ -668,7 +668,7 @@ spec:RegisterAuras( {
                     -- In MoP, Lock and Load gives 3 free Explosive Shots
                     -- The buff should be consumed when all charges are used
                     -- Note: This is simplified - real implementation would track charges
-                    local remaining = lock_and_load_shots - 1
+                    local remaining = state.lock_and_load_shots - 1
                     if remaining <= 0 then
                         removeBuff( "lock_and_load" )
                     end

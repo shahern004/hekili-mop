@@ -36,8 +36,8 @@ actions+=/black_arrow,if=!debuff.black_arrow.up&focus>=35&target.time_to_die>=8
 # 9. Glaive Toss (if talented)
 actions+=/glaive_toss,if=talent.glaive_toss.enabled&cooldown.glaive_toss.ready&focus>=15
 
-# 10. Arcane Shot (when focus >= 55)
-actions+=/arcane_shot,if=focus>=55
+# 10. Arcane Shot (when focus >= 50)
+actions+=/arcane_shot,if=focus>=50
 
 # 11. Optimal shot rotation using state expressions
 actions+=/cobra_shot,if=should_cobra_shot&focus>=14
@@ -55,7 +55,7 @@ actions.burst+=/stampede,if=cooldown.stampede.ready
 actions.burst+=/rapid_fire,if=cooldown.rapid_fire.ready
 actions.burst+=/kill_shot,if=target.health.pct<=20
 actions.burst+=/black_arrow,if=!debuff.black_arrow.up&focus>=35&target.time_to_die>=8
-actions.burst+=/arcane_shot,if=focus>=55
+actions.burst+=/arcane_shot,if=focus>=50
 actions.burst+=/cobra_shot,if=should_cobra_shot&focus>=14
 actions.burst+=/steady_shot,if=should_steady_shot&focus>=14
 
