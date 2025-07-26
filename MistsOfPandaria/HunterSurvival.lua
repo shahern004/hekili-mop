@@ -223,7 +223,7 @@ spec:RegisterAuras( {
             type = "Magic"
         },
 
-    serpent_sting = {
+    serpent_sting = { --- Debuff
         id = 118253,    
         duration = 15,
         tick_time = 3,
@@ -632,13 +632,13 @@ spec:RegisterAuras( {
         },
 
         serpent_sting = {
-            id = 118253,
+            id = 1978,
             cast = 0,
             cooldown = 0,
             gcd = "spell",
             school = "nature",
             
-            spend = 25,
+            spend = 15,
             spendType = "focus",
             
             startsCombat = true,
