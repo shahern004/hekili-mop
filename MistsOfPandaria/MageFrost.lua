@@ -79,15 +79,18 @@ RegisterFrostCombatLogEvent("COMBAT_LOG_EVENT_UNFILTERED", function(event, ...)
     
     -- FROST PROC TRACKING
     if subEvent == "SPELL_AURA_APPLIED" then
-        if spellId == 57761 then -- Brain Freeze
+        if spellId == 44549 then -- Brain Freeze (correct spell ID)
             brain_freeze_procs = brain_freeze_procs + 1
             ns.last_brain_freeze = now
+            applyBuff( "brain_freeze" )
         elseif spellId == 44544 then -- Fingers of Frost
             fingers_of_frost_procs = fingers_of_frost_procs + 1
             ns.last_fingers_of_frost = now
+            applyBuff( "fingers_of_frost" )
         elseif spellId == 12472 then -- Icy Veins
             icy_veins_activations = icy_veins_activations + 1
             ns.last_icy_veins = now
+            applyBuff( "icy_veins" )
         end
     end
     
@@ -246,37 +249,54 @@ spec:RegisterGear( "tier16_4pc", nil, {
     generate = check_tier_bonus("tier16", 4)
 } )
 
+-- Spell Power Calculations and State Expressions
+spec:RegisterStateExpr( "spell_power", function()
+    return GetSpellBonusDamage(5) -- Frost school
+end )
+
+spec:RegisterStateExpr( "brain_freeze_bonus", function()
+    return buff.brain_freeze.up and 0.2 or 0 -- 20% damage bonus
+end )
+
+spec:RegisterStateExpr( "fingers_of_frost_bonus", function()
+    return buff.fingers_of_frost.up and 0.15 or 0 -- 15% damage bonus
+end )
+
+spec:RegisterStateExpr( "icy_veins_bonus", function()
+    return buff.icy_veins.up and 0.2 or 0 -- 20% damage bonus
+end )
+
 -- Talents (MoP 6-tier system)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Mobility/Instant Cast
-    presence_of_mind      = { 101380, 1, 12043 }, -- Your next 3 spells are instant cast
-    blazing_speed         = { 101384, 1, 108843 }, -- Increases movement speed by 150% for 1.5 sec after taking damage
-    ice_floes             = { 101386, 1, 108839 }, -- Allows you to cast 3 spells while moving
+    presence_of_mind      = { 1, 1, 12043 }, -- Your next 3 spells are instant cast
+    blazing_speed         = { 1, 2, 108843 }, -- Increases movement speed by 150% for 1.5 sec after taking damage
+    ice_floes             = { 1, 3, 108839 }, -- Allows you to cast 3 spells while moving
 
     -- Tier 2 (Level 30) - Survivability
-    flameglow             = { 101388, 1, 140468 }, -- Reduces spell damage taken by a fixed amount
-    ice_barrier           = { 101397, 1, 11426 }, -- Absorbs damage for 1 min
-    temporal_shield       = { 101389, 1, 115610 }, -- 100% of damage taken is healed back over 6 sec
+    flameglow             = { 2, 1, 140468 }, -- Reduces spell damage taken by a fixed amount
+    ice_barrier           = { 2, 2, 11426 }, -- Absorbs damage for 1 min
+    temporal_shield       = { 2, 3, 115610 }, -- 100% of damage taken is healed back over 6 sec
 
     -- Tier 3 (Level 45) - Control
-    ring_of_frost         = { 101391, 1, 113724 }, -- Incapacitates enemies entering the ring
-    ice_ward              = { 101392, 1, 111264 }, -- Frost Nova gains 2 charges
-    frostjaw              = { 101393, 1, 102051 }, -- Silences and freezes target
+    ring_of_frost         = { 3, 1, 113724 }, -- Incapacitates enemies entering the ring
+    ice_ward              = { 3, 2, 111264 }, -- Frost Nova gains 2 charges
+    frostjaw              = { 3, 3, 102051 }, -- Silences and freezes target
 
     -- Tier 4 (Level 60) - Utility
-    greater_invisibility  = { 101394, 1, 110959 }, -- Invisible for 20 sec, 90% damage reduction when visible
-    cold_snap             = { 101396, 1, 11958 }, -- Finishes cooldown on Frost spells, heals 25%
-    cauterize             = { 101398, 1, 86949 }, -- Fatal damage brings you to 35% health
+    greater_invisibility  = { 4, 1, 110959 }, -- Invisible for 20 sec, 90% damage reduction when visible
+    cold_snap             = { 4, 2, 11958 }, -- Finishes cooldown on Frost spells, heals 25%
+    cauterize             = { 4, 3, 86949 }, -- Fatal damage brings you to 35% health
 
     -- Tier 5 (Level 75) - DoT/Bomb Spells
-    nether_tempest        = { 101400, 1, 114923 }, -- Arcane DoT that spreads
-    living_bomb           = { 101401, 1, 44457 }, -- Fire DoT that explodes
-    frost_bomb            = { 101402, 1, 112948 }, -- Frost bomb with delayed explosion
+    nether_tempest        = { 5, 1, 114923 }, -- Arcane DoT that spreads
+    living_bomb           = { 5, 2, 44457 }, -- Fire DoT that explodes
+    frost_bomb            = { 5, 3, 112948 }, -- Frost bomb with delayed explosion
 
     -- Tier 6 (Level 90) - Power/Mana Management
-    invocation            = { 101403, 1, 114003 }, -- Evocation increases damage by 25%
-    rune_of_power         = { 101404, 1, 116011 }, -- Ground rune increases spell damage by 15%
-    incanter_s_ward       = { 101405, 1, 1463 }, -- Converts 30% damage taken to mana
+    invocation            = { 6, 1, 114003 }, -- Evocation increases damage by 25%
+    rune_of_power         = { 6, 2, 116011 }, -- Ground rune increases spell damage by 15%
+    incanter_s_ward       = { 6, 3, 1463 }, -- Converts 30% damage taken to mana
 } )
 
 -- Tier Sets
@@ -988,6 +1008,7 @@ spec:RegisterAbilities( {
         handler = function()
             -- Chance to proc Fingers of Frost
             -- Chance to proc Brain Freeze for Frostfire Bolt
+            -- Brain Freeze has a chance to proc on each Frostbolt hit
         end,
     },
     
@@ -1069,7 +1090,7 @@ spec:RegisterAbilities( {
     
     frostfire_bolt = {
         id = 44614,
-        cast = 2,
+        cast = function() return buff.brain_freeze.up and 0 or 2 end, -- Instant when Brain Freeze active
         cooldown = 0,
         gcd = "spell",
         
@@ -1079,7 +1100,7 @@ spec:RegisterAbilities( {
         startsCombat = true,
         texture = 237520,
         
-        buff = "brain_freeze",
+        usable = function() return buff.brain_freeze.up, "requires brain freeze proc" end,
         
         handler = function()
             removeBuff( "brain_freeze" )

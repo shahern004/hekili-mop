@@ -261,34 +261,34 @@ spec:RegisterAura( "ret_tier16_4pc", {
 -- Talents (MoP 6-tier talent system)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Movement
-    speed_of_light            = { 2199, 1, 85499  }, -- +70% movement speed for 8 sec
-    long_arm_of_the_law       = { 2200, 1, 87172 }, -- Judgments increase movement speed by 45% for 3 sec
-    pursuit_of_justice        = { 2201, 1, 26023  }, -- +15% movement speed per Holy Power charge
+    speed_of_light            = { 1, 1, 85499  }, -- +70% movement speed for 8 sec
+    long_arm_of_the_law       = { 1, 2, 87172 }, -- Judgments increase movement speed by 45% for 3 sec
+    pursuit_of_justice        = { 1, 3, 26023  }, -- +15% movement speed per Holy Power charge
 
     -- Tier 2 (Level 30) - Control
-    fist_of_justice           = { 2202, 1, 105593 }, -- Reduces Hammer of Justice cooldown by 50%
-    repentance                = { 2203, 1, 20066  }, -- Puts the enemy target in a state of meditation, incapacitating them for up to 1 min.
-    blinding_light            = { 2204, 1, 115750 }, -- Emits dazzling light in all directions, blinding enemies within 10 yards for 6 sec.
+    fist_of_justice           = { 2, 1, 105593 }, -- Reduces Hammer of Justice cooldown by 50%
+    repentance                = { 2, 2, 20066  }, -- Puts the enemy target in a state of meditation, incapacitating them for up to 1 min.
+    blinding_light            = { 2, 3, 115750 }, -- Emits dazzling light in all directions, blinding enemies within 10 yards for 6 sec.
 
     -- Tier 3 (Level 45) - Healing
-    selfless_healer           = { 2205, 1, 85804  }, -- Your Holy power spending abilities reduce the cast time and mana cost of your next Flash of Light.
-    eternal_flame             = { 2206, 1, 114163 }, -- Consumes all Holy Power to place a protective Holy flame on a friendly target, which heals over 30 sec.
-    sacred_shield             = { 2207, 1, 20925  }, -- Places a Sacred Shield on a friendly target, absorbing damage every 6 sec for 30 sec.
+    selfless_healer           = { 3, 1, 85804  }, -- Your Holy power spending abilities reduce the cast time and mana cost of your next Flash of Light.
+    eternal_flame             = { 3, 2, 114163 }, -- Consumes all Holy Power to place a protective Holy flame on a friendly target, which heals over 30 sec.
+    sacred_shield             = { 3, 3, 20925  }, -- Places a Sacred Shield on a friendly target, absorbing damage every 6 sec for 30 sec.
 
     -- Tier 4 (Level 60) - Utility/CC
-    hand_of_purity            = { 2208, 1, 114039 }, -- Protects a party or raid member, reducing harmful periodic effects by 70% for 6 sec.
-    unbreakable_spirit        = { 2209, 1, 114154 }, -- Reduces the cooldown of your Divine Shield, Divine Protection, and Lay on Hands by 50%.
-    clemency                  = { 2210, 1, 105622 }, -- Increases the number of charges on your Hand spells by 1.
+    hand_of_purity            = { 4, 1, 114039 }, -- Protects a party or raid member, reducing harmful periodic effects by 70% for 6 sec.
+    unbreakable_spirit        = { 4, 2, 114154 }, -- Reduces the cooldown of your Divine Shield, Divine Protection, and Lay on Hands by 50%.
+    clemency                  = { 4, 3, 105622 }, -- Increases the number of charges on your Hand spells by 1.
 
     -- Tier 5 (Level 75) - DPS
-    divine_purpose            = { 2211, 1, 86172  }, -- Your Holy Power abilities have a 15% chance to make your next Holy Power ability free and more effective.
-    holy_avenger              = { 2212, 1, 105809 }, -- Your Holy power generating abilities generate 3 charges of Holy Power for 18 sec.
-    sanctified_wrath          = { 2213, 1, 53376  }, -- Increases the duration of Avenging Wrath by 5 sec and causes your Judgment to generate 1 additional Holy Power during Avenging Wrath.
+    divine_purpose            = { 5, 1, 86172  }, -- Your Holy Power abilities have a 15% chance to make your next Holy Power ability free and more effective.
+    holy_avenger              = { 5, 2, 105809 }, -- Your Holy power generating abilities generate 3 charges of Holy Power for 18 sec.
+    sanctified_wrath          = { 5, 3, 53376  }, -- Increases the duration of Avenging Wrath by 5 sec and causes your Judgment to generate 1 additional Holy Power during Avenging Wrath.
 
     -- Tier 6 (Level 90) - DPS/Utility
-    holy_prism                = { 2214, 1, 114165 }, -- Fires a beam of light that hits a target for Holy damage or healing.
-    lights_hammer             = { 2215, 1, 114158 }, -- Hurls a Light-infused hammer to the ground, dealing Holy damage to enemies and healing allies.
-    execution_sentence        = { 2216, 1, 114157 }  -- A hammer slowly falls from the sky, dealing Holy damage to an enemy or healing an ally.
+    holy_prism                = { 6, 1, 114165 }, -- Fires a beam of light that hits a target for Holy damage or healing.
+    lights_hammer             = { 6, 2, 114158 }, -- Hurls a Light-infused hammer to the ground, dealing Holy damage to enemies and healing allies.
+    execution_sentence        = { 6, 3, 114157 }  -- A hammer slowly falls from the sky, dealing Holy damage to an enemy or healing an ally.
 } )
 
 -- Comprehensive Retribution Paladin Glyphs for MoP
@@ -302,13 +302,13 @@ spec:RegisterGlyphs( {
     [54924] = "divine_protection", -- Reduces the magical damage reduction of your Divine Protection to 20% but adds 20% physical damage reduction.
     [146956] = "divine_shield",     -- Removing harmful effects with Divine Shield heals you for 10% for each effect removed.  This heal cannot exceed 50% of your maximum health.
     [63220] = "divine_storm",      -- Your Divine Storm also heals you for 5% of your maximum health.
-    [63220] = "divinity",      		-- Increases the cooldown of your Lay on Hands by 2 min but causes it to give you 10% of your maximum mana.
+    [63221] = "divinity",      		-- Increases the cooldown of your Lay on Hands by 2 min but causes it to give you 10% of your maximum mana.
     [54922] = "double_jeopardy",   -- Your Judgment deals 20% additional damage when striking a target already affected by your Judgment.
     [57955] = "flash_of_light",    -- When you Flash of Light a target, it increases your next heal done to that target within 7 sec by 10%.
     [63219] = "hammer_of_the_righteous", -- The physical damage reduction caused by Hammer of the Righteous now lasts 50% longer.
     [146957] = "hand_of_sacrifice", -- Hand of Sacrifice no longer redirects damage to the Paladin.
     [54938] = "harsh_words", 		-- Your Word of Glory can now also be used on enemy targets, causing Holy damage approximately equal to the amount it would have healed.
-    [54938] = "immediate_truth", 		-- Increases the instant damage done by Seal of Truth by 40%, but decreases the damage done by Censure by 50%.
+    [54939] = "immediate_truth", 		-- Increases the instant damage done by Seal of Truth by 40%, but decreases the damage done by Censure by 50%.
     [63225] = "inquisition",       -- When you land a killing blow on an opponent that yields experience or honor, the duration of your Inquisition is increased by 30 sec.
     [122028] = "mass_exorcism",     -- Reduces the range of Exorcism to melee range, but causes 25% damage to all enemies within 8 yards of the primary target.
     [93466] = "protector_of_the_innocent",     -- When you use Word of Glory to heal another target, it also heals you for 20% of the amount.
@@ -1161,32 +1161,7 @@ spec:RegisterAuras({
     },
 } )
 
-    ret_tier16_4pc = {
-        id = 144586,
-        duration = 3600,
-        max_stack = 1,
-        generate = function( t )
-            if state.set_bonus.tier16_4pc > 0 then
-                t.name = "Retribution T16 4-Piece Bonus"
-                t.count = 1
-                t.expires = query_time + 3600
-                t.applied = query_time
-                t.caster = "player"
-                t.up = true
-                t.down = false
-                t.remains = 3600
-                return
-            end
 
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-            t.up = false
-            t.down = true
-            t.remains = 0
-        end
-    },
 
 -- Abilities
 spec:RegisterAbilities( {
@@ -1584,7 +1559,7 @@ spec:RegisterAbilities( {
     },
 
     exorcism = {
-        id = 879,
+        id = function() return state.glyph.mass_exorcism.enabled and 122032 or 879 end,
         cast = 0,
 		cooldown = 15,
         gcd = "spell",
@@ -1792,6 +1767,23 @@ spec:RegisterAbilities( {
 
         handler = function()
             applyBuff("divine_protection")
+        end
+    },
+
+    flash_of_light = {
+        id = 19750,
+        cast = 1.5,
+        cooldown = 0,
+        gcd = "spell",
+
+        spend = 0.378,
+        spendType = "mana",
+
+        startsCombat = false,
+        texture = 135907,
+
+        handler = function()
+            -- Heals target for some amount of health
         end
     },
 

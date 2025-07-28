@@ -206,43 +206,83 @@ spec:RegisterHook( "spend", spendHook )
 -- Talents
 spec:RegisterTalents( {
     -- Tier 1 (Level 56)
-    roiling_blood             = { 90001, 108170, 1 }, -- Your Pestilence refreshes disease durations and spreads diseases from each diseased target to all other targets.
-    unholy_presence           = { 90002,  48265, 1 }, -- The presence of the Unholy, increasing attack speed by 15% and movement speed by 15%.
-    plague_leech              = { 90003, 123693, 1 }, -- Extract diseases from an enemy target, consuming up to 2 diseases on the target to gain 1 Rune of each type that was removed.
+    roiling_blood             = { 1, 1, 108170 }, -- Your Pestilence refreshes disease durations and spreads diseases from each diseased target to all other targets.
+    plague_leech              = { 1, 2, 123693 }, -- Extract diseases from an enemy target, consuming up to 2 diseases on the target to gain 1 Rune of each type that was removed.
+    unholy_blight             = { 1, 3, 115989 }, -- Causes you to spread your diseases to all enemy targets within 10 yards.
 
     -- Tier 2 (Level 57)
-    lichborne                 = { 90004,  49039, 1 }, -- Draw upon unholy energy to become undead for 10 sec. While undead, you are immune to Charm, Fear, and Sleep effects.
-    antimagic_zone            = { 90005,  51052, 1 }, -- Places a large, stationary Anti-Magic Zone that reduces spell damage taken by party or raid members by 40%. The Anti-Magic Zone lasts for 30 sec or until it absorbs a massive amount of spell damage.
-    purgatory                 = { 90006, 114556, 1 }, -- An unholy pact that prevents fatal damage, instead absorbing incoming healing equal to the damage that would have been fatal for 3 sec.
+    lichborne                 = { 2, 1,  49039 }, -- Draw upon unholy energy to become undead for 10 sec. While undead, you are immune to Charm, Fear, and Sleep effects.
+    anti_magic_zone           = { 2, 2,  51052 }, -- Places a large, stationary Anti-Magic Zone that reduces spell damage taken by party or raid members by 40%. The Anti-Magic Zone lasts for 30 sec or until it absorbs a massive amount of spell damage.
+    purgatory                 = { 2, 3, 114556 }, -- An unholy pact that prevents fatal damage, instead absorbing incoming healing equal to the damage that would have been fatal for 3 sec.
 
     -- Tier 3 (Level 58)
-    deaths_embrace            = { 90007, 108839, 1 }, -- Your healing done is increased by 25% and damage taken is reduced by 15% when below 20% health.
-    corpse_explosion          = { 90008, 127344, 1 }, -- Target a corpse within 30 yards. After 4 sec, the corpse will explode for Shadow damage split among all nearby enemies.
-    resilient_infection       = { 90009, 132797, 1 }, -- When your diseases are dispelled, you have a 90% chance to not lose a charge of the disease.
+    deaths_advance            = { 3, 1,  96268 }, -- For 8 sec, you are immune to movement impairing effects and your movement speed is increased by 50%.
+    chilblains                = { 3, 2,  50041 }, -- Victims of your Chains of Ice take 5% increased damage from your abilities for 8 sec.
+    asphyxiate                = { 3, 3, 108194 }, -- Lifts the enemy target off the ground, crushing their throat and stunning them for 5 sec.
 
     -- Tier 4 (Level 60)
-    deaths_advance            = { 90010,  96268, 1 }, -- For 8 sec, you are immune to movement impairing effects and your movement speed is increased by 50%.
-    chilblains                = { 90011,  50041, 1 }, -- Victims of your Chains of Ice take 5% increased damage from your abilities for 8 sec.
-    asphyxiate                = { 90012, 108194, 1 }, -- Lifts the enemy target off the ground, crushing their throat and stunning them for 5 sec.
+    death_pact                = { 4, 1,  48743 }, -- Drains 50% of your summoned minion's health to heal you for 25% of your maximum health.
+    death_siphon              = { 4, 2, 108196 }, -- Deals Shadow damage to the target and heals you for 150% of the damage dealt.
+    conversion                = { 4, 3, 119975 }, -- Continuously converts 2% of your maximum health per second into 20% of maximum health as healing.
 
     -- Tier 5 (Level 75)
-    death_pact                = { 90013,  48743, 1 }, -- Drains 50% of your summoned minion's health to heal you for 25% of your maximum health.
-    death_siphon              = { 90014, 108196, 1 }, -- Deals Shadow damage to the target and heals you for 150% of the damage dealt.
-    vampiric_aura             = { 90015, 108205, 1 }, -- You and your minions gain 15% Leech.
+    blood_tap                 = { 5, 1,  45529 }, -- Consume 5 charges from your Blood Charges to immediately activate a random depleted rune.
+    runic_empowerment         = { 5, 2,  81229 }, -- When you use a rune, you have a 45% chance to immediately regenerate that rune.
+    runic_corruption          = { 5, 3,  51462 }, -- When you hit with a Death Coil, Frost Strike, or Rune Strike, you have a 45% chance to regenerate a rune.
 
     -- Tier 6 (Level 90)
-    remorseless_winter        = { 90016, 108200, 1 }, -- Surrounds the Death Knight with a swirling blizzard that grows over 8 sec, slowing enemies by up to 50% and reducing their melee and ranged attack speed by up to 20%.
-    gorefiends_grasp          = { 90017, 108199, 1 }, -- Shadowy tendrils coil around all enemies within 20 yards of a hostile target, pulling them to the target's location.
-    desecrated_ground         = { 90018, 118009, 1 }, -- Corrupts the ground beneath you, causing all nearby enemies to deal 10% less damage for 30 sec.
-
-    -- Unholy Spec Talents
-    sudden_doom               = { 90019,  49530, 1 }, -- Your auto attacks have a 15% chance to make your next Death Coil cost no Runic Power and critically hit.
-    shadow_infusion           = { 90020,  91342, 1 }, -- Your Shadow damage spells have a 15% chance to reset the cooldown on Raise Dead and grant your ghoul Dark Empowerment, increasing its damage by 50% for 30 sec.
-    necrotic_strike           = { 90021,  73975, 1 }, -- A vicious strike that deals weapon damage and applies a Necrotic Strike shield, absorbing the next healing received.
-    soul_reaper               = { 90022, 130736, 1 }, -- Strike an enemy for Shadow damage and mark their soul. After 5 sec, if they are below 45% health, the mark will detonate for massive Shadow damage.
+    gorefiends_grasp          = { 6, 1, 108199 }, -- Shadowy tendrils coil around all enemies within 20 yards of a hostile target, pulling them to the target's location.
+    remorseless_winter        = { 6, 2, 108200 }, -- Surrounds the Death Knight with a swirling blizzard that grows over 8 sec, slowing enemies by up to 50% and reducing their melee and ranged attack speed by up to 20%.
+    desecrated_ground         = { 6, 3, 108201 }, -- Corrupts the ground beneath you, causing all nearby enemies to deal 10% less damage for 30 sec.
 } )
 
-
+-- Glyphs (Enhanced System - authentic MoP 5.4.8 glyph system)
+spec:RegisterGlyphs( {
+    -- Major glyphs - Unholy Combat
+    [58616] = "anti_magic_shell",    -- Reduces the cooldown on Anti-Magic Shell by 5 sec, but the amount it absorbs is reduced by 50%
+    [58617] = "army_of_the_dead",    -- Your Army of the Dead spell summons an additional skeleton, but the cast time is increased by 2 sec
+    [58618] = "bone_armor",          -- Your Bone Armor gains an additional charge but the duration is reduced by 30 sec
+    [58619] = "chains_of_ice",       -- Your Chains of Ice no longer reduces movement speed but increases the duration by 2 sec
+    [58620] = "dark_simulacrum",     -- Dark Simulacrum gains an additional charge but the duration is reduced by 4 sec
+    [58621] = "death_and_decay",     -- Your Death and Decay no longer slows enemies but lasts 50% longer
+    [58622] = "death_coil",          -- Your Death Coil refunds 20 runic power when used on friendly targets but heals for 30% less
+    [58623] = "death_grip",          -- Your Death Grip no longer moves the target but reduces its movement speed by 50% for 8 sec
+    [58624] = "death_pact",          -- Your Death Pact no longer requires a ghoul but heals for 50% less
+    [58625] = "death_strike",        -- Your Death Strike deals 25% additional damage but heals for 25% less
+    [58626] = "frost_strike",        -- Your Frost Strike has no runic power cost but deals 20% less damage
+    [58627] = "heart_strike",        -- Your Heart Strike generates 10 additional runic power but affects 1 fewer target
+    [58628] = "icebound_fortitude",  -- Your Icebound Fortitude grants immunity to stun effects but the damage reduction is lowered by 20%
+    [58629] = "icy_touch",           -- Your Icy Touch dispels 1 beneficial magic effect but no longer applies Frost Fever
+    [58630] = "mind_freeze",         -- Your Mind Freeze has its cooldown reduced by 2 sec but its range is reduced by 5 yards
+    [58631] = "outbreak",            -- Your Outbreak no longer costs a Blood rune but deals 50% less damage
+    [58632] = "plague_strike",       -- Your Plague Strike does additional disease damage but no longer applies Blood Plague
+    [58633] = "raise_dead",          -- Your Raise Dead spell no longer requires a corpse but the ghoul has 20% less health
+    [58634] = "rune_strike",         -- Your Rune Strike generates 10% more threat but costs 10 additional runic power
+    [58635] = "rune_tap",            -- Your Rune Tap heals nearby allies for 5% of their maximum health but heals you for 50% less
+    [58636] = "scourge_strike",      -- Your Scourge Strike deals additional Shadow damage for each disease on the target but consumes all diseases
+    [58637] = "strangulate",         -- Your Strangulate has its cooldown reduced by 10 sec but the duration is reduced by 2 sec
+    [58638] = "vampiric_blood",      -- Your Vampiric Blood generates 5 runic power per second but increases damage taken by 10%
+    [58639] = "blood_boil",          -- Your Blood Boil deals 20% additional damage but no longer spreads diseases
+    [58640] = "dancing_rune_weapon", -- Your Dancing Rune Weapon lasts 5 sec longer but generates 20% less runic power
+    [58641] = "vampiric_aura",       -- Your Vampiric Aura affects 2 additional party members but the healing is reduced by 25%
+    [58642] = "unholy_frenzy",       -- Your Unholy Frenzy grants an additional 10% attack speed but lasts 50% shorter
+    [58643] = "corpse_explosion",    -- Your corpses explode when they expire, dealing damage to nearby enemies
+    [58644] = "disease",             -- Your diseases last 50% longer but deal 25% less damage
+    [58645] = "resilient_grip",      -- Your Death Grip removes one movement impairing effect from yourself
+    [58646] = "shifting_presences",  -- Reduces the rune cost to change presences by 1, but you cannot change presences while in combat
+    
+    -- Minor glyphs - Cosmetic and convenience
+    [58647] = "corpse_walker",       -- Your undead minions appear to be spectral
+    [58648] = "the_geist",           -- Your ghoul appears as a geist
+    [58649] = "deaths_embrace",      -- Your death grip has enhanced visual effects
+    [58650] = "bone_spikes",         -- Your abilities create bone spike visual effects
+    [58651] = "unholy_vigor",        -- Your character emanates an unholy aura
+    [58652] = "the_bloodied",        -- Your weapons appear to be constantly dripping blood
+    [58653] = "runic_mastery",       -- Your runes glow with enhanced energy when available
+    [58654] = "the_forsaken",        -- Your character appears more skeletal and undead
+    [58655] = "shadow_walk",         -- Your movement leaves shadowy footprints
+    [58656] = "deaths_door",         -- Your abilities create portal-like visual effects
+} )
 
 -- Auras
 spec:RegisterAuras( {
@@ -334,12 +374,6 @@ spec:RegisterAuras( {
         duration = 30,
         tick_time = 1,
         max_stack = 1
-    },
-    -- Suffering from a wound that will deal Shadow damage when damaged by Scourge Strike.
-    festering_wound = {
-        id = 194310,
-        duration = 30,
-        max_stack = 6
     },
     -- Suffering $w1 Frost damage every $t1 sec.
     -- https://wowhead.com/spell=55095

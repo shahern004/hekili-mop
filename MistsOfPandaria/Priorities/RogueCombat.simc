@@ -1,20 +1,26 @@
 # Rogue: Combat
 # Precombat actions
-actions.precombat+=/tricks_of_the_trade
+actions.precombat+=/tricks_of_the_trade,if=time<5
 actions.precombat+=/jade_serpent_potion
 actions.precombat+=/stealth,if=!stealthed.all
 actions.precombat+=/slice_and_dice,if=buff.slice_and_dice.down
 
 # Main rotation
-actions+=/shiv,if=debuff.dispellable_enrage.up
-actions+=/kick,if=target.debuff.casting.up
-actions+=/tricks_of_the_trade,if=time>30
-actions+=/cancel_buff,name=blade_flurry,if=spell_targets.blade_flurry<2&buff.blade_flurry.up
-actions+=/call_action_list,name=cds
-actions+=/run_action_list,name=finish,if=combo_points=5
-actions+=/run_action_list,name=aoe,if=spell_targets.fan_of_knives>=2
-actions+=/call_action_list,name=build
-actions+=/call_action_list,name=defensives
+actions+=/bloodlust,if=raid
+actions+=/marked_for_death,if=combo_points=0
+actions+=/slice_and_dice,if=(buff.slice_and_dice.remains<=4|combo_points>=5)&!buff.slice_and_dice.up
+actions+=/killing_spree,if=buff.slice_and_dice.up&(combo_points>=5|energy<=40)&(buff.killing_spree.up|buff.adrenaline_rush.up)
+actions+=/adrenaline_rush,if=time_to_ready.killing_spree>=15
+actions+=/shadow_blades,if=time_to_ready.killing_spree>=15
+actions+=/ambush,if=combo_points<=4
+actions+=/revealing_strike,if=(combo_points<=4&buff.anticipation.up&buff.anticipation.stack<=4)|debuff.revealing_strike.remains<=3
+actions+=/rupture,if=combo_points>=5&dot.rupture.remains<=2
+actions+=/eviscerate,if=combo_points>=5
+actions+=/vanish,if=energy>=50&combo_points>=3
+actions+=/ambush,if=energy>=50&combo_points>=3
+actions+=/sinister_strike,if=combo_points<=4
+actions+=/preparation,if=!cooldown.vanish.ready
+actions+=/tricks_of_the_trade,if=false
 
 # AoE rotation
 actions.aoe+=/blade_flurry,if=!buff.blade_flurry.up

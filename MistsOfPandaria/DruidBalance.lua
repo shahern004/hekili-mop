@@ -320,34 +320,34 @@ spec:RegisterAura( "balance_tier16_4pc", {
 -- Talents (MoP talent system and Balance spec-specific talents)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15)
-    feline_swiftness = { 102401, 1 },
-    displacer_beast = { 102280, 1 },
-    wild_charge = { 102383, 1 },
+    feline_swiftness = { 1, 1, 102401 },  -- Tier 1, Column 1, SpellID
+    displacer_beast = { 1, 2, 102280 },   -- Tier 1, Column 2, SpellID  
+    wild_charge = { 1, 3, 102383 },       -- Tier 1, Column 3, SpellID
     
     -- Tier 2 (Level 30) 
-    yseras_gift = { 145108, 2 },
-    renewal = { 108238, 2 },
-    cenarion_ward = { 102351, 2 },
+    yseras_gift = { 2, 1, 145108 },       -- Tier 2, Column 1, SpellID
+    renewal = { 2, 2, 108238 },           -- Tier 2, Column 2, SpellID
+    cenarion_ward = { 2, 3, 102351 },     -- Tier 2, Column 3, SpellID
     
     -- Tier 3 (Level 45)
-    faerie_swarm = { 102355, 3 },
-    mass_entanglement = { 102359, 3 },
-    typhoon = { 132469, 3 },
+    faerie_swarm = { 3, 1, 102355 },      -- Tier 3, Column 1, SpellID
+    mass_entanglement = { 3, 2, 102359 }, -- Tier 3, Column 2, SpellID
+    typhoon = { 3, 3, 132469 },           -- Tier 3, Column 3, SpellID
     
     -- Tier 4 (Level 60)
-    soul_of_the_forest = { 114107, 4 },
-    incarnation = { 102560, 4 }, -- Chosen of Elune for Balance
-    force_of_nature = { 33831, 4 },
+    soul_of_the_forest = { 4, 1, 114107 }, -- Tier 4, Column 1, SpellID
+    incarnation = { 4, 2, 102560 },        -- Tier 4, Column 2, SpellID (Chosen of Elune for Balance)
+    force_of_nature = { 4, 3, 33831 },     -- Tier 4, Column 3, SpellID
     
     -- Tier 5 (Level 75)
-    disorienting_roar = { 99, 5 },
-    ursols_vortex = { 102793, 5 },
-    mighty_bash = { 102546, 5 },
+    disorienting_roar = { 5, 1, 99 },      -- Tier 5, Column 1, SpellID
+    ursols_vortex = { 5, 2, 102793 },      -- Tier 5, Column 2, SpellID
+    mighty_bash = { 5, 3, 102546 },        -- Tier 5, Column 3, SpellID
     
     -- Tier 6 (Level 90)
-    heart_of_the_wild = { 108292, 6 },
-    dream_of_cenarius = { 108373, 6 },
-    natures_vigil = { 124974, 6 },
+    heart_of_the_wild = { 6, 1, 108292 },  -- Tier 6, Column 1, SpellID
+    dream_of_cenarius = { 6, 2, 108373 },  -- Tier 6, Column 2, SpellID
+    natures_vigil = { 6, 3, 124974 },      -- Tier 6, Column 3, SpellID
 } )
 
 -- Comprehensive Glyphs - Balance Druid MoP (following Hunter Survival pattern)

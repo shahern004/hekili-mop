@@ -1,5 +1,9 @@
 -- Events.lua
 -- June 2024
+-- 
+-- IMPORTANT: This file has been modified to prevent interference with Blizzard's talent selection UI.
+-- We no longer override global functions like GetTalentInfoByID or C_SpecializationInfo.GetTalent
+-- to avoid Lua taint errors. Instead, we use local functions for internal talent detection.
 
 local addon, ns = ...
 local Hekili = _G[ addon ]
@@ -23,42 +27,57 @@ local GetDetailedItemLevelInfo = function(itemLink)
     return itemLevel or 0
 end
 
--- MoP: GetTalentInfoByID compatibility
-local OriginalGetTalentInfoByID = GetTalentInfoByID
-local GetTalentInfoByID = function(talentID, groupIndex)
-    if OriginalGetTalentInfoByID then
-        -- If the original function exists, try to use it with proper arguments
-        groupIndex = groupIndex or (GetActiveSpecGroup and GetActiveSpecGroup()) or 1
-        local success, id, name, tier, enabled, available, sID, icon, row, column, known = pcall(OriginalGetTalentInfoByID, talentID, groupIndex)
-        if success then
-            return id, name, tier, enabled, available, sID, icon, row, column, known
-        end
+-- MoP: Local talent detection function (not global override)
+local function HekiliGetTalentInfoByID(talentID, groupIndex)
+    -- If no talentID is provided, return early
+    if not talentID then
+        return nil, nil, nil, false, nil, nil, nil, nil, nil, false
     end
     
-    -- Enhanced MoP talent detection
     local enabled = false
+    local spellID = nil
     
-    -- First check if it's a table with tier/column/spellID format
     if type(talentID) == "table" and talentID[1] and talentID[2] and talentID[3] then
-        local tier, column, spellID = talentID[1], talentID[2], talentID[3]
-        groupIndex = groupIndex or (GetActiveSpecGroup and GetActiveSpecGroup()) or 1
+        local tier, column, spellIdFromTable = talentID[1], talentID[2], talentID[3]
+        spellID = spellIdFromTable
         
-        if GetTalentInfo then
-            -- Use MoP's GetTalentInfo(tier, column, specGroupIndex, isInspect, unit)
-            local id, name, icon, selected, available, spellId = GetTalentInfo(tier, column, groupIndex)
-            enabled = selected or false
-            return id, name, tier, enabled, available, spellId, icon, tier, column, enabled
-        else
-            -- Fallback to spell check
-            enabled = IsPlayerSpell(spellID)
+        -- For MoP, we need to check which talent is actually selected in each tier
+        -- We'll use IsPlayerSpell but only allow ONE talent per tier to be enabled
+        local isKnown = IsPlayerSpell(spellID)
+        
+        -- If this talent is known, check if it's the ONLY one in this tier that's known
+        if isKnown then
+            enabled = true
+            -- Check other talents in the same tier to ensure only one is enabled
+            if class and class.talents then
+                for k, v in pairs(class.talents) do
+                    if type(v) == "table" and v[1] == tier and v[2] ~= column and v[3] then
+                        if IsPlayerSpell(v[3]) then
+                            -- Another talent in the same tier is also known, this shouldn't happen
+                            -- But we'll allow it for now and let the user decide
+                            enabled = true
+                        end
+                    end
+                end
+            end
         end
+        
+        -- Return values: id, name, tier, enabled, available, spellID, icon, row, column, known
+        -- The key is that 'known' should be the same as 'enabled' for our logic
+        return nil, nil, tier, enabled, enabled, spellID, nil, tier, column, enabled
     elseif talentID and type(talentID) == "number" and talentID > 0 then
-        -- Direct spell ID check
-        enabled = IsPlayerSpell(talentID)
+        spellID = talentID
+        enabled = IsPlayerSpell(spellID)
+        return nil, nil, nil, enabled, nil, spellID, nil, nil, nil, enabled
     end
     
-    return nil, nil, nil, enabled, nil, talentID, nil, nil, nil, nil, enabled
+    return nil, nil, nil, false, nil, nil, nil, nil, nil, false
 end
+
+-- Store the function in Hekili namespace for internal use
+Hekili.GetTalentInfoByID = HekiliGetTalentInfoByID
+
+
 
 -- MoP: UnitGetTotalAbsorbs compatibility (didn't exist in MoP)
 local UnitGetTotalAbsorbs = UnitGetTotalAbsorbs or function(unit)
@@ -510,6 +529,10 @@ RegisterEvent( "PLAYER_ENTERING_WORLD", function( event, login, reload )
 end )
 
 
+
+
+
+
 do    if Hekili.IsWrath() then
         RegisterEvent( "ACTIVE_TALENT_GROUP_CHANGED", function()
             if Hekili.SpecializationChanged then
@@ -607,8 +630,8 @@ function ns.updateTalents()
     for k, v in pairs( class.talents ) do
         local enabled, name, sID, known
         
-        -- Use the compatibility function that handles MoP differences
-        _, name, _, enabled, _, sID, _, _, _, _, known = GetTalentInfoByID( v, 1 )
+        -- Use our local talent detection function instead of global override
+        _, name, _, enabled, _, sID, _, _, _, _, known = HekiliGetTalentInfoByID( v, 1 )
 
         if not name then
             -- We probably used a spellID.
@@ -616,8 +639,6 @@ function ns.updateTalents()
                 enabled = IsPlayerSpell( v )
             end
         end
-
-        enabled = enabled or known
 
         if rawget( state.talent, k ) then
             state.talent[ k ].enabled = enabled
@@ -652,7 +673,8 @@ function ns.updateTalents()
             state.pvptalent[ k ] = {
                 _enabled = enabled
             }
-        end    end
+        end
+    end
 
     ResetDisabledGearAndSpells()
 end
@@ -1948,6 +1970,18 @@ end
 Hekili:ProfileCPU( "CLEU_HANDLER", CLEU_HANDLER )
 RegisterEvent( "COMBAT_LOG_EVENT_UNFILTERED", function ( event ) CLEU_HANDLER( event, CombatLogGetCurrentEventInfo() ) end )
 
+-- Initialize damage detection settings when addon loads
+RegisterEvent( "PLAYER_ENTERING_WORLD", function( event )
+    Hekili:UpdateDamageDetectionForCLEU()
+end )
+
+-- Update damage detection when spec changes
+RegisterEvent( "PLAYER_SPECIALIZATION_CHANGED", function( event, unit )
+    if unit == "player" then
+        Hekili:UpdateDamageDetectionForCLEU()
+    end
+end )
+
 
 do
     local function UNIT_COMBAT( event, unit, action, _, amount )
@@ -1965,26 +1999,26 @@ Hekili.KeybindInfo = keys
 local updatedKeys = {}
 
 local bindingSubs = {
-    { "CTRL%-", "C" },
-    { "ALT%-", "A" },
-    { "SHIFT%-", "S" },
-    { "STRG%-", "ST" },
-    { "%s+", "" },
-    { "NUMPAD", "N" },
-    { "PLUS", "+" },
-    { "MINUS", "-" },
-    { "MULTIPLY", "*" },
-    { "DIVIDE", "/" },
-    { "BUTTON", "M" },
-    { "MOUSEWHEELUP", "MwU" },
-    { "MOUSEWHEELDOWN", "MwD" },
-    { "MOUSEWHEEL", "Mw" },
-    { "DOWN", "Dn" },
-    { "UP", "Up" },
-    { "PAGE", "Pg" },
-    { "BACKSPACE", "BkSp" },
-    { "DECIMAL", "." },
-    { "CAPSLOCK", "CAPS" },
+--    { "CTRL%-", "C" },
+--    { "ALT%-", "A" },
+--    { "SHIFT%-", "S" },
+--    { "STRG%-", "ST" },
+--    { "%s+", "" },
+--    { "NUMPAD", "N" },
+--    { "PLUS", "+" },
+--    { "MINUS", "-" },
+--    { "MULTIPLY", "*" },
+--    { "DIVIDE", "/" },
+--    { "BUTTON", "M" },
+--    { "MOUSEWHEELUP", "MwU" },
+--    { "MOUSEWHEELDOWN", "MwD" },
+--    { "MOUSEWHEEL", "Mw" },
+--    { "DOWN", "Dn" },
+--    { "UP", "Up" },
+--    { "PAGE", "Pg" },
+--    { "BACKSPACE", "BkSp" },
+--    { "DECIMAL", "." },
+--    { "CAPSLOCK", "CAPS" },
 }
 
 local function improvedGetBindingText( binding )

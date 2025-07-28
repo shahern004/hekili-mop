@@ -98,6 +98,105 @@ function Hekili:CmdLine( input )
             else
                 print("Spec test function not available")
             end
+        end,
+        testauras = function()
+            self:Print("Testing MoP aura scanning...")
+            
+            -- Test basic UnitBuff API first
+            self:Print("=== Testing UnitBuff API ===")
+            local testResult = UnitBuff("player", 1)
+            self:Print("UnitBuff('player', 1) returns: %s", tostring(testResult))
+            
+            -- Test with different filters
+            local testResult2 = UnitBuff("player", 1, "HELPFUL")
+            self:Print("UnitBuff('player', 1, 'HELPFUL') returns: %s", tostring(testResult2))
+            
+            -- Test ALL return values from first buff to see what MoP actually returns
+            self:Print("=== Raw UnitBuff Return Values ===")
+            local r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, r16, r17 = UnitBuff("player", 1)
+            self:Print("Raw values: 1=%s, 2=%s, 3=%s, 4=%s, 5=%s, 6=%s, 7=%s, 8=%s, 9=%s, 10=%s, 11=%s, 12=%s, 13=%s, 14=%s, 15=%s, 16=%s, 17=%s", 
+                tostring(r1), tostring(r2), tostring(r3), tostring(r4), tostring(r5), tostring(r6), tostring(r7), tostring(r8), tostring(r9), tostring(r10), 
+                tostring(r11), tostring(r12), tostring(r13), tostring(r14), tostring(r15), tostring(r16), tostring(r17))
+            
+            -- Test player buffs with more verbose output
+            self:Print("=== Player Buffs ===")
+            local buffCount = 0
+            local success, errorMsg = pcall(function()
+                for i = 1, 40 do
+                    self:Print("Checking buff slot %d...", i)
+                    
+                    -- Try to safely call UnitBuff
+                    local callSuccess, name, rank, icon, count, debuffType, duration, expires, caster, isStealable, shouldConsolidate, spellID, canApplyAura, isBossDebuff, isCastByPlayer, v1, v2, v3 = pcall(UnitBuff, "player", i)
+                    
+                    if not callSuccess then
+                        self:Print("ERROR calling UnitBuff(%d): %s", i, tostring(name))
+                        break
+                    end
+                    
+                    if name then
+                        buffCount = buffCount + 1
+                        -- Safe conversion of all values to proper types
+                        local spellIDNum = tonumber(spellID) or 0
+                        local expiresNum = tonumber(expires) or 0
+                        local timeLeft = expiresNum > 0 and (expiresNum - GetTime()) or 0
+                        self:Print("Buff %d: %s (ID: %d, caster: %s, expires: %.1f)", i, name, spellIDNum, tostring(caster), timeLeft)
+                    else
+                        self:Print("UnitBuff(%d) returned nil - stopping at %d buffs", i, buffCount)
+                        break
+                    end
+                end
+            end)
+            
+            if not success then
+                self:Print("ERROR in buff loop: %s", tostring(errorMsg))
+            end
+            
+            self:Print("Total buffs found: %d", buffCount)
+            self:Print("No target selected")
+            
+            -- Test ScrapeUnitAuras function directly
+            self:Print("=== Testing ScrapeUnitAuras ===")
+            if state and state.ScrapeUnitAuras then
+                state.ScrapeUnitAuras("player", false, "TESTAURAS_BUFFS")
+                self:Print("ScrapeUnitAuras completed")
+            else
+                self:Print("ScrapeUnitAuras not available")
+            end
+            
+            -- Test target debuffs  
+            if UnitExists("target") then
+                self:Print("=== Target Debuffs ===")
+                local debuffCount = 0
+                for i = 1, 40 do
+                    -- MoP UnitDebuff returns 17 values - catch them all safely
+                    local name, rank, icon, count, debuffType, duration, expires, caster, isStealable, shouldConsolidate, spellID, canApplyAura, isBossDebuff, isCastByPlayer, v1, v2, v3 = UnitDebuff("target", i)
+                    if name then
+                        debuffCount = debuffCount + 1
+                        -- Safe conversion of expires to number
+                        local expiresNum = tonumber(expires) or 0
+                        local timeLeft = expiresNum > 0 and (expiresNum - GetTime()) or 0
+                        self:Print("Debuff %d: %s (ID: %s, caster: %s, expires: %.1f)", i, name, tostring(spellID), tostring(caster), timeLeft)
+                    else
+                        self:Print("UnitDebuff(%d) returned nil - stopping at %d debuffs", i, debuffCount)
+                        break
+                    end
+                end
+                self:Print("Total debuffs found: %d", debuffCount)
+            else
+                self:Print("No target selected")
+            end
+            
+            -- Test ScrapeUnitAuras
+            self:Print("=== Testing ScrapeUnitAuras ===")
+            if state and state.ScrapeUnitAuras then
+                state.ScrapeUnitAuras("player", false, "manual_test")
+                if UnitExists("target") then
+                    state.ScrapeUnitAuras("target", false, "manual_test")
+                end
+                self:Print("ScrapeUnitAuras completed")
+            else
+                self:Print("ERROR: state.ScrapeUnitAuras not found!")
+            end
         end
     }
 
@@ -683,4 +782,46 @@ function Hekili:HandlePriorityCommand( args )
     end
     self:Print( output )
     return true
+end
+
+function Hekili:HandlePetSetupCommand()
+    self:Print( "=== Pet Ability Setup Guide ===" )
+    self:Print( "1. Make sure your pet is summoned and alive" )
+    self:Print( "2. Open your pet's spellbook (P key, then Pet tab)" )
+    self:Print( "3. Pet abilities will be automatically detected from pet action bar" )
+    self:Print( "4. No need to drag abilities to player action bars!" )
+    self:Print( "5. Check status with: /hekili pet status" )
+    
+    if self:CanUsePetBasedTargetDetection() then
+        local spells = self:GetPetBasedTargetSpells()
+        self:Print( "Supported abilities for your class:" )
+        for spellID, range in pairs( spells ) do
+            if type( spellID ) == "number" and spellID == spells.best then
+                local name = GetSpellInfo( spellID )
+                self:Print( "  BEST: " .. spellID .. " - " .. (name or "Unknown") .. " (" .. range .. " yards)" )
+            end
+        end
+    end
+end
+
+function Hekili:HandlePetStatusCommand()
+    local status = self:GetPetAbilityDetectionStatus()
+    self:Print( "Pet Detection Status: " .. status )
+    
+    if self:CanUsePetBasedTargetDetection() then
+        local spells = self:GetPetBasedTargetSpells()
+        self:Print( "Supported pet abilities for your class:" )
+        for spellID, range in pairs( spells ) do
+            if type( spellID ) == "number" then
+                local name = GetSpellInfo( spellID )
+                self:Print( "  " .. spellID .. " - " .. (name or "Unknown") .. " (" .. range .. " yards)" )
+            end
+        end
+        
+        if not UnitExists( "pet" ) then
+            self:Print( "|cFFFF0000WARNING:|r No pet is currently summoned!" )
+        elseif UnitIsDead( "pet" ) then
+            self:Print( "|cFFFF0000WARNING:|r Your pet is dead!" )
+        end
+    end
 end

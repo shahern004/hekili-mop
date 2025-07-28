@@ -15,7 +15,7 @@ variable,name=aoe,value=spell_targets.swipe_cat>=3
 variable,name=cleave,value=spell_targets.swipe_cat=2
 
 # Energy and combo point management
-variable,name=pool_energy,value=energy<50&!buff.omen_of_clarity.up&!buff.berserk.up
+variable,name=pool_energy,value=energy<50&!buff.clearcasting.up&!buff.berserk.up
 variable,name=cp_max_spend,value=combo_points>=5|(combo_points>=4&buff.savage_roar.remains<2)
 variable,name=rip_refresh,value=dot.rip.remains<7.2&combo_points>=1
 
@@ -61,7 +61,7 @@ actions.defensive+=/rejuvenation,if=health.pct<50&!buff.rejuvenation.up
 actions.cooldowns+=/berserk,if=energy>=40&buff.savage_roar.up&(combo_points>=4|dot.rip.ticking)&cooldown.tigers_fury.remains<3
 
 # Tiger's Fury - energy management
-actions.cooldowns+=/tigers_fury,if=energy<=35&!buff.omen_of_clarity.up&cooldown.tigers_fury.ready
+actions.cooldowns+=/tigers_fury,if=energy<=35&!buff.clearcasting.up&cooldown.tigers_fury.ready
 
 # Faerie Fire for armor debuff
 actions.cooldowns+=/faerie_fire_feral,if=debuff.faerie_fire.down&debuff.armor.down&target.time_to_die>15
@@ -84,7 +84,7 @@ actions.finishers+=/rip,if=combo_points>=5&(!dot.rip.ticking|(dot.rip.remains<7.
 actions.finishers+=/rip,cycle_targets=1,if=combo_points>=5&!dot.rip.ticking&target.time_to_die>dot.rip.duration&active_enemies<=4
 
 # Ferocious Bite - energy dump
-actions.finishers+=/ferocious_bite,if=combo_points>=5&dot.rip.ticking&buff.savage_roar.up&(energy>=50|buff.berserk.up|buff.omen_of_clarity.up)
+actions.finishers+=/ferocious_bite,if=combo_points>=5&dot.rip.ticking&buff.savage_roar.up&(energy>=50|buff.berserk.up|buff.clearcasting.up)
 
 # Emergency Savage Roar
 actions.finishers+=/savage_roar,if=combo_points>=1&buff.savage_roar.down
@@ -114,10 +114,10 @@ actions.fillers+=/wait,sec=0.1,if=variable.pool_energy&cooldown.tigers_fury.rema
 actions.fillers+=/mangle_cat,if=combo_points<5&energy>=40
 
 
-actions.fillers+=/shred,if=(buff.omen_of_clarity.up)&combo_points<5&energy>=40&(!variable.aoe|!settings.lazy_swipe)
+actions.fillers+=/shred,if=(buff.clearcasting.up)&combo_points<5&(!variable.aoe|!settings.lazy_swipe)
 
 # Mangle when can't get behind
-actions.fillers+=/mangle_cat,if=combo_points<5&!buff.omen_of_clarity.up&energy>=40
+actions.fillers+=/mangle_cat,if=combo_points<5&!buff.clearcasting.up&energy>=40
 
 # Emergency filler
 actions.fillers+=/shred,if=combo_points<5&energy>=40
@@ -140,7 +140,7 @@ actions.cleave+=/thrash_cat,if=!dot.thrash_cat.ticking&energy>=50
 actions.cleave+=/savage_roar,if=combo_points>=1&buff.savage_roar.remains<7.2
 actions.cleave+=/rip,cycle_targets=1,if=combo_points>=5&!dot.rip.ticking&target.time_to_die>dot.rip.duration
 actions.cleave+=/mangle_cat,if=combo_points<5&energy>=40
-actions.cleave+=/shred,if=combo_points<5&buff.omen_of_clarity.up&energy>=40
+actions.cleave+=/shred,if=combo_points<5&buff.clearcasting.up
 
 
 # UTILITY AND MOVEMENT
@@ -153,5 +153,21 @@ actions.utility+=/dash,if=movement.distance>20&!buff.dash.up&energy>=30
 actions.utility+=/wild_charge,if=movement.distance>8&movement.distance<25&energy>=25
 
 # Final resource management
-actions+=/tigers_fury,if=energy<30&!buff.tigers_fury.up&!buff.omen_of_clarity.up&cooldown.tigers_fury.ready
-actions+=/wait,sec=0.1,if=energy<50&energy.regen>10&!buff.omen_of_clarity.up&!buff.berserk.up&cooldown.tigers_fury.remains>3
+actions+=/tigers_fury,if=energy<30&!buff.tigers_fury.up&!buff.clearcasting.up&cooldown.tigers_fury.ready
+actions+=/wait,sec=0.1,if=energy<50&energy.regen>10&!buff.clearcasting.up&!buff.berserk.up&cooldown.tigers_fury.remains>3
+
+# ADVANCED TECHNIQUES
+# Bear-Weaving and Wrath-Weaving action lists
+
+# Bear-Weaving: Shift to Bear Form to pool energy and deal damage
+actions.bear_weaving+=/bear_form,if=settings.bear_weaving_enabled&energy>=80&!buff.berserk.up&!buff.incarnation_king_of_the_jungle.up&target.time_to_die>10
+actions.bear_weaving+=/mangle_bear,if=settings.bear_weaving_enabled&buff.bear_form.up&energy>=50
+actions.bear_weaving+=/lacerate,if=settings.bear_weaving_enabled&buff.bear_form.up&energy>=60&!debuff.lacerate.up
+actions.bear_weaving+=/cat_form,if=settings.bear_weaving_enabled&buff.bear_form.up&energy>=90
+
+# Wrath-Weaving: Use Wrath during Heart of the Wild when not in combat forms
+actions.wrath_weaving+=/wrath,if=settings.wrath_weaving_enabled&buff.heart_of_the_wild.up&!buff.cat_form.up&!buff.bear_form.up&mana>=0.06*mana.max
+
+# Call advanced techniques in main rotation
+actions+=/call_action_list,name=bear_weaving,if=settings.bear_weaving_enabled
+actions+=/call_action_list,name=wrath_weaving,if=settings.wrath_weaving_enabled

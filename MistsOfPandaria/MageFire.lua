@@ -93,11 +93,24 @@ RegisterFireCombatLogEvent("COMBAT_LOG_EVENT_UNFILTERED", function(event, ...)
                 local critical = select(21, CombatLogGetCurrentEventInfo())
                 if critical then
                     pyroblast_crits = pyroblast_crits + 1
+                    -- Convert Heating Up to Hot Streak
+                    if buff.heating_up.up then
+                        removeBuff( "heating_up" )
+                        applyBuff( "hot_streak" )
+                    end
                 end
             elseif spellID == 133 then -- Fireball
                 -- Track Fireball crits for Heating Up
                 local critical = select(21, CombatLogGetCurrentEventInfo())
                 if critical then
+                    -- Apply Heating Up on first crit
+                    if not buff.heating_up.up and not buff.hot_streak.up then
+                        applyBuff( "heating_up" )
+                    -- Convert Heating Up to Hot Streak on second crit
+                    elseif buff.heating_up.up then
+                        removeBuff( "heating_up" )
+                        applyBuff( "hot_streak" )
+                    end
                     heating_up_procs = heating_up_procs + 1
                 end
             end
@@ -200,37 +213,50 @@ spec:RegisterAura( "tier16_4pc_fire", {
     generate = check_tier_bonus("tier16", 4)
 } )
 
+-- Spell Power Calculations and State Expressions
+spec:RegisterStateExpr( "spell_power", function()
+    return GetSpellBonusDamage(3) -- Fire school
+end )
+
+spec:RegisterStateExpr( "hot_streak_bonus", function()
+    return buff.hot_streak.up and 0.25 or 0 -- 25% damage bonus
+end )
+
+spec:RegisterStateExpr( "heating_up_bonus", function()
+    return buff.heating_up.up and 0.15 or 0 -- 15% damage bonus
+end )
+
 -- Talents (MoP 6-tier system)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Mobility/Instant Cast
-    presence_of_mind      = { 101380, 1, 12043 }, -- Your next 3 spells are instant cast
-    blazing_speed         = { 101384, 1, 108843 }, -- Increases movement speed by 150% for 1.5 sec after taking damage
-    ice_floes             = { 101386, 1, 108839 }, -- Allows you to cast 3 spells while moving
+    presence_of_mind      = { 1, 1, 12043 }, -- Your next 3 spells are instant cast
+    blazing_speed         = { 1, 2, 108843 }, -- Increases movement speed by 150% for 1.5 sec after taking damage
+    ice_floes             = { 1, 3, 108839 }, -- Allows you to cast 3 spells while moving
 
     -- Tier 2 (Level 30) - Survivability
-    flameglow             = { 101388, 1, 140468 }, -- Reduces spell damage taken by a fixed amount
-    ice_barrier           = { 101397, 1, 11426 }, -- Absorbs damage for 1 min
-    temporal_shield       = { 101389, 1, 115610 }, -- 100% of damage taken is healed back over 6 sec
+    flameglow             = { 2, 1, 140468 }, -- Reduces spell damage taken by a fixed amount
+    ice_barrier           = { 2, 2, 11426 }, -- Absorbs damage for 1 min
+    temporal_shield       = { 2, 3, 115610 }, -- 100% of damage taken is healed back over 6 sec
 
     -- Tier 3 (Level 45) - Control
-    ring_of_frost         = { 101391, 1, 113724 }, -- Incapacitates enemies entering the ring
-    ice_ward              = { 101392, 1, 111264 }, -- Frost Nova gains 2 charges
-    frostjaw              = { 101393, 1, 102051 }, -- Silences and freezes target
+    ring_of_frost         = { 3, 1, 113724 }, -- Incapacitates enemies entering the ring
+    ice_ward              = { 3, 2, 111264 }, -- Frost Nova gains 2 charges
+    frostjaw              = { 3, 3, 102051 }, -- Silences and freezes target
 
     -- Tier 4 (Level 60) - Utility
-    greater_invisibility  = { 101394, 1, 110959 }, -- Invisible for 20 sec, 90% damage reduction when visible
-    cold_snap             = { 101396, 1, 11958 }, -- Finishes cooldown on Frost spells, heals 25%
-    cauterize             = { 101398, 1, 86949 }, -- Fatal damage brings you to 35% health
+    greater_invisibility  = { 4, 1, 110959 }, -- Invisible for 20 sec, 90% damage reduction when visible
+    cold_snap             = { 4, 2, 11958 }, -- Finishes cooldown on Frost spells, heals 25%
+    cauterize             = { 4, 3, 86949 }, -- Fatal damage brings you to 35% health
 
     -- Tier 5 (Level 75) - DoT/Bomb Spells
-    nether_tempest        = { 101400, 1, 114923 }, -- Arcane DoT that spreads
-    living_bomb           = { 101401, 1, 44457 }, -- Fire DoT that explodes
-    frost_bomb            = { 101402, 1, 112948 }, -- Frost bomb with delayed explosion
+    nether_tempest        = { 5, 1, 114923 }, -- Arcane DoT that spreads
+    living_bomb           = { 5, 2, 44457 }, -- Fire DoT that explodes
+    frost_bomb            = { 5, 3, 112948 }, -- Frost bomb with delayed explosion
 
     -- Tier 6 (Level 90) - Power/Mana Management
-    invocation            = { 101403, 1, 114003 }, -- Evocation increases damage by 25%
-    rune_of_power         = { 101404, 1, 116011 }, -- Ground rune increases spell damage by 15%
-    incanter_s_ward       = { 101405, 1, 1463 }, -- Converts 30% damage taken to mana
+    invocation            = { 6, 1, 114003 }, -- Evocation increases damage by 25%
+    rune_of_power         = { 6, 2, 116011 }, -- Ground rune increases spell damage by 15%
+    incanter_s_ward       = { 6, 3, 1463 }, -- Converts 30% damage taken to mana
 } )
 
 -- Tier Sets
@@ -419,6 +445,53 @@ spec:RegisterAuras( {
         max_stack = 1,
         generate = function( t )
             local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 12654 )
+            
+            if name then
+                t.name = name
+                t.count = count > 0 and count or 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end
+    },
+    
+    -- Fire-specific proc tracking
+    heating_up = {
+        id = 48107,
+        duration = 10,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 48107 )
+            
+            if name then
+                t.name = name
+                t.count = count > 0 and count or 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end
+    },
+    
+    hot_streak = {
+        id = 48108,
+        duration = 10,
+        max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID( "player", 48108 )
             
             if name then
                 t.name = name

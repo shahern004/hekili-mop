@@ -33,8 +33,75 @@ local function UA_GetPlayerAuraBySpellID(spellID)
     return nil
 end
 
-spec:RegisterResource( 0 ) -- Mana = 0 in MoP
-spec:RegisterResource( 9 ) -- HolyPower = 9 in MoP
+spec:RegisterResource( 9, { -- Holy Power with Protection-specific mechanics
+    -- Grand Crusader reset proc (Protection signature)
+    grand_crusader = {
+        last = function ()
+            return state.query_time
+        end,
+        interval = 1,
+        value = function()
+            -- Grand Crusader doesn't generate Holy Power directly, but resets Avenger's Shield
+            return 0 -- No direct HP generation, but tracks proc for ability resets
+        end,
+    },
+    
+    -- Bastion of Glory stack building (Protection mastery interaction)
+    bastion_of_glory = {
+        last = function ()
+            return state.query_time
+        end,
+        interval = 1,
+        value = function()
+            -- Tracks Bastion of Glory stacks for defensive benefit calculation
+            local stacks = state.buff.bastion_of_glory.stack or 0
+            return stacks * 0.1 -- Each stack provides defensive value
+        end,
+    },
+    
+    -- Shield of Vengeance proc (Protection talent)
+    shield_of_vengeance = {
+        last = function ()
+            return state.query_time
+        end,
+        interval = 1,
+        value = function()
+            if state.talent.shield_of_vengeance.enabled and state.last_ability == "word_of_glory" then
+                return 0 -- Shield of Vengeance procs from Holy Power consumption
+            end
+            return 0
+        end,
+    },
+    
+    -- Eternal Flame synergy (if talented)
+    eternal_flame_protection = {
+        last = function ()
+            return state.query_time
+        end,
+        interval = 1,
+        value = function()
+            if state.talent.eternal_flame.enabled and state.last_ability == "word_of_glory" then
+                return 0 -- Eternal Flame effectiveness scales with Holy Power spent
+            end
+            return 0
+        end,
+    },
+}, {
+    -- Base Holy Power mechanics for Protection
+    max_holy_power = function ()
+        return 3 -- Maximum 3 Holy Power in MoP
+    end,
+    
+    -- Protection's enhanced Holy Power generation
+    protection_generation = function ()
+        return 1.0 -- Standard HP generation rate
+    end,
+    
+    -- Divine Purpose proc effects for Protection
+    divine_purpose_efficiency = function ()
+        return state.talent.divine_purpose.enabled and (state.buff.divine_purpose.up and 1.5 or 1.0) or 1.0
+    end,
+} )
 
 -- Tier sets
 spec:RegisterGear( "tier14", 85345, 85346, 85347, 85348, 85349 ) -- T14 Protection Paladin Set
@@ -43,34 +110,34 @@ spec:RegisterGear( "tier15", 95268, 95270, 95266, 95269, 95267 ) -- T15 Protecti
 -- Talents (MoP 6-tier talent system)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Movement
-    speed_of_light            = { 2199, 1, 85499  }, -- +70% movement speed for 8 sec
-    long_arm_of_the_law       = { 2200, 1, 114158 }, -- Judgments increase movement speed by 45% for 3 sec
-    pursuit_of_justice        = { 2201, 1, 26023  }, -- +15% movement speed per Holy Power charge
+    speed_of_light            = { 1, 1, 85499  }, -- +70% movement speed for 8 sec
+    long_arm_of_the_law       = { 1, 2, 87172  }, -- Judgments increase movement speed by 45% for 3 sec
+    pursuit_of_justice        = { 1, 3, 26023  }, -- +15% movement speed per Holy Power charge
 
     -- Tier 2 (Level 30) - Control
-    fist_of_justice           = { 2202, 1, 105593 }, -- Reduces Hammer of Justice cooldown by 50%
-    repentance                = { 2203, 1, 20066  }, -- Puts the enemy target in a state of meditation, incapacitating them for up to 1 min.
-    blinding_light            = { 2204, 1, 115750 }, -- Emits dazzling light in all directions, blinding enemies within 10 yards for 6 sec.
+    fist_of_justice           = { 2, 1, 105593 }, -- Reduces Hammer of Justice cooldown by 50%
+    repentance                = { 2, 2, 20066  }, -- Puts the enemy target in a state of meditation, incapacitating them for up to 1 min.
+    blinding_light            = { 2, 3, 115750 }, -- Emits dazzling light in all directions, blinding enemies within 10 yards for 6 sec.
 
     -- Tier 3 (Level 45) - Healing/Defense
-    selfless_healer           = { 2205, 1, 85804  }, -- Your Holy power spending abilities reduce the cast time and mana cost of your next Flash of Light.
-    eternal_flame             = { 2206, 1, 114163 }, -- Consumes all Holy Power to place a protective Holy flame on a friendly target, which heals over 30 sec.
-    sacred_shield             = { 2207, 1, 20925  }, -- Places a Sacred Shield on a friendly target, absorbing damage every 6 sec for 30 sec.
+    selfless_healer           = { 3, 1, 85804  }, -- Your Holy power spending abilities reduce the cast time and mana cost of your next Flash of Light.
+    eternal_flame             = { 3, 2, 114163 }, -- Consumes all Holy Power to place a protective Holy flame on a friendly target, which heals over 30 sec.
+    sacred_shield             = { 3, 3, 20925  }, -- Places a Sacred Shield on a friendly target, absorbing damage every 6 sec for 30 sec.
 
     -- Tier 4 (Level 60) - Utility/CC
-    hand_of_purity            = { 2208, 1, 114039 }, -- Protects a party or raid member, reducing harmful periodic effects by 70% for 6 sec.
-    unbreakable_spirit        = { 2209, 1, 114154 }, -- Reduces the cooldown of your Divine Shield, Divine Protection, and Lay on Hands by 50%.
-    clemency                  = { 2210, 1, 105622 }, -- Increases the number of charges on your Hand spells by 1.
+    hand_of_purity            = { 4, 1, 114039 }, -- Protects a party or raid member, reducing harmful periodic effects by 70% for 6 sec.
+    unbreakable_spirit        = { 4, 2, 114154 }, -- Reduces the cooldown of your Divine Shield, Divine Protection, and Lay on Hands by 50%.
+    clemency                  = { 4, 3, 105622 }, -- Increases the number of charges on your Hand spells by 1.
 
     -- Tier 5 (Level 75) - Holy Power
-    divine_purpose            = { 2211, 1, 86172  }, -- Your Holy Power abilities have a 15% chance to make your next Holy Power ability free and more effective.
-    holy_avenger              = { 2212, 1, 105809 }, -- Your Holy power generating abilities generate 3 charges of Holy Power for 18 sec.
-    sanctified_wrath          = { 2213, 1, 53376  }, -- Increases the duration of Avenging Wrath by 5 sec. While Avenging Wrath is active, your abilities generate 1 additional Holy Power.
+    divine_purpose            = { 5, 1, 86172  }, -- Your Holy Power abilities have a 15% chance to make your next Holy Power ability free and more effective.
+    holy_avenger              = { 5, 2, 105809 }, -- Your Holy power generating abilities generate 3 charges of Holy Power for 18 sec.
+    sanctified_wrath          = { 5, 3, 53376  }, -- Increases the duration of Avenging Wrath by 5 sec. While Avenging Wrath is active, your abilities generate 1 additional Holy Power.
 
     -- Tier 6 (Level 90) - Tanking
-    holy_prism                = { 2214, 1, 114165 }, -- Fires a beam of light that hits a target for Holy damage or healing.
-    lights_hammer             = { 2215, 1, 114158 }, -- Hurls a Light-infused hammer to the ground, dealing Holy damage to enemies and healing allies.
-    execution_sentence        = { 2216, 1, 114157 }  -- A hammer slowly falls from the sky, dealing Holy damage to an enemy or healing an ally.
+    holy_prism                = { 6, 1, 114165 }, -- Fires a beam of light that hits a target for Holy damage or healing.
+    lights_hammer             = { 6, 2, 114158 }, -- Hurls a Light-infused hammer to the ground, dealing Holy damage to enemies and healing allies.
+    execution_sentence        = { 6, 3, 114157 }  -- A hammer slowly falls from the sky, dealing Holy damage to an enemy or healing an ally.
 } )
 
 -- Protection-specific Glyphs

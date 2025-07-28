@@ -1,4 +1,4 @@
--- UI.lua
+﻿-- UI.lua
 -- Dynamic UI Elements
 
 local addon, ns = ...
@@ -1260,8 +1260,8 @@ do
             end
 
             local postRecs = debugprofilestop()
-
-            if self.HasRecommendations then
+                
+if self.HasRecommendations then
                 if fullUpdate and conf.glow.enabled then
                     madeUpdate = true
 
@@ -1681,15 +1681,17 @@ do
 
                     local start, duration, enabled, modRate = 0, 0, 1, 1
 
-                    if ability.item then
-                        start, duration, enabled, modRate = GetItemCooldown( ability.item )
-                    elseif not ability.empowered then
-                        start, duration, enabled, modRate = GetSpellCooldown( ability.id )
+                    if ability then
+                        if ability.item then
+                            start, duration, enabled, modRate = GetItemCooldown( ability.item )
+                        elseif not ability.empowered then
+                            start, duration, enabled, modRate = GetSpellCooldown( ability.id )
+                        end
                     end
 
-                    if i == 1 and conf.delays.extend and rec.exact_time > max( now, start + duration ) then
+                    if i == 1 and conf.delays.extend and rec.exact_time and start and duration and rec.exact_time > max( now, start + duration ) then
                         start = ( start > 0 and start ) or ( cStart > 0 and cStart ) or ( gStart > 0 and gStart ) or max( state.gcd.lastStart, state.combat )
-                        duration = rec.exact_time - start
+                        duration = (rec.exact_time or 0) - start
 
                     elseif enabled and enabled == 0 then
                         start = 0
@@ -1697,7 +1699,7 @@ do
                         modRate = 1
                     end
 
-                    if cd.lastStart ~= start or cd.lastDuration ~= duration then
+                    if (cd.lastStart or 0) ~= start or (cd.lastDuration or 0) ~= duration then
                         cd:SetCooldown( start, duration, modRate )
                         cd.lastStart = start
                         cd.lastDuration = duration
@@ -2810,7 +2812,7 @@ do
         b.EmpowerLevel:ClearAllPoints()
         b.EmpowerLevel:SetPoint( empAnchor, b, empAnchor, conf.empowerment.x or 0, conf.empowerment.y or 0 )
         -- b.EmpowerLevel:SetHeight( b:GetHeight() * 0.6 )
-        b.EmpowerLevel:SetJustifyV( empAnchor:match("RIGHT") and "RIGHT" or ( empAnchor:match( "LEFT" ) and "LEFT" or "MIDDLE" ) )
+        b.EmpowerLevel:SetJustifyV( empAnchor:match("RIGHT") and "MIDDLE" or ( empAnchor:match( "LEFT" ) and "MIDDLE" or "MIDDLE" ) )
         b.EmpowerLevel:SetJustifyH( conf.empowerment.align or "CENTER" )
         b.EmpowerLevel:SetTextColor( unpack( conf.empowerment.color ) )
         b.EmpowerLevel:SetWordWrap( false )

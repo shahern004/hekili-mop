@@ -244,34 +244,34 @@ spec:RegisterAura( "item_bonus_2061", { -- T16 4pc: Flash Heal increases healing
 -- Talents (MoP 6-tier talent system)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Healing/Utility
-    void_tendrils             = { 2295, 1, 108920 }, -- Shadowy tendrils immobilize all enemies for 8 sec
-    psyfiend                  = { 2296, 1, 108921 }, -- Pet that fears target every 4 sec for 20 sec
-    dominate_mind             = { 2297, 1, 108968 }, -- Controls enemy for 8 sec
+    void_tendrils             = { 1, 1, 108920 }, -- Shadowy tendrils immobilize all enemies for 8 sec
+    psyfiend                  = { 1, 2, 108921 }, -- Pet that fears target every 4 sec for 20 sec
+    dominate_mind             = { 1, 3, 108968 }, -- Controls enemy for 8 sec
 
     -- Tier 2 (Level 30) - Movement
-    body_and_soul             = { 2298, 1, 64129  }, -- Power Word: Shield increases movement speed by 60%
-    angelic_feather           = { 2299, 1, 121536 }, -- Places feather that grants 80% movement speed
-    phantasm                  = { 2300, 1, 108942 }, -- Fade grants immunity to movement impairing effects
+    body_and_soul             = { 2, 1, 64129  }, -- Power Word: Shield increases movement speed by 60%
+    angelic_feather           = { 2, 2, 121536 }, -- Places feather that grants 80% movement speed
+    phantasm                  = { 2, 3, 108942 }, -- Fade grants immunity to movement impairing effects
 
     -- Tier 3 (Level 45) - Survivability
-    from_darkness_comes_light = { 2301, 1, 109186 }, -- Damage spells have chance to reset Flash Heal
-    mindbender                = { 2302, 1, 123040 }, -- Shadowfiend that returns 4% mana per hit
-    archangel                 = { 2303, 1, 81700  }, -- Consumes Evangelism for healing/damage increase
+    from_darkness_comes_light = { 3, 1, 109186 }, -- Damage spells have chance to reset Flash Heal
+    mindbender                = { 3, 2, 123040 }, -- Shadowfiend that returns 4% mana per hit
+    archangel                 = { 3, 3, 81700  }, -- Consumes Evangelism for healing/damage increase
 
     -- Tier 4 (Level 60) - Control
-    desperate_prayer          = { 2304, 1, 19236  }, -- Instantly heals for 30% of max health
-    spectral_guise            = { 2305, 1, 112833 }, -- Instantly become invisible for 6 sec
-    angelic_bulwark           = { 2306, 1, 108945 }, -- Shield absorbs when health drops below 30%
+    desperate_prayer          = { 4, 1, 19236  }, -- Instantly heals for 30% of max health
+    spectral_guise            = { 4, 2, 112833 }, -- Instantly become invisible for 6 sec
+    angelic_bulwark           = { 4, 3, 108945 }, -- Shield absorbs when health drops below 30%
 
     -- Tier 5 (Level 75) - Healing Enhancement
-    twist_of_fate             = { 2307, 1, 109142 }, -- +20% damage/healing to targets below 35% health
-    power_infusion            = { 2308, 1, 10060  }, -- +40% spell haste for 15 sec
-    serenity                  = { 2309, 1, 14914  }, -- Reduces all spell cooldowns by 4 sec
+    twist_of_fate             = { 5, 1, 109142 }, -- +20% damage/healing to targets below 35% health
+    power_infusion            = { 5, 2, 10060  }, -- +40% spell haste for 15 sec
+    serenity                  = { 5, 3, 14914  }, -- Reduces all spell cooldowns by 4 sec
 
     -- Tier 6 (Level 90) - Ultimate
-    cascade                   = { 2310, 1, 121135 }, -- Healing/damaging bolt that bounces to targets
-    divine_star               = { 2311, 1, 110744 }, -- Projectile travels forward and back, healing/damaging
-    halo                      = { 2312, 1, 120517 }  -- Ring of light expands outward, healing/damaging
+    cascade                   = { 6, 1, 121135 }, -- Healing/damaging bolt that bounces to targets
+    divine_star               = { 6, 2, 110744 }, -- Projectile travels forward and back, healing/damaging
+    halo                      = { 6, 3, 120517 }  -- Ring of light expands outward, healing/damaging
 } )
 
 -- Comprehensive Glyph System (MoP)

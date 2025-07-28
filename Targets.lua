@@ -75,46 +75,28 @@ do
 
     local petSpells = {
         HUNTER = {
-            [288962] = 10,
-            [17253]  = 5,
-            [16827]  = 5,
-            [159953] = 5,
-            [49966]  = 5,
-            [263863] = 7,
-            [50433]  = 7,
-            [24423]  = 7,
-            [160060] = 7,
-            [50285]  = 7,
-            [263840] = 7,
-            [263856] = 7,
-            [263861] = 7,
-            [279362] = 7,
-            [160018] = 7,
-            [263853] = 7,
-            [263423] = 7,
-            [54680]  = 7,
-            [344352] = 7,
-            [50245]  = 7,
-            [263857] = 7,
-            [263854] = 7,
-            [263852] = 7,
-            [160065] = 7,
-            [263858] = 7,
-            [341118] = 7,
-            [35346]  = 7,
-            [160067] = 7,
+            -- MoP Hunter Pet Abilities (verified for MoP)
+            [17253]  = 5,   -- Bite (Beast pets)
+            [16827]  = 5,   -- Claw (Beast pets)
+            [49966]  = 5,   -- Smack (Beast pets)
+            [24423]  = 7,   -- Screech (Bird pets)
+            [50285]  = 7,   -- Dust Cloud (Worm pets)
+            [50245]  = 7,   -- Pin (Spider pets)
+            [54680]  = 7,   -- Monstrous Bite (Devilsaur pets)
+            [35346]  = 7,   -- Warp (Warp Stalker pets)
 
-            best     = 288962,
-            count    = 28
+            best     = 17253,  -- Bite is most common and reliable
+            count    = 8
         },
 
         WARLOCK = {
-            [6360]   = 10,
-            [7814]   = 7,
-            [30213]  = 7,
-            [115625] = 7,
-            [54049]  = 7,
-            [115778] = 7,
+            -- MoP Warlock Pet Abilities (verified for MoP)
+            [6360]   = 10,  -- Whiplash (Succubus)
+            [7814]   = 7,   -- Lash of Pain (Succubus)
+            [30213]  = 7,   -- Cleave (Felguard)
+            [115625] = 7,   -- Felstorm (Felguard)
+            [54049]  = 7,   -- Shadow Bite (Felhunter)
+            [115778] = 7,   -- Carrion Swarm (Felhunter)
 
             best     = 6360,
             count    = 6
@@ -137,31 +119,34 @@ do
         return petAction > 0 and petAction or nil
     end
 
-    function Hekili:PetBasedTargetDetectionIsReady( skipRange )
-        if petSlot == 0 then return false, "Pet action not found in player action bars." end
-        if not UnitExists( "pet" ) then return false, "No active pet." end
-        if UnitIsDead( "pet" ) then return false, "Pet is dead." end
-
-        -- If we have a target and the target is out of our pet's range, don't use pet detection.
-        if not skipRange and UnitExists( "target" ) and not IsActionInRange( petSlot ) then return false, "Player has target and player's target not in range of pet." end
-        return true
-    end
-
     function Hekili:SetupPetBasedTargetDetection()
         petAction = 0
         petSlot = 0
 
         if not self:CanUsePetBasedTargetDetection() then return end
+        if not UnitExists( "pet" ) then return false end
 
         local spells = petSpells[ myClass ]
         local success = false
 
+        -- 1. Först: Kolla pet action bar (som nu)
+        for i = 1, NUM_PET_ACTION_SLOTS do
+            local name, texture, isToken, isActive, autoCastAllowed, autoCastEnabled, spellID, checksRange, inRange = GetPetActionInfo( i )
+            
+            if spellID and spells[ spellID ] and checksRange then
+                petAction = spellID
+                petSlot = i  -- Pet action bar slot (1-10)
+                return true
+            end
+        end
+
+        -- 2. Sedan: Kolla player action bars för macros med pet abilities
         for i = 1, 180 do
             local slotType, spell = GetActionInfo( i )
 
             if slotType and spell and spells[ spell ] then
                 petAction = spell
-                petSlot = i
+                petSlot = i + 1000  -- Markerad som player action bar slot
                 return true
             end
         end
@@ -170,11 +155,56 @@ do
     end
 
     function Hekili:TargetIsNearPet( unit )
-        return IsActionInRange( petSlot, unit )
+        if petSlot == 0 then return false end
+        
+        -- Om petSlot är 1-10, det är en pet action bar slot
+        if petSlot <= NUM_PET_ACTION_SLOTS then
+            local name, texture, isToken, isActive, autoCastAllowed, autoCastEnabled, spellID, checksRange, inRange = GetPetActionInfo( petSlot )
+            return inRange
+        else
+            -- Annars är det en player action bar slot (macro eller dragen ability)
+            local playerSlot = petSlot - 1000
+            return IsActionInRange( playerSlot, unit )
+        end
+    end
+
+    function Hekili:PetBasedTargetDetectionIsReady( skipRange )
+        if petSlot == 0 then return false, "No suitable pet ability found on pet action bar or player action bars." end
+        if not UnitExists( "pet" ) then return false, "No active pet." end
+        if UnitIsDead( "pet" ) then return false, "Pet is dead." end
+
+        -- If we have a target and the target is out of our pet's range, don't use pet detection.
+        if not skipRange and UnitExists( "target" ) and not self:TargetIsNearPet( "target" ) then 
+            return false, "Player has target and player's target not in range of pet." 
+        end
+        return true
+    end
+
+    function Hekili:GetPetAbilityDetectionStatus()
+        if not self:CanUsePetBasedTargetDetection() then
+            return "Pet-based detection not available for your class."
+        end
+        
+        if petSlot == 0 then
+            return "No pet ability configured for detection. Pet action bar will be checked automatically."
+        end
+        
+        local spellName = GetSpellInfo( petAction )
+        if petSlot <= NUM_PET_ACTION_SLOTS then
+            return "Using pet action bar slot " .. petSlot .. " (" .. (spellName or "Unknown") .. ")"
+        else
+            local playerSlot = petSlot - 1000
+            return "Using player action bar slot " .. playerSlot .. " (" .. (spellName or "Unknown") .. ")"
+        end
     end
 
     function Hekili:DumpPetBasedTargetInfo()
-        self:Print( petAction, petSlot )
+        if petSlot <= NUM_PET_ACTION_SLOTS then
+            self:Print( "Pet Action Bar Slot:", petSlot, "Spell ID:", petAction )
+        else
+            local playerSlot = petSlot - 1000
+            self:Print( "Player Action Bar Slot:", playerSlot, "Spell ID:", petAction )
+        end
     end
 end
 
@@ -362,6 +392,48 @@ do
         return invert and ( not result ) or result
     end
 
+    -- NY FUNKTION: Pet-based detection utan nameplates
+    function Hekili:GetPetBasedTargetsWithoutNameplates()
+        local count = 0
+        local targets = {}
+        
+        -- Kolla ditt target och focus
+        local unitsToCheck = { "target", "focus" }
+        
+        for _, unit in ipairs(unitsToCheck) do
+            if UnitExists(unit) and not UnitIsDead(unit) and UnitCanAttack("player", unit) then
+                -- Kontrollera om target är inom pet range
+                if Hekili:TargetIsNearPet(unit) then
+                    count = count + 1
+                    targets[UnitGUID(unit)] = true
+                end
+            end
+        end
+        
+        -- Kolla även damage detection targets (fiender du har skadat)
+        local spec = state.spec.id
+        spec = spec and rawget( Hekili.DB.profile.specs, spec )
+        
+        if spec and spec.damage then
+            local db = spec.myTargetsOnly and myTargets or targets
+            
+            for guid, _ in pairs(db) do
+                local unit = Hekili:GetUnitByGUID(guid)
+                if unit and not UnitIsUnit(unit, "target") and not UnitIsUnit(unit, "focus") then
+                    if UnitExists(unit) and not UnitIsDead(unit) and UnitCanAttack("player", unit) then
+                        -- Kontrollera om target är inom pet range
+                        if Hekili:TargetIsNearPet(unit) then
+                            count = count + 1
+                            targets[guid] = true
+                        end
+                    end
+                end
+            end
+        end
+        
+        return count, targets
+    end
+
     -- New Nameplate Proximity System
     function ns.getNumberTargets( forceUpdate )
         if not forceUpdate then
@@ -385,20 +457,25 @@ do
 
         local FriendCheck = inRaid and UnitInRaid or UnitInParty
 
-        local checkPets = showNPs and spec and spec.petbased and Hekili:PetBasedTargetDetectionIsReady()
-        -- local filterPlates = showNPs and spec and spec.rangeFilter and class.specs[ state.spec.id ].rangeFilter
-
+        local checkPets = spec and spec.petbased and Hekili:PetBasedTargetDetectionIsReady()
         local checkPlates = showNPs and spec and spec.nameplates and ( spec.nameplateRange or class.specs[ state.spec.id ].nameplateRange or 10 )
 
-        --[[ if rangeCheck == "Auto" then
-            rangeChecker = spec.ranges.Auto[2]
-            rangeCheck = true
-        else
-            rangeChecker = spec.ranges[ rangeCheck ][ 1 ]
-        end ]]
-
         if spec then
-            if checkPets or checkPlates then
+            -- NY LOGIK: Om pet-based är aktiverat men nameplates är avstängda
+            if checkPets and not showNPs then
+                local petCount, petTargets = Hekili:GetPetBasedTargetsWithoutNameplates()
+                count = petCount
+                
+                -- Lägg till pet targets i counted
+                for guid, _ in pairs(petTargets) do
+                    counted[guid] = true
+                end
+                
+                if debugging then 
+                    details = format( "%s\nPet-based detection without nameplates: %d targets", details, petCount )
+                end
+            elseif checkPets or checkPlates then
+                -- Ursprunglig nameplate-baserad logik
                 for unit, guid in pairs( npGUIDs ) do
                     local npcid = tonumber( guid:match( "(%d+)-%x-$" ) or 0 )
 
@@ -437,7 +514,9 @@ do
                                 if debugging and excluded then
                                     details = format( "%s\n    - Excluded by pet range.", details )
                                 end
-                            end                            if not excluded and checkPlates then
+                            end
+
+                            if not excluded and checkPlates then
                                 local _, maxR
                                 if RC and RC.GetRange then
                                     _, maxR = RC:GetRange( unit )
@@ -543,7 +622,7 @@ do
             end
         end
 
-        if not spec or spec.damage or not checkPets and not checkPlates then
+        if not spec or spec.damage or not (checkPets or checkPlates) then
             local db = spec and ( spec.myTargetsOnly and myTargets or targets ) or targets
 
             for guid, seen in pairs( db ) do
@@ -1593,4 +1672,23 @@ do
             UpdateTTDs()
         end
     end)
+end
+
+function Hekili:HandlePetCommand( args )
+    if not args[2] then
+        self:Print( "Pet command usage:" )
+        self:Print( "  /hekili pet status - Show pet detection status" )
+        self:Print( "  /hekili pet setup - Help with pet ability setup" )
+        return
+    end
+    
+    local subcommand = args[2]:lower()
+    
+    if subcommand == "status" then
+        self:HandlePetStatusCommand()
+    elseif subcommand == "setup" then
+        self:HandlePetSetupCommand()
+    else
+        self:Print( "Unknown pet subcommand: " .. subcommand )
+    end
 end

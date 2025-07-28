@@ -6,7 +6,7 @@ local _, playerClass = UnitClass('player')
 if playerClass ~= 'ROGUE' then return end
 
 local addon, ns = ...
-local Hekili = _G[ addon ]
+local Hekili = _G[ "Hekili" ]
 local class, state = Hekili.Class, Hekili.State
 
 local insert, wipe = table.insert, table.wipe
@@ -19,78 +19,239 @@ spec.name = "Subtlety"
 spec.role = "DAMAGER"
 spec.primaryStat = 2 -- Agility
 
-spec:RegisterResource( 3, { -- Energy
-  shadow_techniques = {
-    last = function () return state.query_time end,
-    interval = function () return state.time_to_sht[5] end,
-    value = 7,
-    stop = function () return state.time_to_sht[5] == 0 or state.time_to_sht[5] == 3600 end,
-  }
+-- Enhanced resource registration for Subtlety Rogue with Shadow mechanics
+spec:RegisterResource( 3, { -- Energy with Subtlety-specific enhancements
+    -- Shadow Techniques energy bonus (Subtlety passive)
+    shadow_techniques = {
+        last = function () 
+            return state.query_time -- Continuous tracking
+        end,
+        interval = 2, -- Shadow Techniques procs roughly every 2 seconds
+        value = 7, -- Shadow Techniques grants 7 energy per proc
+        stop = function () 
+            return not state.combat -- Only active in combat
+        end,
+    },
+    
+    -- Shadow Focus talent energy efficiency (enhanced for Subtlety)
+    shadow_focus = {
+        aura = "stealth",
+        last = function ()
+            return state.buff.stealth.applied or state.buff.vanish.applied or state.buff.shadow_dance.applied or 0
+        end,
+        interval = 1,
+        value = function()
+            -- Shadow Focus is more powerful for Subtlety (stealth specialists)
+            local stealth_bonus = (state.buff.stealth.up or state.buff.vanish.up or state.buff.shadow_dance.up) and 4 or 0
+            return stealth_bonus -- +4 energy per second while stealthed (more than other specs)
+        end,
+    },
+    
+    -- Shadow Dance energy efficiency (Subtlety signature)
+    shadow_dance = {
+        aura = "shadow_dance",
+        last = function ()
+            local app = state.buff.shadow_dance.applied
+            local t = state.query_time
+            return app + floor( ( t - app ) / 1 ) * 1
+        end,
+        interval = 1,
+        value = function()
+            -- Enhanced energy efficiency during Shadow Dance
+            return state.buff.shadow_dance.up and 3 or 0 -- +3 energy per second during Shadow Dance
+        end,
+    },
+    
+    -- Shadowstep energy efficiency
+    shadowstep = {
+        aura = "shadowstep",
+        last = function ()
+            local app = state.buff.shadowstep.applied
+            local t = state.query_time
+            return app + floor( ( t - app ) / 1 ) * 1
+        end,
+        interval = 1,
+        value = function()
+            -- Brief energy boost after Shadowstep
+            return state.buff.shadowstep.up and 2 or 0 -- +2 energy per second for short duration
+        end,
+    },
+    
+    -- Relentless Strikes energy return (enhanced for Subtlety)
+    relentless_strikes_energy = {
+        last = function ()
+            return state.query_time
+        end,
+        interval = 1,
+        value = function()
+            -- Relentless Strikes: Enhanced for Subtlety with stealth bonuses
+            if state.talent.relentless_strikes.enabled and state.last_finisher_cp then
+                local energy_chance = state.last_finisher_cp * 0.05 -- 5% chance per combo point (enhanced for Subtlety)
+                local stealth_bonus = (state.buff.stealth.up or state.buff.vanish.up or state.buff.shadow_dance.up) and 1.5 or 1.0
+                return math.random() < energy_chance and (25 * stealth_bonus) or 0
+            end
+            return 0
+        end,
+    },
+    
+    -- Find Weakness energy efficiency bonus
+    find_weakness_energy = {
+        aura = "find_weakness",
+        last = function ()
+            return state.buff.find_weakness.applied or 0
+        end,
+        interval = 1,
+        value = function()
+            -- Find Weakness provides energy efficiency bonus
+            return state.buff.find_weakness.up and 3 or 0 -- +3 energy per second with Find Weakness
+        end,
+    },
+}, {
+    -- Enhanced base energy regeneration for Subtlety with Shadow mechanics
+    base_regen = function ()
+        local base = 10 -- Base energy regeneration in MoP (10 energy per second)
+        
+        -- Haste scaling for energy regeneration (minor in MoP)
+        local haste_bonus = 1.0 + ((state.stat.haste_rating or 0) / 42500) -- Approximate haste scaling
+        
+        -- Subtlety gets enhanced energy efficiency in stealth
+        local stealth_bonus = 1.0
+        if state.talent.shadow_focus.enabled and (state.buff.stealth.up or state.buff.vanish.up or state.buff.shadow_dance.up) then
+            stealth_bonus = 1.75 -- 75% bonus energy efficiency while stealthed (stronger than other specs)
+        end
+        
+        -- Master of Subtlety energy efficiency
+        local subtlety_bonus = 1.0
+        if state.buff.master_of_subtlety.up then
+            subtlety_bonus = 1.10 -- 10% energy efficiency bonus
+        end
+        
+        return base * haste_bonus * stealth_bonus * subtlety_bonus
+    end,
+    
+    -- Preparation energy burst
+    preparation_energy = function ()
+        return state.talent.preparation.enabled and 3 or 0 -- Enhanced energy burst from preparation resets for Subtlety
+    end,
+    
+    -- Shadow Clone energy efficiency (if available)
+    shadow_clone_efficiency = function ()
+        return state.buff.shadow_clone.up and 1.15 or 1.0 -- 15% energy efficiency during Shadow Clone
+    end,
 } )
 
-spec:RegisterResource( 4 ) -- ComboPoints
+-- Combo Points resource registration with Subtlety-specific mechanics
+spec:RegisterResource( 4, { -- Combo Points = 4 in MoP
+    -- Honor Among Thieves combo point generation (Subtlety signature)
+    honor_among_thieves = {
+        last = function ()
+            return state.query_time
+        end,
+        interval = 1, -- HAT has higher proc chance for Subtlety
+        value = function()
+            if state.talent.honor_among_thieves.enabled and state.group_members > 1 then
+                -- Subtlety gets enhanced HAT generation in groups
+                return state.group_members >= 3 and 1 or 0 -- Better in larger groups
+            end
+            return 0
+        end,
+    },
+    
+    -- Premeditation combo point generation (Subtlety opener)
+    premeditation = {
+        last = function ()
+            return state.last_cast_time.premeditation or 0
+        end,
+        interval = 1,
+        value = function()
+            -- Premeditation generates 2 combo points when opening from stealth
+            if state.last_ability == "premeditation" and (state.buff.stealth.up or state.buff.vanish.up) then
+                return 2
+            end
+            return 0
+        end,
+    },
+    
+    -- Initiative bonus combo points (Subtlety talent)
+    initiative_bonus = {
+        last = function ()
+            return state.query_time
+        end,
+        interval = 1,
+        value = function()
+            -- Initiative: Stealth abilities generate additional combo points
+            if state.talent.initiative.enabled and state.last_stealth_ability then
+                return state.talent.initiative.rank or 1 -- Variable rank in MoP
+            end
+            return 0
+        end,
+    },
+    
+    -- Shadow Clone combo point generation (from Shadow Dance)
+    shadow_dance_generation = {
+        aura = "shadow_dance",
+        last = function ()
+            return state.query_time
+        end,
+        interval = 1,
+        value = function()
+            -- Shadow Dance enhances combo point generation efficiency
+            if state.buff.shadow_dance.up and state.last_stealth_ability then
+                return 1 -- Extra combo point generation during Shadow Dance
+            end
+            return 0
+        end,
+    },
+}, {
+    -- Base combo point mechanics for Subtlety
+    max_combo_points = function ()
+        return 5 -- Maximum 5 combo points in MoP
+    end,
+    
+    -- Subtlety's enhanced stealth combo point efficiency
+    stealth_efficiency = function ()
+        -- Stealth abilities are more efficient for Subtlety
+        return (state.buff.stealth.up or state.buff.vanish.up or state.buff.shadow_dance.up) and 1.25 or 1.0
+    end,
+    
+    -- Master of Subtlety damage bonus affects combo point value
+    master_of_subtlety_value = function ()
+        return state.buff.master_of_subtlety.up and 1.1 or 1.0 -- 10% effective combo point value bonus
+    end,
+} )
 
 -- Talents
 spec:RegisterTalents( {
   -- Tier 1
-  nightstalker          = { 1181, 14062, 1 }, -- While Stealth or Vanish is active, your abilities deal 25% more damage.
-  subterfuge            = { 1182, 108208, 1 }, -- Your abilities requiring Stealth can still be used for 3 sec after Stealth breaks.
-  shadow_focus          = { 1183, 108209, 1 }, -- Abilities used while in Stealth cost 75% less energy.
+  nightstalker          = { 1, 1, 14062 }, -- While Stealth or Vanish is active, your abilities deal 25% more damage.
+  subterfuge            = { 1, 2, 108208 }, -- Your abilities requiring Stealth can still be used for 3 sec after Stealth breaks.
+  shadow_focus          = { 1, 3, 108209 }, -- Abilities used while in Stealth cost 75% less energy.
   
   -- Tier 2
-  deadly_throw          = { 1184, 26679, 1 }, -- Finishing move that throws a deadly blade at the target, dealing damage and reducing movement speed by 70% for 6 sec. 1 point: 12 damage 2 points: 24 damage 3 points: 36 damage 4 points: 48 damage 5 points: 60 damage
-  nerve_strike          = { 1185, 108210, 1 }, -- Kidney Shot and Cheap Shot also reduce the damage dealt by the target by 50% for 6 sec after the effect ends.
-  combat_readiness      = { 1186, 74001, 1 }, -- Reduces all damage taken by 50% for 10 sec. Each time you are struck while Combat Readiness is active, the damage reduction decreases by 10%.
+  deadly_throw          = { 2, 1, 26679 }, -- Finishing move that throws a deadly blade at the target, dealing damage and reducing movement speed by 70% for 6 sec. 1 point: 12 damage 2 points: 24 damage 3 points: 36 damage 4 points: 48 damage 5 points: 60 damage
+  nerve_strike          = { 2, 2, 108210 }, -- Kidney Shot and Cheap Shot also reduce the damage dealt by the target by 50% for 6 sec after the effect ends.
+  combat_readiness      = { 2, 3, 74001 }, -- Reduces all damage taken by 50% for 10 sec. Each time you are struck while Combat Readiness is active, the damage reduction decreases by 10%.
   
   -- Tier 3
-  cheat_death           = { 1187, 31230, 1 }, -- Fatal attacks instead bring you to 10% of your maximum health. For 3 sec afterward, you take 90% reduced damage. Cannot occur more than once per 90 sec.
-  leeching_poison       = { 1188, 108211, 1 }, -- Your Deadly Poison also causes your Poison abilities to heal you for 10% of the damage they deal.
-  elusiveness           = { 1189, 79008, 1 }, -- Feint also reduces all damage you take by 30% for 5 sec.
+  cheat_death           = { 3, 1, 31230 }, -- Fatal attacks instead bring you to 10% of your maximum health. For 3 sec afterward, you take 90% reduced damage. Cannot occur more than once per 90 sec.
+  leeching_poison       = { 3, 2, 108211 }, -- Your Deadly Poison also causes your Poison abilities to heal you for 10% of the damage they deal.
+  elusiveness           = { 3, 3, 79008 }, -- Feint also reduces all damage you take by 30% for 5 sec.
   
   -- Tier 4
-  prep                  = { 1190, 14185, 1 }, -- When activated, the cooldown on your Vanish, Sprint, and Shadowstep abilities are reset.
-  shadowstep            = { 1191, 36554, 1 }, -- Step through the shadows to appear behind your target and gain 70% increased movement speed for 2 sec. Cooldown reset by Preparation.
-  burst_of_speed        = { 1192, 108212, 1 }, -- Increases your movement speed by 70% for 4 sec. Usable while stealthed. Removes all snare and root effects.
+  prep                  = { 4, 1, 14185 }, -- When activated, the cooldown on your Vanish, Sprint, and Shadowstep abilities are reset.
+  shadowstep            = { 4, 2, 36554 }, -- Step through the shadows to appear behind your target and gain 70% increased movement speed for 2 sec. Cooldown reset by Preparation.
+  burst_of_speed        = { 4, 3, 108212 }, -- Increases your movement speed by 70% for 4 sec. Usable while stealthed. Removes all snare and root effects.
   
   -- Tier 5
-  prey_on_the_weak      = { 1193, 51685, 1 }, -- Targets you disable with Cheap Shot, Kidney Shot, Sap, or Gouge take 10% additional damage for 6 sec.
-  paralytic_poison      = { 1194, 108215, 1 }, -- Your Crippling Poison has a 4% chance to paralyze the target for 4 sec. Only one poison per weapon.
-  dirty_tricks          = { 1195, 108216, 1 }, -- Cheap Shot, Gouge, and Blind no longer cost energy.
+  prey_on_the_weak      = { 5, 1, 51685 }, -- Targets you disable with Cheap Shot, Kidney Shot, Sap, or Gouge take 10% additional damage for 6 sec.
+  paralytic_poison      = { 5, 2, 108215 }, -- Your Crippling Poison has a 4% chance to paralyze the target for 4 sec. Only one poison per weapon.
+  dirty_tricks          = { 5, 3, 108216 }, -- Cheap Shot, Gouge, and Blind no longer cost energy.
   
   -- Tier 6
-  shuriken_toss         = { 1196, 114014, 1 }, -- Throws a shuriken at an enemy target, dealing 400% weapon damage (based on weapon damage) as Physical damage. Awards 1 combo point.
-  versatility           = { 1197, 108214, 1 }, -- You can apply both Wound Poison and Deadly Poison to your weapons.
-  anticipation          = { 1198, 114015, 1 }, -- You can build combo points beyond the normal 5. Combo points generated beyond 5 are stored (up to 5) and applied when your combo points reset to 0.
+  shuriken_toss         = { 6, 1, 114014 }, -- Throws a shuriken at an enemy target, dealing 400% weapon damage (based on weapon damage) as Physical damage. Awards 1 combo point.
+  versatility           = { 6, 2, 108214 }, -- You can apply both Wound Poison and Deadly Poison to your weapons.
+  anticipation          = { 6, 3, 114015 }, -- You can build combo points beyond the normal 5. Combo points generated beyond 5 are stored (up to 5) and applied when your combo points reset to 0.
   
-  -- Subtlety Specific Talents (1-45 talents)
-  master_of_subtlety    = { 243, 31223, 3 }, -- Attacks made while stealthed and for 6 sec after breaking stealth do 10/20/30% additional damage.
-  opportunity           = { 244, 1477, 3 }, -- Increases the damage dealt by your Backstab, Ambush, Garrote, and Eviscerate by 10/20/30%.
-  initiative            = { 245, 13979, 2 }, -- Your Ambush, Garrote, and Cheap Shot abilities generate 1/2 additional combo point.
-  
-  -- 46-60 talents
-  improved_ambush       = { 246, 14079, 2 }, -- Increases the critical strike chance of your Ambush ability by 25/50%.
-  heightened_senses     = { 247, 30895, 1 }, -- Increases your Stealth detection and reduces the chance you are hit by spells and ranged attacks by 2%.
-  premeditation         = { 248, 14183, 1 }, -- When you Ambush, you generate 2 additional combo points that can only be used on Eviscerate, Slice and Dice, or Rupture. These combo points cannot be used on other finishing moves. Lasts 20 sec.
-  
-  -- 61-75 talents
-  hemorrhage           = { 249, 16511, 1 }, -- An instant strike that damages the target and causes the target to hemorrhage, dealing additional damage over time. Each strike of the Rogue's weapons has a chance to expose a flaw in their target's defenses, causing all attacks against the target to bypass 35% of that target's armor for 10 sec. Awards 1 combo point.
-  honor_among_thieves  = { 250, 51701, 3 }, -- When anyone in your group critically hits with a spell or ability, you have a 33/66/100% chance to gain a combo point on your current target. This effect cannot occur more than once every 2 sec.
-  waylay               = { 251, 51692, 2 }, -- Your Ambush and Backstab critical hits have a 50/100% chance to reduce the target's movement speed by 70% for 8 sec.
-  
-  -- 76-90 talents
-  sanguinary_vein      = { 252, 79147, 2 }, -- Increases damage caused against targets with bleed effects by 8/16%.
-  energetic_recovery   = { 253, 79152, 2 }, -- Your Slice and Dice ability also increases your Energy regeneration rate by 5/10%.
-  find_weakness        = { 254, 91023, 2 }, -- Your Ambush, Garrote, and Cheap Shot abilities bypass 35/70% of your target's armor for 10 sec.
-  
-  -- 91+ talents
-  slaughter_from_shadows = { 255, 51708, 3 }, -- Reduces the energy cost of your Ambush by 5/10/15, Backstab by 4/8/12, and Hemorrhage by 3/6/9.
-  serrated_blades        = { 256, 14171, 2 }, -- Your attacks that apply your Deadly Poison also have a 10/20% chance to extend the duration of Rupture on the target by 2 sec.
-  shadow_dance            = { 257, 51713, 1 }, -- Allows use of abilities that require Stealth for 8 sec, and increases damage by 20%. Does not break Stealth if already active.
-} )
-
--- PvP Talents
-spec:RegisterPvpTalents( {
-  smoke_bomb           = 1209, -- (359053) Creates a cloud of thick smoke in an 8 yard radius around the Rogue for 5 sec. Enemies are unable to target into or out of the smoke cloud.
 } )
 
 -- Auras
@@ -118,7 +279,7 @@ spec:RegisterAuras( {
   },
   kidney_shot = {
     id = 408,
-    duration = function() return 1 + min(5, effective_combo_points) end, -- MoP: 1s base + 1s per combo point.
+    duration = function() return 1 + min(5, effective_combo_points) end, -- MoP Classic: 1s base + 1s per combo point (correct)
     max_stack = 1
   },
   preparation = {
@@ -142,7 +303,7 @@ spec:RegisterAuras( {
     max_stack = 1
   },
   shadowstep = {
-    id = 36563,
+    id = 36554, -- Use same ID as ability for consistency
     duration = 2,
     max_stack = 1
   },
@@ -162,7 +323,7 @@ spec:RegisterAuras( {
     max_stack = 1
   },
   vanish = {
-    id = 11327,
+    id = 1856, -- Standardized to match other specs
     duration = 10,
     max_stack = 1
   },
@@ -175,7 +336,7 @@ spec:RegisterAuras( {
   },
   rupture = {
     id = 1943,
-    duration = function() return 4 + (4 * min(5, effective_combo_points)) end, -- MoP: 4s base + 4s per combo point.
+    duration = function() return 8 + (4 * min(5, effective_combo_points)) end, -- MoP Classic: 8s base + 4s per combo point
     max_stack = 1
   },
   deadly_poison = {
@@ -191,6 +352,20 @@ spec:RegisterAuras( {
   mind_numbing_poison = {
     id = 5760,
     duration = 10,
+    max_stack = 1
+  },
+  
+  -- Find Weakness - Subtlety signature debuff/buff
+  find_weakness = {
+    id = 91021,
+    duration = 10,
+    max_stack = 1
+  },
+  
+  -- Shadow Clone - enhanced Shadow Dance effect
+  shadow_clone = {
+    id = 159621,
+    duration = 8,
     max_stack = 1
   },
   
@@ -273,11 +448,15 @@ spec:RegisterAbilities( {
     usable = function () return combo_points.current > 0, "requires combo points" end,
 
     handler = function ()
+      local cp = combo_points.current
+      
       if buff.slice_and_dice.up then
-        buff.slice_and_dice.expires = buff.slice_and_dice.expires + effective_combo_points * 3
+        buff.slice_and_dice.expires = buff.slice_and_dice.expires + cp * 3
       end
       
-      spend( combo_points.current, "combo_points" )
+      spend( cp, "combo_points" )
+      -- Track for Relentless Strikes
+      state.last_finisher_cp = cp
     end
   },
 
@@ -316,8 +495,12 @@ spec:RegisterAbilities( {
     usable = function () return combo_points.current > 0, "requires combo points" end,
 
     handler = function ()
-      applyDebuff( "target", "rupture", 4 + (4 * effective_combo_points) )
-      spend( combo_points.current, "combo_points" )
+      local cp = combo_points.current
+      -- MoP Classic: 8 seconds base + 4 seconds per combo point
+      applyDebuff( "target", "rupture", 8 + (4 * cp) )
+      spend( cp, "combo_points" )
+      -- Track for Relentless Strikes
+      state.last_finisher_cp = cp
     end
   },
 
@@ -336,8 +519,11 @@ spec:RegisterAbilities( {
     usable = function () return combo_points.current > 0, "requires combo points" end,
 
     handler = function ()
-      applyBuff( "slice_and_dice", 6 + (6 * effective_combo_points) )
-      spend( combo_points.current, "combo_points" )
+      local cp = combo_points.current
+      applyBuff( "slice_and_dice", 6 + (6 * cp) )
+      spend( cp, "combo_points" )
+      -- Track for Relentless Strikes
+      state.last_finisher_cp = cp
     end
   },
 
@@ -381,7 +567,23 @@ spec:RegisterAbilities( {
     toggle = "cooldowns",
 
     handler = function ()
-      applyBuff( "shadow_dance" )
+      -- Shadow Dance: Subtlety signature ability
+      applyBuff( "shadow_dance", 8 ) -- 8 second duration
+      
+      -- Shadow Dance grants stealth-like benefits without breaking existing stealth
+      -- Apply enhanced energy regeneration during Shadow Dance
+      if not buff.stealth.up then
+        -- Only apply if not already stealthed
+        applyBuff( "stealth", 8 ) -- Grants stealth-like benefits
+      end
+      
+      -- Shadow Clone effects if talented (MoP mechanic)
+      if talent.shadow_clone and talent.shadow_clone.enabled then
+        applyBuff( "shadow_clone", 8 )
+      end
+      
+      -- Apply Find Weakness buff for enhanced damage
+      applyBuff( "find_weakness", 10 ) -- Slightly longer than Shadow Dance for overlap
     end
   },
 

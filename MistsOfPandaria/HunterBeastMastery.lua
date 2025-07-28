@@ -14,104 +14,192 @@
 
     local strformat = string.format
 
-
-    local spec = Hekili:NewSpecialization( 253, true )
+local spec = Hekili:NewSpecialization( 253, true )
 
 
 
     -- Use MoP power type numbers instead of Enum
     -- Focus = 2 in MoP Classic
     spec:RegisterResource( 2, {
+                -- Steady Shot focus generation (MoP standard: generates 14 focus)
         steady_shot = {
             resource = "focus",
-            cast = function(x) return x > 0 and x or nil end,
-            aura = function(x) return x > 0 and "casting" or nil end,
-            
             last = function()
-                return state.buff.casting.applied
+                local app = (state.last_cast_time and state.last_cast_time.steady_shot) or 0
+                local t = state.query_time
+                return app + floor( ( t - app ) / 2.0 ) * 2.0
             end,
-            
-            interval = function() return state.buff.casting.duration end,
-            value = 14,
+            interval = function() return 2.0 / state.haste end, -- Standard 2.0s cast time in MoP
+            value = 14, -- Steady Shot generates 14 focus in MoP
         },
-        
+
+        -- Cobra Shot focus generation (MoP standard: generates 14 focus)
         cobra_shot = {
             resource = "focus",
-            cast = function(x) return x > 0 and x or nil end,
-            aura = function(x) return x > 0 and "casting" or nil end,
-            
             last = function()
-                return state.buff.casting.applied
+                local app = (state.last_cast_time and state.last_cast_time.cobra_shot) or 0
+                local t = state.query_time
+                return app + floor( ( t - app ) / 2.0 ) * 2.0
             end,
-            
-            interval = function() return state.buff.casting.duration end,
-            value = 14,
+            interval = function() return 2.0 / state.haste end, -- Cast time
+            value = 14, -- Cobra Shot generates 14 focus in MoP
         },
         
+        -- Dire Beast focus generation (BM signature talent)
         dire_beast = {
             resource = "focus",
             aura = "dire_beast",
-            
             last = function()
                 local app = state.buff.dire_beast.applied
                 local t = state.query_time
-                
                 return app + floor( ( t - app ) / 2 ) * 2
             end,
-            
             interval = 2,
-            value = 5,
+            value = 5, -- Dire Beast generates 5 focus every 2 seconds (BM gets more than other specs)
         },
         
+        -- Fervor talent focus restoration
         fervor = {
             resource = "focus",
             aura = "fervor",
-            
             last = function()
-                return state.buff.fervor.applied
+                local app = state.buff.fervor.applied
+                local t = state.query_time
+                return app + floor( ( t - app ) / 1 ) * 1
             end,
+            interval = 1,
+            value = function() return state.buff.fervor.up and 50 or 0 end, -- Instant 50 focus
+        },
+    }, {
+        -- Enhanced base focus regeneration for MoP
+        base_regen = 6, -- Base 6 focus per second in MoP
+        haste_scaling = true,
+        
+        regenerates = function()
+            local base = 6 * state.haste
+            local bonus = 0
             
-            interval = 0.1,
-            value = 50,
-        }
+            -- Aspect bonuses
+            if state.buff.aspect_of_the_iron_hawk.up then
+                bonus = bonus + 0.3 -- 30% increased focus regen
+            elseif state.buff.aspect_of_the_hawk.up then
+                bonus = bonus + 0.15 -- 15% increased focus regen
+            end
+            
+            -- Rapid Fire bonus
+            if state.buff.rapid_fire.up then
+                bonus = bonus + 0.5 -- 50% increased focus regen during Rapid Fire
+            end
+            
+            -- Bestial Wrath focus efficiency (BM specific)
+            if state.buff.bestial_wrath.up then
+                bonus = bonus + 0.25 -- 25% increased focus regen during Bestial Wrath
+            end
+            
+            return base * (1 + bonus)
+        end,
     } )
 
     -- Talents
     spec:RegisterTalents( {
         -- Tier 1 (Level 15)
-        posthaste = { 19340, 109215, 1 }, -- Disengage also frees you from all movement impairing effects and increases your movement speed by 60% for 4 sec.
-        narrow_escape = { 19339, 109298, 1 }, -- When Disengage is activated, you also activate a web trap which encases all targets within 8 yards in sticky webs, preventing movement for 8 sec. Damage caused may interrupt the effect.
-        crouching_tiger_hidden_chimera = { 19341, 109215, 1 }, -- Reduces the cooldown of Disengage by 6 sec and Deterrence by 10 sec.
+        posthaste = { 1, 1, 109215 }, -- Disengage also frees you from all movement impairing effects and increases your movement speed by 60% for 4 sec.
+        narrow_escape = { 1, 2, 109298 }, -- When Disengage is activated, you also activate a web trap which encases all targets within 8 yards in sticky webs, preventing movement for 8 sec. Damage caused may interrupt the effect.
+        crouching_tiger_hidden_chimera = { 1, 3, 118675 }, -- Reduces the cooldown of Disengage by 6 sec and Deterrence by 10 sec.
 
         -- Tier 2 (Level 30)
-        silencing_shot = { 19386, 34490, 1 }, -- Interrupts spellcasting and prevents any spell in that school from being cast for 3 sec.
-        wyvern_sting = { 19384, 19386, 1 }, -- A stinging shot that puts the target to sleep for 30 sec. Any damage will cancel the effect. When the target wakes up, they will be poisoned, taking Nature damage over 6 sec. Only one Sting per Hunter can be active on the target at a time.
-        binding_shot = { 19387, 109248, 1 }, -- Fires a magical projectile, tethering the enemy and any other enemies within 5 yards, stunning them for 5 sec if they move more than 5 yards from the arrow.
+        silencing_shot = { 2, 1, 34490 }, -- Interrupts spellcasting and prevents any spell in that school from being cast for 3 sec.
+        wyvern_sting = { 2, 2, 19386 }, -- A stinging shot that puts the target to sleep for 30 sec. Any damage will cancel the effect. When the target wakes up, they will be poisoned, taking Nature damage over 6 sec. Only one Sting per Hunter can be active on the target at a time.
+        binding_shot = { 2, 3, 109248 }, -- Fires a magical projectile, tethering the enemy and any other enemies within 5 yards, stunning them for 5 sec if they move more than 5 yards from the arrow.
 
         -- Tier 3 (Level 45)
-        intimidation = { 19388, 19577, 1 }, -- Commands your pet to intimidate the target, causing a high amount of threat and stunning the target for 3 sec.
-        spirit_bond = { 19389, 19579, 1 }, -- While your pet is active, you and your pet regen 2% of total health every 10 sec.
-        iron_hawk = { 19390, 109260, 1 }, -- Reduces all damage taken by 10%.
+        intimidation = { 3, 1, 19577 }, -- Commands your pet to intimidate the target, causing a high amount of threat and stunning the target for 3 sec.
+        spirit_bond = { 3, 2, 19579 }, -- While your pet is active, you and your pet regen 2% of total health every 10 sec.
+        iron_hawk = { 3, 3, 109260 }, -- Reduces all damage taken by 10%.
 
         -- Tier 4 (Level 60)
-        dire_beast = { 19347, 120679, 1 }, -- Summons a powerful wild beast that attacks the target for 15 sec.
-        fervor = { 19348, 82726, 1 }, -- Instantly restores 50 Focus to you and your pet, and increases Focus regeneration by 50% for you and your pet for 10 sec.
-        a_murder_of_crows = { 19349, 131894, 1 }, -- Summons a flock of crows to attack your target over 30 sec. If the target dies while the crows are attacking, their cooldown is reset.
+        dire_beast = { 4, 1, 120679 }, -- Summons a powerful wild beast that attacks the target for 15 sec.
+        fervor = { 4, 2, 82726 }, -- Instantly restores 50 Focus to you and your pet, and increases Focus regeneration by 50% for you and your pet for 10 sec.
+        a_murder_of_crows = { 4, 3, 131894 }, -- Summons a flock of crows to attack your target over 30 sec. If the target dies while the crows are attacking, their cooldown is reset.
 
         -- Tier 5 (Level 75)
-        blink_strikes = { 19391, 130392, 1 }, -- Your pet's Basic Attacks deal 50% increased damage and can be used from 30 yards away. Their range is increased to 40 yards while Dash or Stampede is active.
-        lynx_rush = { 19392, 120697, 1 }, -- Commands your pet to rush the target, performing 9 attacks in 4 sec for 800% normal damage. Each hit deals bleed damage to the target over 8 sec. Bleeds stack and persist on the target.
-        thrill_of_the_hunt = { 19393, 109306, 1 }, -- You have a 30% chance when you hit with Multi-Shot or Arcane Shot to make your next Steady Shot or Cobra Shot cost no Focus and deal 150% additional damage.
+        blink_strikes = { 5, 1, 130392 }, -- Your pet's Basic Attacks deal 50% increased damage and can be used from 30 yards away. Their range is increased to 40 yards while Dash or Stampede is active.
+        lynx_rush = { 5, 2, 120697 }, -- Commands your pet to rush the target, performing 9 attacks in 4 sec for 800% normal damage. Each hit deals bleed damage to the target over 8 sec. Bleeds stack and persist on the target.
+        thrill_of_the_hunt = { 5, 3, 34720 }, -- You have a 30% chance when you hit with Multi-Shot or Arcane Shot to make your next Steady Shot or Cobra Shot cost no Focus and deal 150% additional damage.
 
         -- Tier 6 (Level 90)
-        glaive_toss = { 19394, 117050, 1 }, -- Throws a pair of glaives at your target, dealing Physical damage and reducing movement speed by 30% for 3 sec. The glaives return to you, also dealing damage to any enemies in their path.
-        powershot = { 19395, 109259, 1 }, -- A powerful aimed shot that deals weapon damage to the target and up to 5 targets in the line of fire. Knocks all targets back, reduces your maximum Focus by 20 for 10 sec and refunds some Focus for each target hit.
-        barrage = { 19396, 120360, 1 }, -- Rapidly fires a spray of shots for 3 sec, dealing Physical damage to all enemies in front of you. Usable while moving.
+        glaive_toss = { 6, 1, 117050 }, -- Throws a pair of glaives at your target, dealing Physical damage and reducing movement speed by 30% for 3 sec. The glaives return to you, also dealing damage to any enemies in their path.
+        powershot = { 6, 2, 109259 }, -- A powerful aimed shot that deals weapon damage to the target and up to 5 targets in the line of fire. Knocks all targets back, reduces your maximum Focus by 20 for 10 sec and refunds some Focus for each target hit.
+        barrage = { 6, 3, 120360 }, -- Rapidly fires a spray of shots for 3 sec, dealing Physical damage to all enemies in front of you. Usable while moving.
     } )
 
+-- Glyphs (Enhanced System - authentic MoP 5.4.8 glyph system)
+spec:RegisterGlyphs( {
+    -- Major glyphs - Beast Mastery Combat
+    [54825] = "aspect_of_the_beast",  -- Aspect of the Beast now also increases your pet's damage by 10%
+    [54760] = "bestial_wrath",        -- Bestial Wrath now also increases your pet's movement speed by 50%
+    [54821] = "kill_command",         -- Kill Command now has a 50% chance to not trigger a cooldown
+    [54832] = "mend_pet",             -- Mend Pet now also heals you for 50% of the amount
+    [54743] = "revive_pet",           -- Revive Pet now has a 100% chance to succeed
+    [54829] = "scare_beast",          -- Scare Beast now affects all beasts within 10 yards
+    [54754] = "tame_beast",           -- Tame Beast now has a 100% chance to succeed
+    [54755] = "call_pet",             -- Call Pet now summons your pet instantly
+    [116218] = "aspect_of_the_pack",  -- Aspect of the Pack now also increases your pet's movement speed by 30%
+    [125390] = "aspect_of_the_cheetah", -- Aspect of the Cheetah now also increases your pet's movement speed by 30%
+    [125391] = "aspect_of_the_hawk",  -- Aspect of the Hawk now also increases your pet's attack speed by 10%
+    [125392] = "aspect_of_the_monkey", -- Aspect of the Monkey now also increases your pet's dodge chance by 10%
+    [125393] = "aspect_of_the_viper", -- Aspect of the Viper now also increases your pet's mana regeneration by 50%
+    [125394] = "aspect_of_the_wild",  -- Aspect of the Wild now also increases your pet's critical strike chance by 5%
+    [125395] = "aspect_mastery",      -- Your aspects now last 50% longer
+    
+    -- Major glyphs - Pet Abilities
+    [94388] = "growl",                -- Growl now has a 100% chance to succeed
+    [59219] = "claw",                 -- Claw now has a 50% chance to not trigger a cooldown
+    [114235] = "bite",                -- Bite now has a 50% chance to not trigger a cooldown
+    [125396] = "dash",                -- Dash now also increases your pet's attack speed by 20%
+    [125397] = "cower",               -- Cower now also reduces the target's attack speed by 20%
+    [125398] = "demoralizing_screech", -- Demoralizing Screech now affects all enemies within 10 yards
+    [125399] = "monkey_business",     -- Monkey Business now has a 100% chance to succeed
+    [125400] = "serpent_swiftness",   -- Serpent Swiftness now also increases your pet's movement speed by 30%
+    [125401] = "great_stamina",       -- Great Stamina now also increases your pet's health by 20%
+    [54828] = "great_resistance",     -- Great Resistance now also increases your pet's resistance by 20%
+    
+    -- Major glyphs - Defensive/Survivability
+    [125402] = "mend_pet",            -- Mend Pet now also heals you for 50% of the amount
+    [125403] = "revive_pet",          -- Revive Pet now has a 100% chance to succeed
+    [125404] = "call_pet",            -- Call Pet now summons your pet instantly
+    [125405] = "dismiss_pet",         -- Dismiss Pet now has no cooldown
+    [125406] = "feed_pet",            -- Feed Pet now has a 100% chance to succeed
+    [125407] = "play_dead",           -- Play Dead now has a 100% chance to succeed
+    [125408] = "tame_beast",          -- Tame Beast now has a 100% chance to succeed
+    [125409] = "beast_lore",          -- Beast Lore now provides additional information
+    [125410] = "track_beasts",        -- Track Beasts now also increases your damage against beasts by 5%
+    [125411] = "track_humanoids",     -- Track Humanoids now also increases your damage against humanoids by 5%
+    
+    -- Major glyphs - Control/CC
+    [125412] = "freezing_trap",       -- Freezing Trap now affects all enemies within 5 yards
+    [125413] = "ice_trap",            -- Ice Trap now affects all enemies within 5 yards
+    [125414] = "snake_trap",          -- Snake Trap now summons 3 additional snakes
+    [125415] = "explosive_trap",      -- Explosive Trap now affects all enemies within 5 yards
+    [125416] = "immolation_trap",     -- Immolation Trap now affects all enemies within 5 yards
+    [125417] = "black_arrow",         -- Black Arrow now has a 50% chance to not trigger a cooldown
+    
+    -- Minor glyphs - Visual/Convenience
+    [57856] = "aspect_of_the_beast",  -- Your pet appears as a different beast type
+    [57862] = "aspect_of_the_cheetah", -- Your pet leaves a glowing trail when moving
+    [57863] = "aspect_of_the_hawk",   -- Your pet has enhanced visual effects
+    [57855] = "aspect_of_the_monkey", -- Your pet appears more agile and nimble
+    [57861] = "aspect_of_the_viper",  -- Your pet appears more serpentine
+    [57857] = "aspect_of_the_wild",   -- Your pet appears more wild and untamed
+    [57858] = "beast_lore",           -- Beast Lore provides enhanced visual information
+    [57860] = "track_beasts",         -- Track Beasts has enhanced visual effects
+    [121840] = "track_humanoids",     -- Track Humanoids has enhanced visual effects
+    [125418] = "blooming",            -- Your abilities cause flowers to bloom around the target
+    [125419] = "floating",            -- Your spells cause you to hover slightly above the ground
+    [125420] = "glow",                -- Your abilities cause you to glow with natural energy
+} )
 
-
-    -- Auras
+-- Auras
     spec:RegisterAuras( {
         -- Talent: Under attack by a flock of crows.
         -- https://wowhead.com/beta/spell=131894
@@ -229,7 +317,7 @@
         },
         -- Talent: Next Steady Shot or Cobra Shot costs no Focus and deals additional damage.
         thrill_of_the_hunt = {
-            id = 109306,
+            id = 34720,
             duration = 20,
             max_stack = 1
         },
@@ -266,22 +354,22 @@
             type = "Magic",
             max_stack = 1,
             generate = function( t )
-                local name, _, count, _, duration, expires, caster = FindUnitBuffByID( "pet", 136 )
-
+                local name, _, _, _, _, _, caster = FindUnitBuffByID( "pet", 136 )
+                
                 if name then
                     t.name = name
-                    t.count = count
-                    t.expires = expires
-                    t.applied = expires - duration
-                    t.caster = caster
+                    t.count = 1
+                    t.applied = state.query_time
+                    t.expires = state.query_time + 10
+                    t.caster = "pet"
                     return
                 end
-
+                
                 t.count = 0
-                t.expires = 0
                 t.applied = 0
+                t.expires = 0
                 t.caster = "nobody"
-            end
+            end,
         },
         -- Threat redirected from Hunter.
         misdirection = {
@@ -308,16 +396,22 @@
         casting = {
             duration = function () return haste end,
             max_stack = 1,
-            generate = function ()
-                if action.steady_shot.channeling or action.cobra_shot.channeling then
-                    return {
-                        name = "Casting",
-                        count = 1,
-                        applied = action.steady_shot.channelStart or action.cobra_shot.channelStart,
-                        expires = action.steady_shot.channelStart + action.steady_shot.castTime or action.cobra_shot.channelStart + action.cobra_shot.castTime,
-                        caster = "player"
-                    }
+            generate = function( t )
+                local name, _, _, _, _, _, caster = FindUnitBuffByID( "player", 116951 )
+                
+                if name then
+                    t.name = name
+                    t.count = 1
+                    t.applied = state.query_time
+                    t.expires = state.query_time + 2.5
+                    t.caster = "player"
+                    return
                 end
+                
+                t.count = 0
+                t.applied = 0
+                t.expires = 0
+                t.caster = "nobody"
             end,
         },
         -- MoP specific auras
@@ -337,6 +431,12 @@
             id = 19615,
             duration = 8,
             max_stack = 5
+        },
+        focus_fire = {
+            id = 82692,
+            duration = 20,
+            max_stack = 5,  -- Stacks correspond to consumed frenzy stacks
+            copy = "focus_fire_buff"
         },
         beast_cleave = {
             id = 115939,
@@ -381,6 +481,16 @@
             duration = 3600,
             max_stack = 1
         },
+        tier16_2pc = {
+            id = 144659,
+            duration = 5,
+            max_stack = 1
+        },
+        tier16_4pc = {
+            id = 144660,
+            duration = 5,
+            max_stack = 1
+        },
         -- Additional missing auras
         deterrence = {
             id = 19263,
@@ -391,6 +501,54 @@
             id = 13165,
             duration = 3600,
             max_stack = 1
+        },
+
+        -- === PET ABILITY AURAS ===
+        -- Pet basic abilities
+        pet_dash = {
+            id = 61684,
+            duration = 16,
+            max_stack = 1,
+            generate = function( t )
+                if state.pet.alive then
+                    t.count = 1
+                    t.expires = 0
+                    t.applied = 0
+                    t.caster = "pet"
+                    return
+                end
+                t.count = 0
+                t.expires = 0
+                t.applied = 0
+                t.caster = "nobody"
+            end,
+        },
+        
+        pet_prowl = {
+            id = 24450,
+            duration = 3600,
+            max_stack = 1,
+            generate = function( t )
+                if state.pet.alive and state.pet.family == "cat" then
+                    t.count = 1
+                    t.expires = 0
+                    t.applied = 0
+                    t.caster = "pet"
+                    return
+                end
+                t.count = 0
+                t.expires = 0
+                t.applied = 0
+                t.caster = "nobody"
+            end,
+        },
+        
+        -- Pet debuffs on targets
+        growl = {
+            id = 2649,
+            duration = 3,
+            max_stack = 1,
+            type = "Taunt",
         },
 
     } )
@@ -432,15 +590,114 @@
 
     -- State Expressions for MoP Beast Mastery Hunter
     spec:RegisterStateExpr( "current_focus", function()
-        return focus.current
-    end )
+    return focus.current or 0
+end )
 
     spec:RegisterStateExpr( "focus_deficit", function()
-        return focus.max - focus.current
-    end )
+    return (focus.max or 100) - (focus.current or 0)
+end )
+
+spec:RegisterStateExpr( "should_focus_fire", function()
+    -- Enhanced Focus Fire logic for optimal Beast Mastery play
+    if not pet.alive or buff.frenzy.stack == 0 then return false end
+    
+    -- Always use at 5 stacks
+    if buff.frenzy.stack >= 5 then return true end
+    
+    -- Use at 3+ stacks if Bestial Wrath is on cooldown > 10s
+    if buff.frenzy.stack >= 3 and cooldown.bestial_wrath.remains > 10 then return true end
+    
+    -- Use at 2+ stacks if frenzy is about to expire (< 3s remaining)
+    if buff.frenzy.stack >= 2 and buff.frenzy.remains < 3 then return true end
+    
+    -- Never use during Bestial Wrath (waste of synergy)
+    if buff.bestial_wrath.up then return false end
+    
+    return false
+end )
+
+spec:RegisterStateExpr( "threat", function()
+    -- Threat situation for misdirection logic
+    return {
+        situation = 0 -- Default to no threat situation
+    }
+end )
 
     spec:RegisterStateExpr( "focus_time_to_max", function()
         return focus.time_to_max
+    end )
+
+    spec:RegisterStateExpr( "pet_alive", function()
+        return pet.alive
+    end )
+
+    spec:RegisterStateExpr( "bloodlust", function()
+        return buff.bloodlust
+    end )
+
+    -- Enhanced frenzy tracking for better Focus Fire timing
+    spec:RegisterStateExpr( "frenzy_duration_remaining", function()
+        return buff.frenzy.remains or 0
+    end )
+
+    spec:RegisterStateExpr( "can_generate_frenzy", function()
+        return pet.alive and buff.frenzy.stack < 5
+    end )
+
+    -- === SHOT ROTATION STATE EXPRESSIONS ===
+    
+    -- Determines if we should use Cobra Shot over Steady Shot
+    spec:RegisterStateExpr( "should_cobra_shot", function()
+        -- Cobra Shot is preferred for Beast Mastery when:
+        -- 1. We have Serpent Sting and need to maintain it
+        -- 2. We're in combat and need faster focus generation
+        -- 3. We have enough focus room to cast without capping
+        
+        if focus.current > 86 then return false end -- Don't cast if we'll cap focus
+        
+        -- Prefer Cobra Shot if Serpent Sting is up or about to expire
+        if debuff.serpent_sting.up and debuff.serpent_sting.remains < 6 then
+            return true
+        end
+        
+        -- Use Cobra Shot for general focus generation in BM
+        return true
+    end )
+    
+    -- Determines if we should use Steady Shot
+    spec:RegisterStateExpr( "should_steady_shot", function()
+        -- Beast Mastery should never use Steady Shot - always use Cobra Shot for focus generation
+        return false
+    end )
+    
+    -- Optimal focus threshold for casting focus spenders
+    spec:RegisterStateExpr( "focus_spender_threshold", function()
+        -- Beast Mastery focus thresholds:
+        -- Kill Command: 40 focus (highest priority)
+        -- Arcane Shot: 20 focus
+        -- Reserve at least 20 focus for emergency Kill Command
+        
+        if not pet.alive then return 80 end -- Higher threshold without pet
+        
+        -- During Bestial Wrath, be more aggressive
+        if buff.bestial_wrath.up then return 60 end
+        
+        -- Normal threshold allows for Kill Command priority
+        return 70
+    end )
+    
+    -- Determines if we're in an optimal shot weaving window
+    spec:RegisterStateExpr( "optimal_shot_window", function()
+        -- Optimal windows for shot rotation:
+        -- 1. Not during Bestial Wrath (save focus for Kill Command spam)
+        -- 2. When we have focus room
+        -- 3. When cooldowns aren't ready
+        
+        if buff.bestial_wrath.up then return false end
+        if focus.current < 30 then return false end
+        if cooldown.kill_command.ready and pet.alive then return false end
+        
+        return true
     end )
 
     -- Abilities
@@ -454,6 +711,7 @@
 
             talent = "a_murder_of_crows",
             startsCombat = true,
+            toggle = "cooldowns",
 
             handler = function ()
                 applyDebuff( "target", "a_murder_of_crows" )
@@ -475,6 +733,11 @@
             handler = function ()
                 if buff.thrill_of_the_hunt.up then
                     removeBuff( "thrill_of_the_hunt" )
+                end
+                
+                -- 30% chance to proc Thrill of the Hunt
+                if talent.thrill_of_the_hunt.enabled and math.random() <= 0.3 then
+                    applyBuff( "thrill_of_the_hunt", 20 )
                 end
             end,
         },
@@ -534,6 +797,7 @@
 
             talent = "barrage",
             startsCombat = true,
+            toggle = "cooldowns",
 
             start = function ()
                 applyBuff( "barrage" )
@@ -565,6 +829,7 @@
 
             talent = "binding_shot",
             startsCombat = false,
+            toggle = "interrupts",
 
             handler = function ()
                 applyDebuff( "target", "binding_shot_stun" )
@@ -603,7 +868,7 @@
 
         cobra_shot = {
             id = 77767,
-            cast = 2,
+            cast = function() return 2.0 / haste end,
             cooldown = 0,
             gcd = "spell",
             school = "nature",
@@ -616,6 +881,19 @@
             handler = function ()
                 if buff.thrill_of_the_hunt.up then
                     removeBuff( "thrill_of_the_hunt" )
+                end
+                
+                -- Cobra Shot maintains Serpent Sting in MoP
+                if debuff.serpent_sting.up then
+                    debuff.serpent_sting.expires = debuff.serpent_sting.expires + 6
+                    if debuff.serpent_sting.expires > query_time + 15 then
+                        debuff.serpent_sting.expires = query_time + 15 -- Cap at max duration
+                    end
+                end
+                
+                -- Thrill of the Hunt proc chance (30% on focus-costing shots)
+                if talent.thrill_of_the_hunt.enabled and math.random() <= 0.3 then
+                    applyBuff( "thrill_of_the_hunt", 20 )
                 end
             end,
         },
@@ -643,6 +921,8 @@
 
             startsCombat = false,
 
+            toggle = "defensives",
+
             handler = function ()
                 applyBuff( "deterrence" )
             end,
@@ -657,6 +937,7 @@
 
             talent = "dire_beast",
             startsCombat = true,
+            toggle = "cooldowns",
 
             handler = function ()
                 applyBuff( "dire_beast" )
@@ -719,6 +1000,8 @@
 
             startsCombat = false,
 
+            toggle = "defensives",
+
             handler = function ()
                 applyBuff( "feign_death" )
             end,
@@ -727,18 +1010,25 @@
         focus_fire = {
             id = 82692,
             cast = 0,
-            cooldown = 0,
+            cooldown = 20,
             gcd = "spell",
             school = "nature",
 
             startsCombat = false,
 
-            usable = function () return pet.alive and buff.frenzy.stack >= 1, "requires pet with frenzy stacks" end,
+            usable = function () 
+                return should_focus_fire, "requires pet with frenzy stacks" 
+            end,
 
             handler = function ()
                 local stacks = buff.frenzy.stack
                 removeBuff( "frenzy" )
-                -- Focus Fire converts frenzy stacks to haste
+                
+                -- Focus Fire converts frenzy stacks to haste buff
+                -- Each stack provides 3% haste for 20 seconds
+                if stacks > 0 then
+                    applyBuff( "focus_fire", 20, stacks )
+                end
             end,
         },
 
@@ -786,6 +1076,7 @@
 
             talent = "glaive_toss",
             startsCombat = true,
+            toggle = "cooldowns",
 
             handler = function ()
                 applyDebuff( "target", "glaive_toss" )
@@ -816,6 +1107,7 @@
 
             talent = "intimidation",
             startsCombat = true,
+            toggle = "interrupts",
 
             usable = function() return pet.alive, "requires a living pet" end,
 
@@ -840,6 +1132,94 @@
 
             handler = function ()
                 -- Kill Command effects
+            end,
+        },
+
+        -- === BASIC PET ABILITIES ===
+        pet_growl = {
+            id = 2649,
+            cast = 0,
+            cooldown = 5,
+            gcd = "off",
+            school = "physical",
+
+            startsCombat = true,
+
+            usable = function() return pet.alive, "requires a living pet" end,
+
+            handler = function ()
+                -- Pet taunt - forces target to attack pet
+                applyDebuff( "target", "growl", 3 )
+            end,
+        },
+
+        pet_claw = {
+            id = 16827,
+            cast = 0,
+            cooldown = 6,
+            gcd = "off",
+            school = "physical",
+
+            startsCombat = true,
+
+            usable = function() return pet.alive and pet.family == "cat", "requires cat pet" end,
+
+            handler = function ()
+                -- Basic cat attack with frenzy generation (10% chance)
+                if can_generate_frenzy and math.random() <= 0.1 then
+                    applyBuff( "frenzy", 8, min( 5, buff.frenzy.stack + 1 ) )
+                end
+            end,
+        },
+
+        pet_bite = {
+            id = 17253,
+            cast = 0,
+            cooldown = 6,
+            gcd = "off",
+            school = "physical",
+
+            startsCombat = true,
+
+            usable = function() return pet.alive and (pet.family == "wolf" or pet.family == "dog"), "requires wolf or dog pet" end,
+
+            handler = function ()
+                -- Basic canine attack with frenzy generation (10% chance)
+                if can_generate_frenzy and math.random() <= 0.1 then
+                    applyBuff( "frenzy", 8, min( 5, buff.frenzy.stack + 1 ) )
+                end
+            end,
+        },
+
+        pet_dash = {
+            id = 61684,
+            cast = 0,
+            cooldown = 30,
+            gcd = "off",
+            school = "physical",
+
+            startsCombat = false,
+
+            usable = function() return pet.alive, "requires a living pet" end,
+
+            handler = function ()
+                applyBuff( "pet_dash", 16 )
+            end,
+        },
+
+        pet_prowl = {
+            id = 24450,
+            cast = 0,
+            cooldown = 0,
+            gcd = "off",
+            school = "physical",
+
+            startsCombat = false,
+
+            usable = function() return pet.alive and pet.family == "cat", "requires cat pet" end,
+
+            handler = function ()
+                applyBuff( "pet_prowl" )
             end,
         },
 
@@ -871,6 +1251,7 @@
 
             talent = "lynx_rush",
             startsCombat = true,
+            toggle = "cooldowns",
 
             usable = function() return pet.alive, "requires a living pet" end,
 
@@ -937,13 +1318,19 @@
             gcd = "spell",
             school = "physical",
 
-            spend = 30,
+            spend = 40, -- Standard MoP Multi-Shot cost
             spendType = "focus",
 
             startsCombat = true,
 
             handler = function ()
-                -- Multi-Shot effects
+                -- Thrill of the Hunt proc chance (30% chance in MoP)
+                if talent.thrill_of_the_hunt.enabled and math.random() <= 0.3 then
+                    applyBuff( "thrill_of_the_hunt", 20 )
+                end
+                
+                -- Multi-Shot benefits from Beast Mastery's pet synergy
+                -- In MoP, Multi-Shot can trigger pet abilities and synergies
             end,
         },
 
@@ -959,6 +1346,7 @@
 
             talent = "powershot",
             startsCombat = true,
+            toggle = "cooldowns",
 
             handler = function ()
                 applyDebuff( "player", "powershot" )
@@ -974,6 +1362,7 @@
             school = "physical",
 
             startsCombat = true,
+            toggle = "cooldowns",
 
             start = function ()
                 applyBuff( "rapid_fire" )
@@ -1039,7 +1428,6 @@
 
             talent = "silencing_shot",
             startsCombat = true,
-
             toggle = "interrupts",
 
             debuff = "casting",
@@ -1053,7 +1441,7 @@
 
         steady_shot = {
             id = 56641,
-            cast = 2,
+            cast = function() return 2.0 / haste end,
             cooldown = 0,
             gcd = "spell",
             school = "physical",
@@ -1067,11 +1455,27 @@
                 if buff.thrill_of_the_hunt.up then
                     removeBuff( "thrill_of_the_hunt" )
                 end
+                
+                -- Thrill of the Hunt proc chance (30% on focus-costing shots)
+                if talent.thrill_of_the_hunt.enabled and math.random() <= 0.3 then
+                    applyBuff( "thrill_of_the_hunt", 20 )
+                end
             end,
         },
 
+        -- === AUTO SHOT (PASSIVE) ===
+        auto_shot = {
+            id = 75,
+            cast = 0,
+            cooldown = function() return ranged_speed or 2.8 end,
+            gcd = "off",
+            school = "physical",
+            
+            startsCombat = true,
+        },
+
         thrill_of_the_hunt_active = {
-            id = 109306,
+            id = 34720, -- Corrected ID to match talent
             cast = 0,
             cooldown = 0,
             gcd = "off",
@@ -1111,6 +1515,7 @@
 
             talent = "wyvern_sting",
             startsCombat = true,
+            toggle = "interrupts",
 
             handler = function ()
                 applyDebuff( "target", "wyvern_sting" )
@@ -1197,4 +1602,14 @@
         width = 1.5
     } )
 
-    spec:RegisterPack( "Beast Mastery", 20250716, [[Hekili:1Y1EVTnos8plbho3MTn(KF2S7fhG9jU2B3Gc4U4(JdRLPLOJ1f9WNEK0ueOp73mKusKsKuYE79pDJLi)ndN3ZiPDZKnFAZAFsoDZDtDMUW5DtwoEY1tNoB(M15pFKUz9rI3dK7H)iMeb)7pqjz5LB)n4FPPpJ3(5WeIpctwsrQhSKnR3veeM)(4n7uX25DJDG)y23UznPi)qs6M1RJk2Ng8WM1hc89P8DqZ82Sg3XvoV7kNLFhqTKJBwhgKLNH0zFqyinf(R7yCpnMSlK6V5h4Bnn4yEqs8M1)AYtxTpXRiRClFhLBpMgKKgKhqZ2SgwiCcciaE8fDZQYTlCk3oQC7fLB3vSF)4GOJPjps9DHdlX)z3Sdj5JlaEH4XPH013KdhZw8thAClqJzCA4tzKiJMEKgNduii((XP0isqmUqyDnKXlzxkPMkZgcvMZPYRfNK8dPGmWnzVB(bQ7HIy8CuU9Lxk3MtsVNMpopiI6MN46hq5YIjacx2WdKupsmTIjYrLCAwEVAHFaxfi5pqYaCtGRgf8fI4yvZ4hbgGeg8iLX0shJfonCWokiKiHUpLsYpyxCNtcbH6yIBurQpnfp3EPjpLnwSAgzycgfqv0TD2SDzVGKHph)z30ISdkKs981dHRHaj4CJe8KW8bu77LefrI9ryxyewgq7tPXF55Xz5GZVWQDiuHP4C3hKsrAS0onAdtBv)ChtgF39UZazT(BYmVItwU8HXfKAqiWiyF9AV)l8dWVaBRoEZZGFyej37afUd4)vFm3ZwvyY9bEWpstIk3gebu6YE0ZDvply30ljj0p5P4wsa5OkxBsBz2zAqmWmLWnD1awJ0mvjsJkFz2JtLVEDR4gCsY4gFuhUdtCXyLlvLvnKdeuq0CRIzlrJgQN6PYOAyfuOn1mRagV0pt9kGmV9zU(Z81vhG(1CDeqvAyYtavC(RLBpqjH5hSyukuS815E0lxWIoMdazl2TbWoHae2ctBdDdbjAt5zoMdBasMtjEXhrHDrEqilmbiCk3kTBjgVI1a1c1V2LsC10KKC2vB4RiwfAzUEKWW(e4SmxbXyUzFwUzLKxcrMhHjoKVKIN8TkUhYOzxJCr70JGvYosUKegobUOyDcxc7t3tJZGv3RW9NQwPPs)cIbIbhkxFcg31Dbpij36yCe5ZLB)MYToJN3Wn(uyVG3OxprnBd9mdqVukWhn4(yxFQiGYqJ8H)cQVd2gylJqETqhf)aqFjlIGmmaJNqLuNI7eSwfz3A2H5s64yxzHWoV3wLMqQI7LoNB10QyZYJmEXWkTE(PxATTQOvprYHL6Ubx8wps5Y)QCqz9k4)(I8KR8yTELaqL2K)kBaL)yl5RScyxysIV7(cOXU2Y)DFfjt2ZXKJzq0AWPm((EQRUQxSuYXaFEAAHm)ml2yHsXgnWAph(G6O484OLTA0sxFhMRx)e6748yVwcmLUtwA0erWwsv00sqX9HHy5bEb5n9SwxluxMuIjAG1E7acUypn9XKufoqPPF5qW4k5ENqYIu3DjXfz0(Dq)ua6uMHzZzjXpMM4zo4iSooYJrImzU78JEnf71Cnn1ESWCvpMdy2IElCN2HESRvrVA7gZfWz2JTdX6E4wiF4o5oZaJgsrO2Sv8Hu5NsOXbEUK7z1v1sv9BqEGQQmK7rl7zibu0xX4ChtQQ(PTMrTg8ikGvS3Zm5UP6)UqRwrP2OtQIbLkG7m5lZ94d8LpsrDHlv4k(pCXX21UM3uOl3u44(tFCD520KCH)bUuxUgSj7MMGFMjJec6BFxZyjgeAEjao1CkVqFOukELQASd7M)IKDek9QQuGGuGkhip9G6iNuwdE7bv5UjOR2Jb8RxyVjG71WJziuDlSmhSZdqh)GmMwtJDXaIdOChDQsdE)D8hXMls6V9HVp5NLJpq8)pfz5OzKsnx8c6CPX0OaAvdIs(lqKQGbeI2wRN6iXuT3Hva6PxDRWqAhjnf8uusuQJ2lANusPisoidQCQ7dji45jzz9s0PTj6eP2nLaYUDMoKNxf6tOdOF(yysgdpO8qftq1BjQtGLkWn7PGCVd6mQ07y49SxiadBZz4MAvqHyqmCyznEZkSa2e5rlJsxCgKP1ymsQT(2N5y320SZPnuN4metuvN6UsfR2TA99AQ1GvHOlxIXecgClZBhGVVid)yco42QLBA6c2eByneVUVwvzIkrtTgeYlvQlUteYHovx7TgO4PBzELNt1IdD2HvbXmhtXCNIs8)uPGgQ9(DAXmApV7wgAknYiDpfv7efrMAIIEE4jMNeHPBlpR(nM6GO3oPmfWEyHLVUp4hsxS9uFQs)PFBFe8yYtqus8X6A40iEAT4OxydCIR5U3ZhhHNCPfcCqQoXPpYAOTyT9e3qe1UENyUMZZVT37MCEvO0FCSL2tvyQMLjd6PDV0zarXUajVrXpUI6NjK0cKNB4clpr87MynYKPslmwUZmlfDC3eZbRo)e1gE0kT0hMdmP9TpWRahwEUR0nFNZFIx8G7MyogLYqyvAN9uFroMyosLn8Qo0sms1H1wTaxAIpG6sIaYmOrZ)BIfkktu8iLAzfwn0djrJApHEhO0CYblDLkwH9IleQwFObAsShTkXqR6S9sIb5eZWUJcP19gunenKdL8xlh4mJgFFVnLujR1Z392EARXubkVhHCc4T4V)tZM8TBw)ejnMn071FcFraadPK0C0IjTC7RQyGxb1ws)VfqqiqtMLGzDif5jrKC8cEhiX3tZgx(HFnigU1KVRC7VhNvCeHcxaNHa80Q5EfSXYp8PdbzSPuUpie5d4hrbG8g7ZqaLGRUhclLIVGc5PbXpavLpUCB523NZ3eBii4mHqcNFanUOWX(z5gNdI9cl8XaB0a8Hx8DadS9QYT)7FhFKZVpNgL9hVTC7thc8oiVAs8ZnuTCBCccoeleZog2GRp(xIxSIkI(3HgKsRiZN4qasQ)q4D0CPPsu(jOMjPtKaY8QLYKgSlfxeTJYvoHGDB5hEFuLShnwQK)S3yn4UGBnOhaRGfZWXgXe5Bw)xk3(pynPbQp13QUYpa373p6Zv3FOapRolFlwu8uaEu9blynnhnbZy)aNedwcnCHvoStn7bllUeY2PuWYmeW71oxnXXbqdwhyOJ(bzxYaH8ycup8UNCbZW0qYXv7jHOgcq77XBH8jlXA52)fMzfKX8fY2n2PPlOYK2f)89Qm8KL(qLcL3ylUfWI07b2uKsrtAPD(J4DeZdLDpH4)FYur)iVXcggAEeBvgbRYtl4W9rr)zFb(5NyBa499cTjYLqaZmi(adrrvyfrhDRfBRUMlvfpau8MQc1fGuDQZLcDZhtPxvfRnJMJb55pva157w(bUPs246Hj(Mv)T9HKShEl(2xUI)eYC3bP)HWazgwFsIVy5uIBeo0sWFL6gdxh0T63u3rn(2G9RUONrvoeSQxpc4WMqPEyBgXiJ1A6cq7QLh4H(vOe5MbPPmYA3oF6HVfNX4QwJyuO1T)GfQr1owiJPTi2xEPBbt3ScQ8LtCZpfbzcNvefbcFyfgKPWAQMWpUI6fms9zgCZcNrxOVw7kpaDZ4xMmTN3oxAup4)(xQ2j83)2uM0JGBT841BmgQVeaDZtk)m0x6aS1Ze)ReQnt4OX7wz8iJE9jqLjlUupz68iRLD9n9eZpjsV0XaPRB3xIKDMIWOgZ4tHOgpVnThkr1Unvo61kn0F7Q5oV8Iw6BGo82YLOHAh9JyWFZQfvXa(68YN2WlA9WyzCQUUAmc2zt(vv82vlgz)Ls92R)QsUzNMcE6aoSkqPYaC9lCiR0Rkde9YrgFht1kP()kR0HG3SAQWQX8WSbtNIQYq3rYW)dUGamt7EIhvXSvkQ65LSTxiSnKjieXOUQ4BxAgE5ru3swAWesiIxQxe3dLW(c5EYTM3nOiCmV3(JGl4QPlmdsZOLrqWv1mTjzFMwdXUoyv3byd(owoWsJSPorM2jwpY0TQCNntdPrllfGuZ8PReqtSiGo1SigQ8Xe81thwc(otEUIpN5mQEAZ3S6EpFZ4o08qDsdzgYtiLJjiAMdIrNwqZFgoZtSq0wMC1UQgDMVWO46LxSmh4BxyXUxDqTYr96m33rD8c)Zkq1kWQmQSPY1l6MdIoLH3E7Q35yinQJTebnt0Sg9Bq05XYmnj1HINnqejfVHX4MY)GTSVL3eGXx3JgUHKq7pEA7Lpm9xByM26kGqRnWIx1cjV1wVbhDaDXOApJ2Gn8aQD5unHy5G21JO9MNpYOpsvB1ANSDdLQMA6BApjcXapz(H8UYhPBahnZ8wlMTMeTuo8QXeJh86tr3HARf16rsRbVBwDTbor2oQZ0QzSHXQSyIsTFqen0Q(lRazW6VZbKyD)qjUT5lz4BCgpxpisFrd6qzwluwQhf5pCb1k1W)I)PpCJZ4Rhj(KhQgbHTpTMgkDu5d2zL83nJS7A13DZlV0(BUXeuaNl)vWi5uP7tTPk(T4ZSrx48fwOKPHLnsmokLgen99B0GpVIbjXIUW4YFbg3oRQ0a5ilTHPJrChCGSjJnyfxLbEUv8n(jx0tLO1jMeIQt59VQHHuExWwjptY3Q8MnTAIKTvN3vlDk)zogOYBA3PKgczk5NHIgSK4PnP7R1c9DwujJ79LMxIWsVn(RAvYIUxNErRfYVk9JQ7rwpSVPBtH6EX5LqU6LMFKMHt3czv7EDVJ8k4k4y7HZn)X13WgSpt)vwMCGgHcBpV5CNRxpnhvb(x5EUQG1CB9dea1PnX2u7zmnqK01gC7DPRa9Q9RAYOF72nqS()dmKcJYUN2y8yREdTuDom6JXZ6R1Ay9zAaYCRjMJKBPhf(dk5e(KNByjXhuTvdSEgTtdeTowA3NodJgeuLW6bWum)A9b7LuyZ)7p]] )
+    spec:RegisterSetting( "pet_to_call", 1, {
+        name = "Pet to Call",
+        desc = "Which pet slot to call when no pet is active. Set to 0 to disable automatic pet calling.",
+        type = "range",
+        min = 0,
+        max = 5,
+        step = 1,
+        width = 1.5
+    } )
+
+    spec:RegisterPack( "Beast Mastery", 20250722, [[Hekili:vZvBVTnos4FlfloFPBt9jBhNKUxCa2UVGT5UTOaUlUpCyTmJeDSUilzijhxxeOF73mKuIVisjz3CF4WIDrSe5ZmC4WHpZqQDXOfFEX8qsbDXhh7nEQ3vJhpC01Ex6D5I5fh2sxmFlj4rYdWFKq2a)3cAEbjhF8H4usi2980DzbWRwm)(DrXfFizX9nX8QjtrmZ3sdGhpDYI5RJcdP82sZdwm)ZRJYlxI)lPCPqQLltxb)oOiknPCzCuEb86vPzLl)n6JrXrdxmN9qunwffhtZG)6JSbfnHCFmnCX7xmpilQGMfrqjD)UvRgMtZ2stk8ZlIsEy4UTlMZfb0007Zi(5Rtl4Qvw0w(l(NP7F7Q0GDO8zcc0XSOua5ik8SZiHKTf0q4TzPBGHrciXvKaADZoW1)xVOag)ovqHiUzw5Yl8kxoOC5Rkx2PwNxqjHh4Qn(pWerwEr7MIT0IHK4ONOmPiK7TGCN6jb(Ey2oIe7VpJuS2WI8EugWWBnjhNNGNUj6Re27ADiwqIHrXqI)MDzH0m)0v(bzP7ZhkAntFydynPRnGB0zuKt6sKXhs(IF2U81AIs3q0HGRHaf4f9042bMGJCSFq6MnKKqe2PoHLb0QmAYxpmewgg8iFgBsFKcBg2FvugfLXLTldtym9rUqXhHKfqsOvoFF8Qta5oDWvwwY8VdstJdt3NK3UpUdj(8ZLllizpatsGtl1Vi1pmIYx1DPQ3FCAAO)QDzhmC9)XDfPVnGGU)PfRXyb1k0lxOGVrLp)qczBomVacn5HowG8kH7tgzBuiZjPAQ5mhowTRiJMwU81sDrcB7lB6vOHttJU0ttJSgaX9cVJiaYPPEggmTWmUxRkuRqWW6Fpf8hnnu8f9H0vrbrfvlD5AIdLurjKW2(6AHwSIM9uAMMgOSB2KRucfXAjFLm9l0GDavHJyVkHnCnLexS2FBqbxcJ9CesvFT7VWfy9gxNXHdmi0409im)LYLCS7ybQt94iIw22EwTHUJiMMsEIN7yOGr1hSpalRnae9J3eyHOH1oZINMLMwWEQuwBaNgAwUFajo2W()j0wVRaiVHXbH5NYLkArFyoabubQgHmQgAUBctggygmhQpsB92TahhPQQIwNbj1DebhS7jfkwyy06JM1rClmSUJMKdTUDJBucaeOW(HKnGDWFAoth5Z8d3q(s5YVVCP3WluwAsH(c8aqA3Aw3FUsKQ0tB3QAk(joe)LQlGJEibcRGKcB1KPBVWFvSod6g4lJqETyok5rq(kEpr5ySNaXusrf5LJ1BTp0j0nF)kFPJuq6eBF52C)fINpjTdFlSNpr9Pj0nS8uybfuS07IlISzi(X0FrDerc)p7YlqdshotTfxYMUm26ByMfhrU6MM)9KSmy6tl0Gnzp1mAPg3poi9IVYdXee8I088of6ytHosjwKcqTZhXgYxy4gr)Y240CgEa)ln)i9xXDLGafz(3NMSlN2bR6CichRHdX(m6c)l2giZar(ml7hn1XoH6oFFocPuNJBuW2FyBwAWXKHPHco1FCdfK9SkfSokLdceT601qynTgtvTgDUi3CFA(wy(57JkcwBBMPQJR3LW20Ddj7raMdbXW8lRZ5yNmSXcwpCyzBxYS1qNipzMpFZf4QYAiM4tB72cSqAD(YDOV2qDKxFIDOHOfRsRZTwJEkNCzCJ95wmMrWAGvozly7moBbltG8cTXtuZhs6mppDtUX81VXm4)q5Y3tz5D(7mgwqO5)ylwQnyM7UDXWphp(CKK4yi4w5Y50cCyNZCX9XD0HFndSBVTCjJhM4rGng2wg02yaNZ8E7ippafODHr5OwM)AWo)ukKd3979tFIMft2oBfjg5pdq9J4RqnJLmr5Y)fMnb4cXBiUDA2J(KKdkDHpC(R54aj7r037q1en4dUMg8iJivgj5bQs3(j8nSrt5s27evd8FalxH3YxVYgn46xi3oi7CF0x1VAVSzfz74y9jb)OVc)8ZSoWR2i0fU(b0uZjCrWYIA3MT(12PzxZnJcgd4l1TItbZ4yVxJYH(w(CplMg6uZJQHdcfknYaJ7aV8QD7mx1i8vOqcSald)SOaQFsAAymTNP4tWsWwuzBIYst8xt2)OE510Ad(6ETpOlOR6Jd8RBy7759kRbQ14CZtv2E8qjMTMmBVOHPftbG7Ad44LkpmJqtIc8jpWs2r2)TPMmBXsJ0B6TwkUyZAcoTInG7QUvvZkJ3Mr3qIsYnZtsP(Hw5m)RWBuPm(sXu2YCUEvPB1RVJIIAPizU9Y7alLQf2QFCFgqhz5zBDaDKfK1XacCv3ab07278vv5fR5aQVIhcWtliRBjMJOfgUA)UqderqfvrOD)hb7byNmipt077wr520ilhKMaEXmkXyKxdczAVRRCqmehYh5AjyWlOjp0zMfv2A76DNrOAwVCi(swAbNoxRZF9T6Aw4T)tPyiGkX8)MdiZALQLQMELM7rHjCt5V7T7CvMAfN6tQmZNqLu7UiXDu7AjMA1EUZQ(UnDpShlUKPXGV(v22ISbqnlIT6Ig1kr)Ux2nVh55epRGvV)i7yfCSM7JJABfMRQgibZOsaJo6JjYOoWkBKBub6rUxKOaWvVZnaUxOCAfJ4JJMQsJtTyDsPuvGvcKOLTaAoOGPVDcmpk3Tsggk)aKB1MEyK77zXvt4R9aB6e7YfjVnez3ciJmDlxIBcSWg7xJt5ydfuRKGdnZZOFXfRJoOTrawbNwjwkvnqwHOQzluQM6Z)Hpg738OcYIaU7Wq4N)0C5(k8R8HpFcwEqWwcS6wmkiyNaULiQ9cn9nATeaTxO0OC3wcG2pG43jglbn1m0ZJk2X0ym7DowIBBtpLdwhABHsD35oP6mvta1CpTfATpsPVhYYenXkpbhBbH7LPX4y2SfXTp6p(4g1swtq61j0wG5EPVA1bUoyCVqPZmlued)gkjONUNKLWsxrCjW2MLcEUu(TbBteW9gRrv(UTBtZkeL8bIUbYkacadz68iTiFiwXRpuW7eRCByiikRCqy8D6tS6LjdZdUeX7crJjncVfh)q5DSs68V)dSAtFa2ci)ppVC5(1rbRvBnVwvcPwUmjfbh2edpJ9yjUH4FjkNuLq)7LlbDxiMpZHacO)NIeAKpASIK3Zknv9isazrvtzwd2Js2T5EAgk48yGqw5DFydAWWhGjoOTWgE7cSstRb6JZZ3SBvw0Jyzkzg(fZ)UQs01SIJ39DTw0X7ynOUYJ4p(Ml(icYPx)rS3hzjiXU8TwfseJx2crIi(nvls(Ctpliz5DChgGasvXRFZS)2Qys(JNJvHCMrbRD0(00qrZTvZs7DQz9hppA1Sx1r9l7dw1ThbSFLT0oSsMxmvtYBYARvlfP9wOLJbdsxhjI1UZzyEogBDMbPxXSE7KDRrTDSqfZAS9NFUjp4BMDPNq4UPJQkyx20b2OcpBKAxRyBIDu2pD(R3m1BWRSZKVAHHn(Mn0qL984gj5L)RZMALTz3DtJwz3n3K)yp6b)onlcE7Koy3abmbX5aD6k3oBs39SIIh29gCcVD20UrOMTgcrtcF3kj799arVUXtN6w3TxJbMnRW4EGHc9RUBnJfLZfLIPZxOBRQmWtD3b9swK4ti2GnanQG9leQY6ck3jrReIdo7iKYOPoSgnQ3N62mUkx4rj6l9Ci66Y2PiYg18BGm24XiuNJxzH5uKAZk5n4mTlI6TZUW75NTkFhYHxNtfzOxI0bm4Vz2KReU8FZNjLunSgXMrSP656750484Gqxo22zq7Na3Tt7wl06OMI0DF77kTUrQhbb6bi))ZqH5J9YCAhQ(7k7XdAs9PSWD7novMBMn2ZDF7mCxhIvCmioMfm7Yjf1ZnChXIDxqCKbdDdu9zyOauJJ8WD37z8r3aCcPfycHS(5y)B7inGDxCdJYjsOmwSD1hD7Nip4aNlU4ZUaHXP9ghrpU6DU7H(zmOAhBCWe9XqIvWHtTY51KvcdWig6S8cHzJy4eZM3JjnWwzcZyJNCZSlmbwCVwvMcnUUSnaDA1uIk3koy92NWIMkaD0utqBoxz25lg0YShpzxRxuaPKQYV4nM1hqCVdyEi8CLhyRSdYlWGvmnUXakbWL5ZmAA9OO5LpWkQ1xDal4DZSRDOjQ(rwsRcudNruyMsRFrbszvNZfQG1FvcOW6kbSlSdIY3wGnuMyGYL2rr9tiqNFg(x8pcHB8gE9aXhFqvfaA7Jtrkj9edNP(1UOUCT6RL55Nn)szCbfO5QFpkklQS9rVmq)dEzqtQ7QuiBijNLBruKinQ0VeFseMSV01M(eXRveu(6iQ3waIa6nW9EMSr4XCvOLkGwY(VrVeFNRDnJNnsze14ItBBwBINB5OZiWIGCnATjOrETTJHPO7ypSbIn0nUu0vw5oVu)kcwPiin3V323Fax2AF7bv7Wm1ZjWMCDT9HdOGC1hnGnIJgiR7nB7BeqdxHg3UFQ7p4EPAWki0BAlzkBMLQEDse5h0rMwvGFKCY7lSoZxPVaONiVL03N0xKog(TxyX8R70yV7T7I8I9)Lkuc0YW5ecqx1VtnS8X8H6kfR47jUvhJosMwcHXeQ1(zBcvIGUrZoaUIxxLjKh7qYx8F)]] )

@@ -34,13 +34,14 @@ end
 -- MoP compatible item and spell functions
 local GetItemCooldown = _G.GetItemCooldown or function(item)
     if type(item) == "number" then
-        return GetItemCooldown(item)
+        return _G.GetItemCooldown and _G.GetItemCooldown(item) or 0, 0
     else
         return 0, 0
     end
 end
 
-local GetSpellDescription = _G.GetSpellDescription or function(spellID)
+-- Use modern C_Spell.GetSpellDescription when available, fallback to deprecated GetSpellDescription for older versions
+local GetSpellDescription = (C_Spell and C_Spell.GetSpellDescription) or _G.GetSpellDescription or function(spellID)
     local tooltip = CreateFrame("GameTooltip", "HekiliTooltip", nil, "GameTooltipTemplate")
     tooltip:SetSpell(spellID)
     return _G[tooltip:GetName() .. "TextLeft2"]:GetText() or ""
@@ -64,16 +65,16 @@ local GetSpellInfo = _G.GetSpellInfo
 
 -- MoP compatible item functions
 local GetItemSpell = _G.GetItemSpell or function(item)
-    local spellName, spellID = GetItemSpell(item)
+    local spellName, spellID = _G.GetItemSpell and _G.GetItemSpell(item) or nil, nil
     return spellName, spellID
 end
 
 local GetItemCount = _G.GetItemCount or function(item, includeBank, includeCharges)
-    return GetItemCount(item, includeBank, includeCharges) or 0
+    return _G.GetItemCount and _G.GetItemCount(item, includeBank, includeCharges) or 0
 end
 
 local IsUsableItem = _G.IsUsableItem or function(item)
-    local usable, noMana = IsUsableItem(item)
+    local usable, noMana = _G.IsUsableItem and _G.IsUsableItem(item) or false, false
     return usable, noMana
 end
 
@@ -1655,10 +1656,6 @@ all:RegisterAuras({
         duration = 3600,
     },
 
-    mastery = {
-        duration = 3600,
-    },
-
     versatility = {
         duration = 3600,
     },
@@ -1865,7 +1862,7 @@ all:RegisterAuras({
             end
 
             -- Legacy of the Emperor
-            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 115921)
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 117666)
             if name then
                 t.name = name
                 t.count = 1
@@ -1952,6 +1949,178 @@ all:RegisterAuras({
 
             -- Spirit Beast Blessing (Hunter pet)
             name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 128997)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- No mastery buff found
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.up = false
+            t.down = true
+            t.remains = 0
+        end
+    },
+
+    stamina = {
+        id = 21562, -- Use Fortitude as primary ID
+        duration = 3600,
+        max_stack = 1,
+        generate = function( t )
+            -- Commanding Shout
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 469)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- Power Word: Fortitude
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 21562)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- Dark Intent
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 109773)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- Qiraji Fortitude (Pet)
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 90364)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- No stamina buff found
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+            t.up = false
+            t.down = true
+            t.remains = 0
+        end
+    },
+
+    crit = {
+        id = 1459, -- Use Arcane Brilliance as primary ID
+        duration = 3600,
+        max_stack = 1,
+        generate = function( t )
+            -- Arcane Brilliance
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 1459)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- Furious Howl (Pet)
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 24604)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- Leader of the Pack
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 17007)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- Legacy of the White Tiger
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 116781)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- Terrifying Roar
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 112928)
+            if name then
+                t.name = name
+                t.count = 1
+                t.expires = expirationTime or 0
+                t.applied = (expirationTime and duration) and (expirationTime - duration) or 0
+                t.caster = caster
+                t.up = true
+                t.down = false
+                t.remains = expirationTime and (expirationTime - GetTime()) or 0
+                return
+            end
+
+            -- Still Water
+            name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 126309)
             if name then
                 t.name = name
                 t.count = 1
@@ -3840,8 +4009,54 @@ if spec then
 
     state.swings.mh_speed, state.swings.oh_speed = UnitAttackSpeed( "player" )
 
+    -- Initialize threat state
+    state.threat = state.threat or {}
+    state.threat.situation = 0 -- 0 = no threat, 1 = low threat, 2 = high threat, 3 = tanking
+    state.threat.percentage = 0
+    state.threat.raw = 0
+    state.threat.rawTarget = 0
+
     HekiliEngine.activeThread = nil
     self:UpdateDisplayVisibility()
     self:UpdateDamageDetectionForCLEU()
 end
 
+-- Tinkers (Classic WoW - simplified for compatibility)
+all:RegisterAura( "hyperspeed_acceleration", {
+    id = 54758,
+    duration = 15,
+    max_stack = 1
+})
+all:RegisterAbility( "hyperspeed_acceleration", {
+    id = 54758,
+    cast = 0,
+    cooldown = 60,
+    gcd = "off",
+
+    startsCombat = true,
+    toggle = "cooldowns",
+
+    handler = function()
+        applyBuff("hyperspeed_acceleration")
+    end
+} )
+
+all:RegisterAura( "synapse_springs", {
+    id = 96228,
+    duration = 15,
+    max_stack = 1,
+    copy = {96228, 96229, 96230}
+})
+all:RegisterAbility( "synapse_springs", {
+    id = 82174,
+    cast = 0,
+    cooldown = 60,
+    gcd = "off",
+
+    startsCombat = true,
+    toggle = "cooldowns",
+
+    handler = function()
+        applyBuff("synapse_springs")
+    end
+} )

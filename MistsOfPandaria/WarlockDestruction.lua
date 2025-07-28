@@ -59,6 +59,34 @@ end
 
 destructionCombatLogFrame:SetScript("OnEvent", HandleDestructionCombatLogEvent)
 
+-- Pet management system for Destruction Warlock
+local function summon_demon(demon_type)
+    -- Track which demon is active
+    if demon_type == "imp" then
+        applyBuff("grimoire_of_sacrifice_imp")
+    elseif demon_type == "voidwalker" then
+        applyBuff("grimoire_of_sacrifice_voidwalker")
+    elseif demon_type == "succubus" then
+        applyBuff("grimoire_of_sacrifice_succubus")
+    elseif demon_type == "felhunter" then
+        applyBuff("grimoire_of_sacrifice_felhunter")
+    elseif demon_type == "felguard" then
+        applyBuff("grimoire_of_sacrifice_felguard")
+    end
+end
+
+-- Pet stat tracking for Destruction
+local function update_pet_stats()
+    local pet_health = UnitHealth("pet") or 0
+    local pet_max_health = UnitHealthMax("pet") or 1
+    local pet_health_pct = pet_health / pet_max_health
+    
+    -- Update pet health state for Dark Pact calculations
+    if state then
+        state.pet_health_pct = pet_health_pct
+    end
+end
+
 -- Burning Ember generation from Immolate/Conflagrate ticks
 RegisterDestructionCombatLogEvent("SPELL_PERIODIC_DAMAGE", function(timestamp, eventType, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing)
     if sourceGUID == UnitGUID("player") then
@@ -132,9 +160,132 @@ RegisterDestructionCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, even
 end)
 
 -- Enhanced Resource Management Systems
-spec:RegisterResource( 0 ) -- Mana = 0 in MoP
+spec:RegisterResource( 0, {
+    -- Life Tap mana restoration (Warlock signature mechanic)
+    life_tap = {
+        last = function ()
+            return state.last_cast_time.life_tap or 0
+        end,
+        interval = 1.5, -- Life Tap GCD
+        value = function()
+            -- Life Tap converts health to mana (30% max mana in MoP)
+            return state.last_ability == "life_tap" and state.mana.max * 0.30 or 0
+        end,
+    },
+    
+    -- Dark Pact mana return (from demon health)
+    dark_pact = {
+        last = function ()
+            return state.last_cast_time.dark_pact or 0
+        end,
+        interval = 1.5, -- Dark Pact GCD
+        value = function()
+            -- Dark Pact converts demon health to mana
+            return state.last_ability == "dark_pact" and state.mana.max * 0.25 or 0
+        end,
+    },
+}, {
+    -- Base mana regeneration for Destruction
+    base_regen = function ()
+        local base = state.mana.max * 0.01 -- 1% base (Warlocks have low base regen)
+        local spirit_bonus = (state.stat.spirit or 0) * 0.4 -- Spirit is less effective for Warlocks
+        
+        -- Fel Armor bonus to mana regeneration
+        if state.buff.fel_armor.up then
+            base = base * 1.20 -- 20% bonus
+        end
+        
+        return (base + spirit_bonus) / 5 -- Convert to per-second
+    end,
+    
+    -- Improved Life Tap talent bonus
+    improved_life_tap = function ()
+        return state.talent.improved_life_tap.enabled and 0.2 or 0 -- 20% spell power as mana efficiency
+    end,
+} )
 
-spec:RegisterResource( 14 ) -- BurningEmbers = 14 in MoP
+spec:RegisterResource( 14, {
+    -- Burning Ember generation from Immolate ticks
+    immolate_generation = {
+        last = function ()
+            return state.last_immolate_tick or 0
+        end,
+        interval = 2, -- Immolate tick interval
+        value = function()
+            -- Immolate generates 0.1 Burning Ember per tick
+            local embers_generated = 0.1
+            if state.debuff.immolate.up then
+                -- Critical ticks generate more embers
+                if state.last_critical_tick then
+                    embers_generated = embers_generated + 0.1
+                end
+                return embers_generated
+            end
+            return 0
+        end,
+    },
+    
+    -- Conflagrate Burning Ember generation
+    conflagrate_generation = {
+        last = function ()
+            return state.last_cast_time.conflagrate or 0
+        end,
+        interval = 1,
+        value = function()
+            -- Conflagrate generates 0.2 Burning Embers
+            return state.last_ability == "conflagrate" and 0.2 or 0
+        end,
+    },
+    
+    -- Incinerate Burning Ember generation
+    incinerate_generation = {
+        last = function ()
+            return state.last_cast_time.incinerate or 0
+        end,
+        interval = 1,
+        value = function()
+            -- Incinerate generates 0.1 Burning Ember per cast
+            return state.last_ability == "incinerate" and 0.1 or 0
+        end,
+    },
+    
+    -- Chaos Bolt Burning Ember consumption
+    chaos_bolt_consumption = {
+        last = function ()
+            return state.last_cast_time.chaos_bolt or 0
+        end,
+        interval = 1,
+        value = function()
+            -- Chaos Bolt consumes 4 Burning Embers
+            return state.last_ability == "chaos_bolt" and -4 or 0
+        end,
+    },
+    
+    -- Ember Tap Burning Ember consumption
+    ember_tap_consumption = {
+        last = function ()
+            return state.last_cast_time.ember_tap or 0
+        end,
+        interval = 1,
+        value = function()
+            -- Ember Tap consumes 1 Burning Ember
+            return state.last_ability == "ember_tap" and -1 or 0
+        end,
+    },
+}, {
+    -- Burning Ember generation modifiers
+    backlash_bonus = function ()
+        return state.buff.backlash.up and 0.1 or 0 -- 10% bonus from Backlash
+    end,
+    
+    backdraft_bonus = function ()
+        return state.buff.backdraft.up and 0.15 or 0 -- 15% bonus from Backdraft
+    end,
+    
+    molten_core_bonus = function ()
+        return state.talent.molten_core.enabled and 0.2 or 0 -- 20% bonus from Molten Core
+    end,
+} )
 
 -- Comprehensive Tier Set and Gear Registration
 -- T14 - Curse of the Elements (Raid Finder/Normal/Heroic)
@@ -209,34 +360,34 @@ spec:RegisterAura( "tier16_4pc_destruction", {
 -- Talents (MoP talent system - ID, enabled, spell_id)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Crowd Control/Utility
-    dark_regeneration         = { 2225, 1, 108359 }, -- Instantly restores 30% of your maximum health. Restores an additional 6% of your maximum health for each of your damage over time effects on hostile targets within 20 yards. 2 min cooldown.
-    soul_leech                = { 2226, 1, 108370 }, -- When you deal damage with Malefic Grasp, Drain Soul, Shadow Bolt, Touch of Chaos, Chaos Bolt, Incinerate, Fel Flame, Haunt, or Soul Fire, you create a shield that absorbs (45% of Spell power) damage for 15 sec.
-    harvest_life              = { 2227, 1, 108371 }, -- Drains the health from up to 3 nearby enemies within 20 yards, causing Shadow damage and gaining 2% of maximum health per enemy every 1 sec.
+    dark_regeneration         = { 1, 1, 108359 }, -- Instantly restores 30% of your maximum health. Restores an additional 6% of your maximum health for each of your damage over time effects on hostile targets within 20 yards. 2 min cooldown.
+    soul_leech                = { 1, 2, 108366 }, -- When you deal damage with Malefic Grasp, Drain Soul, Shadow Bolt, Touch of Chaos, Chaos Bolt, Incinerate, Fel Flame, Haunt, or Soul Fire, you create a shield that absorbs (45% of Spell power) damage for 15 sec.
+    harvest_life              = { 1, 3, 108371 }, -- Drains the health from up to 3 nearby enemies within 20 yards, causing Shadow damage and gaining 2% of maximum health per enemy every 1 sec.
 
     -- Tier 2 (Level 30) - Mobility/Survivability
-    howl_of_terror            = { 2228, 1, 5484   }, -- Causes all nearby enemies within 10 yards to flee in terror for 8 sec. Targets are disoriented for 3 sec. 40 sec cooldown.
-    mortal_coil               = { 2229, 1, 6789   }, -- Horrifies an enemy target, causing it to flee in fear for 3 sec. The caster restores 11% of maximum health when the effect successfully horrifies an enemy. 30 sec cooldown.
-    shadowfury                = { 2230, 1, 30283  }, -- Stuns all enemies within 8 yards for 3 sec. 30 sec cooldown.
+    howl_of_terror            = { 2, 1, 5484   }, -- Causes all nearby enemies within 10 yards to flee in terror for 8 sec. Targets are disoriented for 3 sec. 40 sec cooldown.
+    mortal_coil               = { 2, 2, 6789   }, -- Horrifies an enemy target, causing it to flee in fear for 3 sec. The caster restores 11% of maximum health when the effect successfully horrifies an enemy. 30 sec cooldown.
+    shadowfury                = { 2, 3, 30283  }, -- Stuns all enemies within 8 yards for 3 sec. 30 sec cooldown.
 
     -- Tier 3 (Level 45) - DPS Cooldowns
-    soul_link                 = { 2231, 1, 108415 }, -- 20% of all damage taken by the Warlock is redirected to your demon pet instead. While active, both your demon and you will regenerate 3% of maximum health each second. Lasts as long as your demon is active.
-    sacrificial_pact          = { 2232, 1, 108416 }, -- Sacrifice your summoned demon to prevent 300% of your maximum health in damage divided among all party and raid members within 40 yards. Lasts 8 sec.
-    dark_bargain              = { 2233, 1, 110913 }, -- Prevents all damage for 8 sec. When the shield expires, 50% of the total amount of damage prevented is dealt to the caster over 8 sec. 3 min cooldown.
+    soul_link                 = { 3, 1, 108415 }, -- 20% of all damage taken by the Warlock is redirected to your demon pet instead. While active, both your demon and you will regenerate 3% of maximum health each second. Lasts as long as your demon is active.
+    sacrificial_pact          = { 3, 2, 108416 }, -- Sacrifice your summoned demon to prevent 300% of your maximum health in damage divided among all party and raid members within 40 yards. Lasts 8 sec.
+    dark_bargain              = { 3, 3, 110913 }, -- Prevents all damage for 8 sec. When the shield expires, 50% of the total amount of damage prevented is dealt to the caster over 8 sec. 3 min cooldown.
 
     -- Tier 4 (Level 60) - Pet Enhancement
-    blood_fear                = { 2234, 1, 111397 }, -- When you use Healthstone, enemies within 15 yards are horrified for 4 sec. 45 sec cooldown.
-    burning_rush              = { 2235, 1, 111400 }, -- Increases your movement speed by 50%, but also deals damage to you equal to 4% of your maximum health every 1 sec.
-    unbound_will              = { 2236, 1, 108482 }, -- Removes all Magic, Curse, Poison, and Disease effects and makes you immune to controlling effects for 6 sec. 2 min cooldown.
+    blood_fear                = { 4, 1, 111397 }, -- When you use Healthstone, enemies within 15 yards are horrified for 4 sec. 45 sec cooldown.
+    burning_rush              = { 4, 2, 111400 }, -- Increases your movement speed by 50%, but also deals damage to you equal to 4% of your maximum health every 1 sec.
+    unbound_will              = { 4, 3, 108482 }, -- Removes all Magic, Curse, Poison, and Disease effects and makes you immune to controlling effects for 6 sec. 2 min cooldown.
 
     -- Tier 5 (Level 75) - AoE Damage
-    grimoire_of_supremacy     = { 2237, 1, 108499 }, -- Your demons deal 20% more damage and are transformed into more powerful demons.
-    grimoire_of_service       = { 2238, 1, 108501 }, -- Summons a second demon with 100% increased damage for 15 sec. 2 min cooldown.
-    grimoire_of_sacrifice     = { 2239, 1, 108503 }, -- Sacrifices your demon to grant you an ability depending on the demon you sacrificed, and increases your damage by 15%. Lasts 15 sec.
+    grimoire_of_supremacy     = { 5, 1, 108499 }, -- Your demons deal 20% more damage and are transformed into more powerful demons.
+    grimoire_of_service       = { 5, 2, 108501 }, -- Summons a second demon with 100% increased damage for 15 sec. 2 min cooldown.
+    grimoire_of_sacrifice     = { 5, 3, 108503 }, -- Sacrifices your demon to grant you an ability depending on the demon you sacrificed, and increases your damage by 15%. Lasts 15 sec.
 
     -- Tier 6 (Level 90) - DPS
-    archimondes_vengeance     = { 2240, 1, 108505 }, -- When you take direct damage, you reflect 15% of the damage taken back at the attacker. For the next 10 sec, you reflect 45% of all direct damage taken. This ability has 3 charges. 30 sec cooldown per charge.
-    kiljaedens_cunning        = { 2241, 1, 108507 }, -- Your Malefic Grasp, Drain Life, and Drain Soul can be cast while moving.
-    mannoroths_fury           = { 2242, 1, 108508 }  -- Your Rain of Fire, Hellfire, and Immolation Aura have no cooldown and require no Soul Shards to cast. They also no longer apply a damage over time effect.
+    archimondes_vengeance     = { 6, 1, 108505 }, -- When you take direct damage, you reflect 15% of the damage taken back at the attacker. For the next 10 sec, you reflect 45% of all direct damage taken. This ability has 3 charges. 30 sec cooldown per charge.
+    kiljaedens_cunning        = { 6, 2, 108507 }, -- Your Malefic Grasp, Drain Life, and Drain Soul can be cast while moving.
+    mannoroths_fury           = { 6, 3, 108508 }  -- Your Rain of Fire, Hellfire, and Immolation Aura have no cooldown and require no Soul Shards to cast. They also no longer apply a damage over time effect.
 } )
 
 -- Comprehensive Destruction-specific Glyphs
@@ -1174,6 +1325,42 @@ spec:RegisterAbilities( {
 -- State Expressions for Destruction
 spec:RegisterStateExpr( "burning_embers", function()
     return burning_embers.current
+end )
+
+spec:RegisterStateExpr( "burning_embers_deficit", function()
+    return burning_embers.max - burning_embers.current
+end )
+
+spec:RegisterStateExpr( "current_burning_embers", function()
+    return burning_embers.current or 0
+end )
+
+spec:RegisterStateExpr( "backlash_proc", function()
+    return buff.backlash.up and 1 or 0
+end )
+
+spec:RegisterStateExpr( "backdraft_charges", function()
+    return buff.backdraft.up and buff.backdraft.stack or 0
+end )
+
+spec:RegisterStateExpr( "molten_core_bonus", function()
+    return buff.molten_core.up and 0.15 or 0 -- 15% damage bonus
+end )
+
+spec:RegisterStateExpr( "immolate_debuff_active", function()
+    return debuff.immolate.up and 1 or 0
+end )
+
+spec:RegisterStateExpr( "chaos_bolt_ready", function()
+    return burning_embers.current >= 4 and 1 or 0
+end )
+
+spec:RegisterStateExpr( "ember_tap_ready", function()
+    return burning_embers.current >= 1 and 1 or 0
+end )
+
+spec:RegisterStateExpr( "spell_power", function()
+    return GetSpellBonusDamage(3) -- Fire school
 end )
 
 -- Range

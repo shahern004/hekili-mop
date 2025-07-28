@@ -12,12 +12,8 @@ local class, state = Hekili.Class, Hekili.State
 
 local floor = math.floor
 local strformat = string.format
-local spec = Hekili:NewSpecialization( 73, true ) -- Survival spec ID for Hekili (255 = ranged in MoP Classic)
+local spec = Hekili:NewSpecialization( 73, true ) -- Protection spec ID for MoP (73 = melee tank in MoP Classic)
 
--- Ensure state is properly initialized
-if not state then 
-    state = Hekili.State 
-end
 
 -- Register resources with proper rage generation system from Cataclysm
 local function rage_amount( isOffhand )
@@ -29,9 +25,7 @@ local function rage_amount( isOffhand )
     return hit_factor * speed * rage_multiplier * (isOffhand and 0.5 or 1)
 end
 
-local ResourceInfo = ns.GetResourceInfo()
-
-spec:RegisterResource( ResourceInfo.rage, {
+spec:RegisterResource( 1, { -- Rage = 1 in MoP
     anger_management = {
         talent = "anger_management",
 
@@ -256,34 +250,34 @@ spec:RegisterGear( "tier16_4pc", function() return set_bonus.tier16_4pc end )
 -- Talents (MoP talent system - ID, enabled, spell_id)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Mobility
-    juggernaut                 = { 2047, 1, 103156 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and generates 15 Rage.
-    double_time                = { 2048, 1, 103827 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and no longer generates Rage.
-    warbringer                 = { 2049, 1, 103828 }, -- Charge also roots the target for 4 sec, and Hamstring generates more Rage.
+    juggernaut                 = { 1, 1, 103826 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and generates 15 Rage.
+    double_time                = { 1, 2, 103827 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and no longer generates Rage.
+    warbringer                 = { 1, 3, 103828 }, -- Charge also roots the target for 4 sec, and Hamstring generates more Rage.
 
     -- Tier 2 (Level 30) - Healing/Survival
-    second_wind                = { 2050, 1, 29838  }, -- While below 35% health, you regenerate 3% of your maximum health every 1 sec. Cannot be triggered if you were reduced below 35% by a creature that rewards experience or honor.
-    enraged_regeneration       = { 2051, 1, 55694  }, -- Instantly heals you for 10% of your total health and regenerates an additional 10% over 5 sec. Usable whilst stunned, frozen, incapacitated, feared, or asleep. 1 min cooldown.
-    impending_victory          = { 2052, 1, 103840 }, -- Instantly attack the target causing damage and healing you for 10% of your maximum health. Replaces Victory Rush. 30 sec cooldown.
+    second_wind                = { 2, 1, 29838  }, -- While below 35% health, you regenerate 3% of your maximum health every 1 sec. Cannot be triggered if you were reduced below 35% by a creature that rewards experience or honor.
+    enraged_regeneration       = { 2, 2, 55694  }, -- Instantly heals you for 10% of your total health and regenerates an additional 10% over 5 sec. Usable whilst stunned, frozen, incapacitated, feared, or asleep. 1 min cooldown.
+    impending_victory          = { 2, 3, 103840 }, -- Instantly attack the target causing damage and healing you for 10% of your maximum health. Replaces Victory Rush. 30 sec cooldown.
 
     -- Tier 3 (Level 45) - Utility
-    staggering_shout           = { 2053, 1, 107566 }, -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec. 40 sec cooldown.
-    piercing_howl              = { 2054, 1, 12323  }, -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec. 30 sec cooldown.
-    disrupting_shout           = { 2055, 1, 102060 }, -- Interrupts all enemy spell casts and prevents any spell in that school from being cast for 4 sec. 40 sec cooldown.
+    staggering_shout           = { 3, 1, 107566 }, -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec. 40 sec cooldown.
+    piercing_howl              = { 3, 2, 12323  }, -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec. 30 sec cooldown.
+    disrupting_shout           = { 3, 3, 102060 }, -- Interrupts all enemy spell casts and prevents any spell in that school from being cast for 4 sec. 40 sec cooldown.
 
     -- Tier 4 (Level 60) - Burst DPS
-    bladestorm                 = { 2056, 1, 46924  }, -- You become a whirlwind of steel, attacking all enemies within 8 yards for 6 sec, but you cannot use Auto Attack, Slam, or Execute during this time. Increases your chance to dodge by 30% for the duration. 1.5 min cooldown.
-    shockwave                  = { 2057, 1, 46968  }, -- Sends a wave of force in a frontal cone, causing damage and stunning enemies for 4 sec. This ability is usable in all stances. 40 sec cooldown. Cooldown reduced by 20 sec if it strikes at least 3 targets.
-    dragon_roar                = { 2058, 1, 118000 }, -- Roar powerfully, dealing damage to all enemies within 8 yards, knockback and disarming all enemies for 4 sec. The damage is always a critical hit. 1 min cooldown.
+    bladestorm                 = { 4, 1, 46924  }, -- You become a whirlwind of steel, attacking all enemies within 8 yards for 6 sec, but you cannot use Auto Attack, Slam, or Execute during this time. Increases your chance to dodge by 30% for the duration. 1.5 min cooldown.
+    shockwave                  = { 4, 2, 46968  }, -- Sends a wave of force in a frontal cone, causing damage and stunning enemies for 4 sec. This ability is usable in all stances. 40 sec cooldown. Cooldown reduced by 20 sec if it strikes at least 3 targets.
+    dragon_roar                = { 4, 3, 118000 }, -- Roar powerfully, dealing damage to all enemies within 8 yards, knockback and disarming all enemies for 4 sec. The damage is always a critical hit. 1 min cooldown.
 
     -- Tier 5 (Level 75) - Survivability
-    mass_spell_reflection      = { 2059, 1, 114028 }, -- Reflects the next spell cast on you and all allies within 20 yards back at the caster. 1 min cooldown.
-    safeguard                  = { 2060, 1, 114029 }, -- Intervene also reduces all damage taken by the target by 20% for 6 sec.
-    vigilance                  = { 2061, 1, 114030 }, -- Focus your protective gaze on a group member, transferring 30% of damage taken to you. In addition, each time the target takes damage, cooldown on your next Taunt is reduced by 3 sec. Lasts 12 sec.
+    mass_spell_reflection      = { 5, 1, 114028 }, -- Reflects the next spell cast on you and all allies within 20 yards back at the caster. 1 min cooldown.
+    safeguard                  = { 5, 2, 114029 }, -- Intervene also reduces all damage taken by the target by 20% for 6 sec.
+    vigilance                  = { 5, 3, 114030 }, -- Focus your protective gaze on a group member, transferring 30% of damage taken to you. In addition, each time the target takes damage, cooldown on your next Taunt is reduced by 3 sec. Lasts 12 sec.
 
     -- Tier 6 (Level 90) - Damage
-    avatar                     = { 2062, 1, 107574 }, -- You transform into an unstoppable avatar, increasing damage done by 20% and removing and granting immunity to movement imparing effects for 24 sec. 3 min cooldown.
-    bloodbath                  = { 2063, 1, 12292  }, -- Increases damage by 30% and causes your auto attacks and damaging abilities to cause the target to bleed for an additional 30% of the damage you initially dealt over 6 sec. Lasts 12 sec. 1 min cooldown.
-    storm_bolt                 = { 2064, 1, 107570 }, -- Throws your weapon at the target, causing damage and stunning for 3 sec. This ability is usable in all stances. 30 sec cooldown.
+    avatar                     = { 6, 1, 107574 }, -- You transform into an unstoppable avatar, increasing damage done by 20% and removing and granting immunity to movement imparing effects for 24 sec. 3 min cooldown.
+    bloodbath                  = { 6, 2, 12292  }, -- Increases damage by 30% and causes your auto attacks and damaging abilities to cause the target to bleed for an additional 30% of the damage you initially dealt over 6 sec. Lasts 12 sec. 1 min cooldown.
+    storm_bolt                 = { 6, 3, 107570 }, -- Throws your weapon at the target, causing damage and stunning for 3 sec. This ability is usable in all stances. 30 sec cooldown.
 } )
 
 -- Protection-specific Glyphs (Enhanced System)
@@ -973,54 +967,28 @@ spec:RegisterAuras( {
         max_stack = 1,
     },
     
+    -- Shield Slam related auras
+    shield_slam_debuff = {
+        id = 23922, -- Shield Slam debuff on target
+        duration = 10,
+        max_stack = 1,
+    },
+    
+    shield_slam_silence = {
+        id = 58117, -- Glyph of Shield Slam silence effect
+        duration = 3,
+        max_stack = 1,
+    },
+    
+    shield_slam_threat = {
+        id = 23922, -- Threat multiplier buff for Shield Slam
+        duration = 3,
+        max_stack = 1,
+    },
+    
 } )
 
--- Debug function for tracking profile sections
-local function debugPrint(section, message)
-    if ns.debug then
-        print(string.format("[Hekili Protection Debug] %s: %s", section, message or "OK"))
-    end
-end
-
--- Enable debug mode (set to false to disable)
-ns.debug = true
-
-debugPrint("AURAS", "Auras registered successfully")
-
--- Add individual aura validation debug
-local function validateAuras()
-    debugPrint("AURA_CHECK", "Validating individual auras...")
-    
-    local auraList = {
-        "shield_block",
-        "shield_barrier", 
-        "sunder_armor",
-        "battle_shout",
-        "commanding_shout",
-        "shield_wall",
-        "last_stand",
-        "vengeance",
-        "berserker_rage",
-        "revenge",
-        "devastate",
-        "shield_slam",
-        "thunder_clap"
-    }
-    
-    for _, auraName in ipairs(auraList) do
-        if class.auras[auraName] then
-            debugPrint("AURA_VALID", auraName .. " - OK")
-        else
-            debugPrint("AURA_MISSING", auraName .. " - MISSING")
-        end
-    end
-    
-    debugPrint("AURA_CHECK", "Aura validation completed")
-end
-
-validateAuras()
-
-debugPrint("INIT", "Starting Protection Warrior spec registration")
+-- Protection Warrior State Variables and Helper Functions
 
 -- Protection Warrior State Variables and Helper Functions
 spec:RegisterStateExpr( "rage_deficit", function()
@@ -1066,41 +1034,7 @@ spec:RegisterStateExpr( "vengeance_stacks", function()
     return buff.vengeance.stack or 0
 end )
 
--- Add debug state expressions for problematic auras
-spec:RegisterStateExpr( "debug_shield_block", function()
-    debugPrint("STATE_DEBUG", "shield_block buff exists: " .. tostring(buff.shield_block ~= nil))
-    if buff.shield_block then
-        debugPrint("STATE_DEBUG", "shield_block.up: " .. tostring(buff.shield_block.up))
-        debugPrint("STATE_DEBUG", "shield_block.down: " .. tostring(buff.shield_block.down))
-        debugPrint("STATE_DEBUG", "shield_block.remains: " .. tostring(buff.shield_block.remains))
-    end
-    return true
-end )
-
-spec:RegisterStateExpr( "debug_shield_barrier", function()
-    debugPrint("STATE_DEBUG", "shield_barrier buff exists: " .. tostring(buff.shield_barrier ~= nil))
-    if buff.shield_barrier then
-        debugPrint("STATE_DEBUG", "shield_barrier.up: " .. tostring(buff.shield_barrier.up))
-        debugPrint("STATE_DEBUG", "shield_barrier.down: " .. tostring(buff.shield_barrier.down))
-        debugPrint("STATE_DEBUG", "shield_barrier.remains: " .. tostring(buff.shield_barrier.remains))
-    end
-    return true
-end )
-
-spec:RegisterStateExpr( "debug_sunder_armor", function()
-    debugPrint("STATE_DEBUG", "sunder_armor debuff exists: " .. tostring(debuff.sunder_armor ~= nil))
-    if debuff.sunder_armor then
-        debugPrint("STATE_DEBUG", "sunder_armor.up: " .. tostring(debuff.sunder_armor.up))
-        debugPrint("STATE_DEBUG", "sunder_armor.down: " .. tostring(debuff.sunder_armor.down))
-        debugPrint("STATE_DEBUG", "sunder_armor.stack: " .. tostring(debuff.sunder_armor.stack))
-        debugPrint("STATE_DEBUG", "sunder_armor.remains: " .. tostring(debuff.sunder_armor.remains))
-    end
-    return true
-end )
-
-debugPrint("STATE_DEBUG", "Debug state expressions added")
-
-debugPrint("STATE_EXPR", "State expressions registered successfully")
+-- Protection Warrior specific state table modifications
 
 -- Protection Warrior specific state table modifications
 spec:RegisterStateTable( "protection", {
@@ -1137,7 +1071,7 @@ spec:RegisterStateTable( "protection", {
     use_emergency = { "last_stand", "shield_wall", "enraged_regeneration" }
 } )
 
-debugPrint("STATE_TABLE", "State tables registered successfully")
+
 
 -- MoP Protection Warrior specific functions
 spec:RegisterHook( "reset_precast", function()
@@ -1161,7 +1095,7 @@ spec:RegisterHook( "reset_precast", function()
     end
 end )
 
-debugPrint("HOOK", "RegisterHook reset_precast registered successfully")
+
 
 -- Protection Warrior abilities
 
@@ -1207,7 +1141,7 @@ spec:RegisterAbilities( {
         cooldown = 6,
         gcd = "spell",
         
-        spend = -15, -- Generates 15 rage
+        spend = -15, -- Generates 15 rage in MoP
         spendType = "rage",
         
         requires = "shield",
@@ -1215,7 +1149,28 @@ spec:RegisterAbilities( {
         texture = 132357,
         
         handler = function()
-            -- No specific effect other than rage generation
+            -- Shield Slam is Protection's signature ability
+            gain( 15, "rage" ) -- Explicit rage generation
+            
+            -- MoP: Shield Slam damage scales with block value
+            -- Apply Shield Slam debuff (reduces damage dealt)
+            applyDebuff( "target", "shield_slam_debuff", 10 )
+            
+            -- Shield Mastery: Chance for defensive benefits
+            if spec.protection and math.random() < 0.3 then
+                -- 30% chance to proc Shield Block charge refresh
+                if cooldown.shield_block.charges < 2 then
+                    cooldown.shield_block.charges = cooldown.shield_block.charges + 1
+                end
+            end
+            
+            -- Glyph of Shield Slam: Silence effect
+            if glyph.shield_slam.enabled then
+                applyDebuff( "target", "shield_slam_silence", 3 )
+            end
+            
+            -- Apply brief threat multiplier (Protection specialty)
+            applyBuff( "shield_slam_threat", 3 ) -- Brief threat boost
         end,
     },
     
@@ -1977,12 +1932,8 @@ spec:RegisterAbilities( {
     },
 } )
 
-debugPrint("ABILITIES", "Abilities registered successfully")
-
 -- Range
 spec:RegisterRanges( "devastate", "charge", "heroic_throw" )
-
-debugPrint("RANGES", "Ranges registered successfully")
 
 -- Protection Warrior Settings
 spec:RegisterSetting( "use_shield_wall", true, {
@@ -2127,41 +2078,4 @@ spec:RegisterSetting( "use_berserker_rage", true, {
     width = "full"
 } )
 
-debugPrint("SETTINGS", "Settings registered successfully")
 
-debugPrint("COMPLETE", "Protection Warrior spec registration completed successfully")
-
--- Test aura system functionality
-local function testAuraSystem()
-    debugPrint("AURA_TEST", "Testing aura system functionality...")
-    
-    -- Test if we can access the problematic auras through the state system
-    local success, err = pcall(function()
-        local shield_block_test = state.buff.shield_block.up
-        debugPrint("AURA_TEST", "shield_block accessible: " .. tostring(shield_block_test ~= nil))
-    end)
-    if not success then
-        debugPrint("AURA_TEST", "shield_block ERROR: " .. tostring(err))
-    end
-    
-    local success2, err2 = pcall(function()
-        local shield_barrier_test = state.buff.shield_barrier.down
-        debugPrint("AURA_TEST", "shield_barrier accessible: " .. tostring(shield_barrier_test ~= nil))
-    end)
-    if not success2 then
-        debugPrint("AURA_TEST", "shield_barrier ERROR: " .. tostring(err2))
-    end
-    
-    local success3, err3 = pcall(function()
-        local sunder_armor_test = state.debuff.sunder_armor.down
-        debugPrint("AURA_TEST", "sunder_armor accessible: " .. tostring(sunder_armor_test ~= nil))
-    end)
-    if not success3 then
-        debugPrint("AURA_TEST", "sunder_armor ERROR: " .. tostring(err3))
-    end
-    
-    debugPrint("AURA_TEST", "Aura system test completed")
-end
-
--- Run aura test after a short delay to ensure everything is loaded
-C_Timer.After(1, testAuraSystem)

@@ -2,81 +2,41 @@
 -- Updated May 30, 2025 - Enhanced Structure from Hunter Survival
 -- Mists of Pandaria module for Warrior: Arms spec
 
-if not Hekili or not Hekili.NewSpecialization then 
-    return 
-end
 
--- MoP: Use UnitClass instead of UnitClassBase
-local _, playerClass = UnitClass('player')
-if playerClass ~= 'WARRIOR' then 
-    return 
-end
+    local _, playerClass = UnitClass('player')
+    if playerClass ~= 'WARRIOR' then return end
 
-local addon, ns = ...
-local Hekili = _G[ "Hekili" ]
-local class = Hekili.Class
-local state = Hekili.State
+    local addon, ns = ...
+    local Hekili = _G[ addon ]
+    
+    if not Hekili then return end
+    
+    local class, state = Hekili.Class, Hekili.State
 
-local function getReferences()
-    -- Legacy function for compatibility
-    return class, state
-end
+    local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
+    local PTR = ns.PTR
 
-local strformat = string.format
-local FindUnitBuffByID, FindUnitDebuffByID = ns.FindUnitBuffByID, ns.FindUnitDebuffByID
-local function UA_GetPlayerAuraBySpellID(spellID)
-    for i = 1, 40 do
-        local name, _, count, _, duration, expires, caster, _, _, id = UnitBuff("player", i)
-        if not name then break end
-        if id == spellID then return name, _, count, _, duration, expires, caster end
-    end
-    for i = 1, 40 do
-        local name, _, count, _, duration, expires, caster, _, _, id = UnitDebuff("player", i)
-        if not name then break end
-        if id == spellID then return name, _, count, _, duration, expires, caster end    end
-    return nil
-end
+    local strformat = string.format
 
-local spec = Hekili:NewSpecialization( 71 ) -- Arms spec ID for MoP
-
--- Enhanced Helper Functions (following Hunter Survival pattern)
-local function UA_GetPlayerAuraBySpellID(spellID, filter)
-    return UA_GetPlayerAuraBySpellID(spellID, filter or "HELPFUL")
-end
-
-local function GetTargetDebuffByID(spellID, caster)
-    local name, icon, count, debuffType, duration, expirationTime, unitCaster = FindUnitDebuffByID("target", spellID, caster or "PLAYER")
-    if name then
-        return {
-            name = name,
-            icon = icon,
-            count = count or 1,
-            duration = duration,
-            expires = expirationTime,
-            applied = expirationTime - duration,
-            caster = unitCaster
-        }
-    end
-    return nil
-end
+    local spec = Hekili:NewSpecialization( 71 )
 
 -- Combat Log Event Tracking System (following Hunter Survival structure)
-local armsCombatLogFrame = CreateFrame("Frame")
-local armsCombatLogEvents = {}
+local combatLogFrame = CreateFrame("Frame")
+local combatLogEvents = {}
 
-local function RegisterArmsCombatLogEvent(event, handler)
-    if not armsCombatLogEvents[event] then
-        armsCombatLogEvents[event] = {}
+local function RegisterCombatLogEvent(event, handler)
+    if not combatLogEvents[event] then
+        combatLogEvents[event] = {}
     end
-    table.insert(armsCombatLogEvents[event], handler)
+    table.insert(combatLogEvents[event], handler)
 end
 
-armsCombatLogFrame:SetScript("OnEvent", function(self, event, ...)
+combatLogFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "COMBAT_LOG_EVENT_UNFILTERED" then
         local timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags = CombatLogGetCurrentEventInfo()
         
         if sourceGUID == UnitGUID("player") then
-            local handlers = armsCombatLogEvents[subevent]
+            local handlers = combatLogEvents[subevent]
             if handlers then
                 for _, handler in ipairs(handlers) do
                     handler(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, select(12, CombatLogGetCurrentEventInfo()))
@@ -86,10 +46,10 @@ armsCombatLogFrame:SetScript("OnEvent", function(self, event, ...)
     end
 end)
 
-armsCombatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+combatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
 -- Colossus Smash debuff tracking
-RegisterArmsCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
+RegisterCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
     if spellID == 86346 then -- Colossus Smash
         -- Track Colossus Smash debuff for optimal damage window
     elseif spellID == 85288 then -- Raging Blow (berserker stance proc)
@@ -100,7 +60,7 @@ RegisterArmsCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subevent, s
 end)
 
 -- Overpower proc tracking
-RegisterArmsCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
+RegisterCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool)
     if spellID == 60503 then -- Taste for Blood (Overpower proc)
         -- Track Overpower proc availability
     elseif spellID == 46916 then -- Slam! proc
@@ -109,22 +69,20 @@ RegisterArmsCombatLogEvent("SPELL_AURA_APPLIED", function(timestamp, subevent, s
 end)
 
 -- Critical strike tracking for Deep Wounds
-RegisterArmsCombatLogEvent("SPELL_DAMAGE", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical)
+RegisterCombatLogEvent("SPELL_DAMAGE", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical)
     if critical and (spellID == 12294 or spellID == 1464 or spellID == 78 or spellID == 845) then -- Mortal Strike, Slam, Heroic Strike, Cleave
         -- Apply Deep Wounds DoT on critical strikes
     end
 end)
 
 -- Target death tracking for DoT effects
-RegisterArmsCombatLogEvent("UNIT_DIED", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags)
+RegisterCombatLogEvent("UNIT_DIED", function(timestamp, subevent, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags)
     -- Handle target death for DoT effect optimization (Deep Wounds, Rend)
 end)
 
--- Enhanced Rage resource system for Arms Warrior (MoP stance system)
-local ResourceInfo = ns.GetResourceInfo()
 
-spec:RegisterResource( ResourceInfo.rage, {
-    -- MoP Stance-based rage generation
+spec:RegisterResource( 1, {
+    -- MoP Stance-based rage generation with improved mechanics
     battle_stance_regen = {
         aura = "battle_stance",
         last = function ()
@@ -134,8 +92,23 @@ spec:RegisterResource( ResourceInfo.rage, {
         end,
         interval = 1,
         value = function()
-            -- Battle Stance: Most rage from auto-attacking, none from taking damage
-            return state.buff.battle_stance.up and state.combat and 12 or 0
+            -- Battle Stance: Enhanced rage from auto-attacking, no rage from taking damage
+            if not state.buff.battle_stance.up or not state.combat then return 0 end
+            
+            local weapon_speed = state.main_hand.speed or 2.6
+            local base_rage = (3.5 / weapon_speed) * 2.5 -- Weapon speed formula
+            
+            -- Weapon specialization bonus
+            local spec_bonus = 1.0
+            if state.main_hand.type == "sword" and state.talent.sword_specialization.enabled then
+                spec_bonus = spec_bonus + 0.05 -- 5% more rage from swords
+            elseif state.main_hand.type == "mace" and state.talent.mace_specialization.enabled then
+                spec_bonus = spec_bonus + 0.05 -- 5% more rage from maces
+            elseif state.main_hand.type == "axe" and state.talent.axe_specialization.enabled then
+                spec_bonus = spec_bonus + 0.05 -- 5% more rage from axes
+            end
+            
+            return base_rage * spec_bonus
         end,
     },
     
@@ -148,10 +121,16 @@ spec:RegisterResource( ResourceInfo.rage, {
         end,
         interval = 1,
         value = function()
-            -- Berserker Stance: Rage from both auto-attacking and taking damage, but less from autos
-            local auto_rage = state.combat and 8 or 0 -- Less than Battle Stance
-            local damage_rage = state.combat and 4 or 0 -- Rage from taking damage
-            return state.buff.berserker_stance.up and (auto_rage + damage_rage) or 0
+            -- Berserker Stance: Reduced rage from auto-attacking but gets rage from taking damage
+            if not state.buff.berserker_stance.up or not state.combat then return 0 end
+            
+            local weapon_speed = state.main_hand.speed or 2.6
+            local auto_rage = (3.5 / weapon_speed) * 1.5 -- 60% of Battle Stance auto rage
+            
+            -- Damage taken rage (simulated - in real game this would be event-driven)
+            local damage_rage = state.incoming_damage_rate and (state.incoming_damage_rate * 0.1) or 2
+            
+            return auto_rage + damage_rage
         end,
     },
     
@@ -160,28 +139,32 @@ spec:RegisterResource( ResourceInfo.rage, {
         last = function ()
             local app = state.buff.defensive_stance.applied
             local t = state.query_time
-            return app + floor( ( t - app ) / 3 ) * 3 -- 3 second intervals
+            return app + floor( ( t - app ) / 3 ) * 3
         end,
         interval = 3,
         value = function()
-            -- Defensive Stance: 1 rage per 3 seconds in combat, none from autos/damage
-            return state.buff.defensive_stance.up and state.combat and 1 or 0
+            -- Defensive Stance: Minimal rage generation, only from taking damage
+            if not state.buff.defensive_stance.up or not state.combat then return 0 end
+            
+            -- Damage taken rage (reduced compared to Berserker)
+            local damage_rage = state.incoming_damage_rate and (state.incoming_damage_rate * 0.05) or 1
+            
+            return damage_rage
         end,
     },
     
     -- Mortal Strike rage generation (MoP: generates 10 rage instead of costing rage)
     mortal_strike_regen = {
-        channel = "mortal_strike",
         last = function ()
             return state.last_cast_time.mortal_strike or 0
         end,
-        interval = 1,
+        interval = 6, -- Mortal Strike cooldown
         value = function()
-            return 10 -- Mortal Strike generates 10 rage in MoP
+            return state.last_ability == "mortal_strike" and 10 or 0
         end,
     },
     
-    -- Berserker Rage rage generation
+    -- Berserker Rage rage generation (improved)
     berserker_rage = {
         aura = "berserker_rage",
         last = function ()
@@ -195,7 +178,7 @@ spec:RegisterResource( ResourceInfo.rage, {
         end,
     },
     
-    -- Deadly Calm rage efficiency
+    -- Deadly Calm rage efficiency (effectively rage generation)
     deadly_calm = {
         aura = "deadly_calm",
         last = function ()
@@ -205,44 +188,33 @@ spec:RegisterResource( ResourceInfo.rage, {
         end,
         interval = 1,
         value = function()
-            return state.buff.deadly_calm.up and 10 or 0 -- Abilities cost no rage during Deadly Calm
+            -- Abilities cost no rage during Deadly Calm (effective rage generation)
+            return state.buff.deadly_calm.up and 15 or 0
         end,
     },
     
     -- Charge rage generation (MoP: Juggernaut talent gives 15 rage per charge)
     charge_rage = {
-        channel = "charge",
         last = function ()
             return state.last_cast_time.charge or 0
         end,
-        interval = 1,
+        interval = 20, -- Charge cooldown
         value = function()
-            return state.talent.juggernaut.enabled and 15 or 0
+            return state.last_ability == "charge" and state.talent.juggernaut.enabled and 15 or 0
         end,
     },
-}, {
-    -- Enhanced base rage generation with MoP stance mechanics
-    base_regen = function ()
-        local base = 0
-        local weapon_bonus = 0
-        
-        -- Weapon speed affects rage generation from auto attacks
-        local weapon_speed = state.main_hand.speed or 2.6
-        weapon_bonus = state.combat and (3.5 / weapon_speed) * 2.5 or 0
-        
-        -- Stance-specific rage generation is handled above in individual auras
-        return base + weapon_bonus
-    end,
     
-    -- Unbridled Wrath rage generation
-    unbridled_wrath = function ()
-        return state.talent.unbridled_wrath.enabled and 1 or 0 -- Random rage generation from melee hits
-    end,
-    
-    -- Anger Management rage efficiency
-    anger_management = function ()
-        return state.talent.anger_management.enabled and 0.5 or 0 -- Slight rage efficiency bonus
-    end,
+    -- Victory Rush/Impending Victory rage generation
+    victory_rush_rage = {
+        last = function ()
+            return state.last_cast_time.victory_rush or state.last_cast_time.impending_victory or 0
+        end,
+        interval = 1,
+        value = function()
+            local last_victory = state.last_ability == "victory_rush" or state.last_ability == "impending_victory"
+            return last_victory and 5 or 0 -- 5 rage from Victory Rush abilities
+        end,
+    },
 } )
 
 -- Tier sets
@@ -334,39 +306,36 @@ spec:RegisterGear( "gorehowl", 105531, {
 -- Comprehensive Talent System (MoP Talent Trees)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Mobility
-    juggernaut                 = { 2047, 1, 103156 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and generates 15 Rage.
-    double_time                = { 2048, 1, 103827 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and no longer generates Rage.
-    warbringer                 = { 2049, 1, 103828 }, -- Charge also roots the target for 4 sec, and Hamstring generates more Rage.
+    juggernaut                 = { 1, 1, 103826 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and generates 15 Rage.
+    double_time                = { 1, 2, 103827 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and no longer generates Rage.
+    warbringer                 = { 1, 3, 103828 }, -- Charge also roots the target for 4 sec, and Hamstring generates more Rage.
 
     -- Tier 2 (Level 30) - Healing/Survival
-    second_wind                = { 2050, 1, 29838 },  -- While below 35% health, you regenerate 3% of your maximum health every 1 sec.
-    enraged_regeneration       = { 2051, 1, 55694 },  -- Instantly heals you for 10% of your total health and regenerates an additional 10% over 5 sec.
-    impending_victory          = { 2052, 1, 103840 }, -- Instantly attack the target causing damage and healing you for 10% of your maximum health.
+    second_wind                = { 2, 1, 29838 },  -- While below 35% health, you regenerate 3% of your maximum health every 1 sec.
+    enraged_regeneration       = { 2, 2, 55694 },  -- Instantly heals you for 10% of your total health and regenerates an additional 10% over 5 sec.
+    impending_victory          = { 2, 3, 103840 }, -- Instantly attack the target causing damage and healing you for 10% of your maximum health.
 
     -- Tier 3 (Level 45) - Utility
-    staggering_shout           = { 2053, 1, 107566 }, -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec.
-    piercing_howl              = { 2054, 1, 12323 },  -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec.
-    disrupting_shout           = { 2055, 1, 102060 }, -- Interrupts all enemy spell casts and prevents any spell in that school from being cast for 4 sec.
+    staggering_shout           = { 3, 1, 107566 }, -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec.
+    piercing_howl              = { 3, 2, 12323 },  -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec.
+    disrupting_shout           = { 3, 3, 102060 }, -- Interrupts all enemy spell casts and prevents any spell in that school from being cast for 4 sec.
 
     -- Tier 4 (Level 60) - Survivability
-    bladestorm                 = { 2056, 1, 46924 },  -- Become a whirling maelstrom of steel, striking all nearby enemies for weapon damage over 6 sec.
-    shockwave                  = { 2057, 1, 46968 },  -- Sends a wave through the ground, causing damage and stunning all enemies within 10 yards for 4 sec.
-    dragon_roar                = { 2058, 1, 118000 }, -- Roar with the fury of a dragon, dealing damage to all enemies within 8 yards.
+    bladestorm                 = { 4, 1, 46924 },  -- Become a whirling maelstrom of steel, striking all nearby enemies for weapon damage over 6 sec.
+    shockwave                  = { 4, 2, 46968 },  -- Sends a wave through the ground, causing damage and stunning all enemies within 10 yards for 4 sec.
+    dragon_roar                = { 4, 3, 118000 }, -- Roar with the fury of a dragon, dealing damage to all enemies within 8 yards.
 
     -- Tier 5 (Level 75) - Berserker Powers
-    mass_spell_reflection      = { 2059, 1, 114028 }, -- Reflects the next spell cast on you or your party members back at its caster.
-    safeguard                  = { 2060, 1, 114029 }, -- Intervene now removes all movement impairing effects and provides 30% damage reduction.
-    vigilance                  = { 2061, 1, 114030 }, -- Focus your protective instincts on a party member, reducing their damage taken by 30%.
+    mass_spell_reflection      = { 5, 1, 114028 }, -- Reflects the next spell cast on you or your party members back at its caster.
+    safeguard                  = { 5, 2, 114029 }, -- Intervene now removes all movement impairing effects and provides 30% damage reduction.
+    vigilance                  = { 5, 3, 114030 }, -- Focus your protective instincts on a party member, reducing their damage taken by 30%.
 
     -- Tier 6 (Level 90) - Ultimate Abilities
-    avatar                     = { 2062, 1, 107574 }, -- Transform into a colossus for 24 sec, becoming immune to movement effects and increasing damage by 20%.
-    bloodbath                  = { 2063, 1, 12292 },  -- Your attacks trigger a bleeding DoT that lasts 1 min and stacks up to 3 times.
-    storm_bolt                 = { 2064, 1, 107570 }  -- Hurl your weapon at an enemy, causing damage and stunning for 4 sec. 1.5 sec cast, 30 sec cooldown.
+    avatar                     = { 6, 1, 107574 }, -- Transform into a colossus for 24 sec, becoming immune to movement effects and increasing damage by 20%.
+    bloodbath                  = { 6, 2, 12292 },  -- Your attacks trigger a bleeding DoT that lasts 1 min and stacks up to 3
 } )
 
--- Enhanced Glyphs System for Arms Warrior (following Hunter Survival comprehensiveness)
--- Note: RegisterGlyphs method not available in MoP, glyphs handled differently
---[[
+
 spec:RegisterGlyphs( {
     -- Major Glyphs (affecting DPS and mechanics)
     [58095] = "Glyph of Berserker Rage",      -- Berserker Rage increases movement speed by 50% for its duration.
@@ -410,8 +379,7 @@ spec:RegisterGlyphs( {
     [58132] = "Glyph of Thunder Strike",      -- Your weapon attacks create lightning effects.
     [58133] = "Glyph of the Weaponmaster",    -- Your weapons appear to be of exceptional quality.
     [58134] = "Glyph of Intimidation",        -- Your character appears more menacing.
-} )
---]]
+} )--]]
 
 -- Arms Warrior specific auras
 spec:RegisterAuras( {
@@ -429,6 +397,23 @@ spec:RegisterAuras( {
         id = 86346,
         duration = 6,
         max_stack = 1,
+        generate = function( t )
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 86346 )
+            
+            if name then
+                t.name = name
+                t.count = count or 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
+                return
+            end
+            
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end
     },
     mortal_strike_debuff = {
         id = 12294,
@@ -605,18 +590,23 @@ spec:RegisterAuras( {
         tick_time = 3,  -- WoW Sims: 3 second intervals
         max_stack = 1,
     },
+    -- Arms signature: Colossus Smash damage window
+    colossus_smash_window = {
+        id = 86346, -- Same spell ID, but this is the player buff for damage calculations
+        duration = 6,
+        max_stack = 1,
+    },
 } )
 
 -- Advanced Aura System with Generate Functions (following Hunter Survival pattern)
 spec:RegisterAuras( {
     -- Arms-specific Auras
-    colossus_smash = {
-        id = 86346,
-        duration = 6,
+    mortal_strike = {
+        id = 12294,
+        duration = 10,
         max_stack = 1,
         generate = function( t )
-            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuff( "target", 86346, "PLAYER" )
-            
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 12294 )
             if name then
                 t.name = name
                 t.count = count or 1
@@ -633,41 +623,19 @@ spec:RegisterAuras( {
         end
     },
     
-    mortal_strike = {
-        id = 12294,
-        duration = 10,
-        max_stack = 1,
-        generate = function( t )
-            local debuff = GetTargetDebuffByID(12294, "PLAYER")
-            if debuff then
-                t.name = debuff.name
-                t.count = debuff.count
-                t.expires = debuff.expires
-                t.applied = debuff.applied
-                t.caster = debuff.caster
-                return
-            end
-            
-            t.count = 0
-            t.expires = 0
-            t.applied = 0
-            t.caster = "nobody"
-        end
-    },
-    
     rend = {
         id = 94009,
         duration = 15,
         tick_time = 3,
         max_stack = 1,
         generate = function( t )
-            local debuff = GetTargetDebuffByID(94009, "PLAYER")
-            if debuff then
-                t.name = debuff.name
-                t.count = debuff.count
-                t.expires = debuff.expires
-                t.applied = debuff.applied
-                t.caster = debuff.caster
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 94009 )
+            if name then
+                t.name = name
+                t.count = count or 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
                 return
             end
             
@@ -684,13 +652,13 @@ spec:RegisterAuras( {
         tick_time = 3,
         max_stack = 1,
         generate = function( t )
-            local debuff = GetTargetDebuffByID(115767, "PLAYER")
-            if debuff then
-                t.name = debuff.name
-                t.count = debuff.count
-                t.expires = debuff.expires
-                t.applied = debuff.applied
-                t.caster = debuff.caster
+            local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID( "target", 115767 )
+            if name then
+                t.name = name
+                t.count = count or 1
+                t.expires = expirationTime
+                t.applied = expirationTime - duration
+                t.caster = caster
                 return
             end
             
@@ -699,6 +667,71 @@ spec:RegisterAuras( {
             t.applied = 0
             t.caster = "nobody"
         end
+    },
+    
+    -- Missing auras referenced in action lists
+    mortal_wound = {
+        id = 12294,
+        duration = 10,
+        max_stack = 1,
+    },
+    
+    sudden_execute = {
+        id = 52437,
+        duration = 10,
+        max_stack = 1,
+    },
+    
+    charge = {
+        id = 100,
+        duration = 1,
+        max_stack = 1,
+    },
+    
+    fear = {
+        id = 5246,
+        duration = 8,
+        max_stack = 1,
+    },
+    
+    victory_rush = {
+        id = 34428,
+        duration = 0,
+        max_stack = 1,
+    },
+    
+    blood_pact = {
+        id = 6307,
+        duration = 3600,
+        max_stack = 1,
+    },
+    
+    expose_armor = {
+        id = 8647,
+        duration = 30,
+        max_stack = 5,
+    },
+    
+    horn_of_winter = {
+        id = 57330,
+        duration = 300,
+        max_stack = 1,
+    },
+    
+    sunder_armor = {
+        id = 7386,
+        duration = 30,
+        max_stack = 5,
+    },
+    
+    -- Casting buff for spell reflection
+    casting = {
+        duration = function () return haste end,
+        max_stack = 1,
+        generate = function ()
+            -- This is handled by the game's casting system
+            return nil
+        end,
     },
     
     taste_for_blood = {
@@ -1030,6 +1063,7 @@ spec:RegisterAuras( {
         duration = 300,
         max_stack = 1
     },
+    
 } )
 
 -- MoP Stance System - Abilities no longer require specific stances
@@ -1102,17 +1136,23 @@ spec:RegisterAbilities( {
         cooldown = 20,
         gcd = "spell",
         
-        spend = 20,  -- WoW Sims: 20 rage cost
+        spend = 20,  -- MoP: 20 rage cost
         spendType = "rage",
         
         startsCombat = true,
         texture = 464973,
         
         handler = function()
-            applyDebuff( "target", "colossus_smash" )
+            -- Apply the signature Colossus Smash debuff (6 seconds, ignores armor)
+            applyDebuff( "target", "colossus_smash", 6 )
+            
+            -- MoP: Colossus Smash provides a damage window
             if glyph.colossus_smash.enabled then
-                applyBuff( "enrage" )
+                applyBuff( "berserker_stance", 15 ) -- Glyph grants Berserker Stance benefits
             end
+            
+            -- Arms signature: Enhanced damage during Colossus Smash window
+            applyBuff( "colossus_smash_window", 6 ) -- Player buff for damage calculations
         end,
     },    execute = {
         id = 5308,
@@ -1211,14 +1251,32 @@ spec:RegisterAbilities( {
         cooldown = 0,
         gcd = "spell",
         
-        spend = 0,
+        spend = function() 
+            -- MoP: Battle Shout generates rage when used
+            return -10 
+        end,
         spendType = "rage",
         
         startsCombat = false,
         texture = 132333,
         
         handler = function()
-            applyBuff( "battle_shout" )
+            -- Apply Battle Shout buff (increases attack power)
+            applyBuff( "battle_shout", 300 ) -- 5 minute duration in MoP
+            
+            -- MoP: Battle Shout generates rage
+            gain( 10, "rage" )
+            
+            -- Glyph of Battle: Additional health bonus
+            if glyph.battle.enabled then
+                applyBuff( "battle_shout_health", 3600 ) -- 1 hour health bonus
+            end
+            
+            -- Improved shouts from talents would affect party/raid here
+            if talent.commanding_presence.enabled then
+                -- Enhanced buff duration and effects
+                buff.battle_shout.duration = 450 -- 7.5 minutes with talent
+            end
         end,
     },
     
@@ -1228,14 +1286,32 @@ spec:RegisterAbilities( {
         cooldown = 0,
         gcd = "spell",
         
-        spend = 0,
+        spend = function()
+            -- MoP: Commanding Shout also generates rage when used
+            return -10
+        end,
         spendType = "rage",
         
         startsCombat = false,
         texture = 132351,
         
         handler = function()
-            applyBuff( "commanding_shout" )
+            -- Apply Commanding Shout buff (increases stamina)
+            applyBuff( "commanding_shout", 300 ) -- 5 minute duration in MoP
+            
+            -- MoP: Commanding Shout generates rage
+            gain( 10, "rage" )
+            
+            -- Enhanced effects with talents
+            if talent.commanding_presence.enabled then
+                buff.commanding_shout.duration = 450 -- 7.5 minutes with talent
+            end
+            
+            -- Glyph of Rallying Cry synergy
+            if glyph.rallying_cry.enabled then
+                -- Commanding Shout provides additional health benefit
+                applyBuff( "commanding_shout_health", 300 )
+            end
         end,
     },
       sweeping_strikes = {
@@ -1730,6 +1806,117 @@ spec:RegisterAbilities( {
             applyDebuff( "target", "deep_wounds" )
         end,
     },
+    
+    -- Missing abilities referenced in action lists
+    heroic_throw = {
+        id = 57755,
+        cast = 0,
+        cooldown = 0,
+        gcd = "spell",
+        school = "physical",
+        startsCombat = true,
+        handler = function()
+            -- Ranged attack
+        end,
+    },
+    
+    auto_attack = {
+        id = 6603,
+        cast = 0,
+        cooldown = 0,
+        gcd = "off",
+        school = "physical",
+        startsCombat = true,
+        handler = function()
+            -- Auto attack handled by game
+        end,
+    },
+    
+    -- Stance switching abilities (core MoP mechanic)
+    battle_stance = {
+        id = 2457,
+        cast = 0,
+        cooldown = 1.5, -- MoP: 1.5 second GCD for stance switching
+        gcd = "spell",
+        
+        spend = 0,
+        spendType = "rage",
+        
+        startsCombat = false,
+        texture = 132349,
+        
+        usable = function() return not buff.battle_stance.up end,
+        
+        handler = function()
+            -- Remove other stances
+            removeBuff( "defensive_stance" )
+            removeBuff( "berserker_stance" )
+            
+            -- Apply Battle Stance
+            applyBuff( "battle_stance" )
+            
+            -- MoP: Stance switching incurs rage loss
+            local rage_loss = rage.current * 0.25 -- Lose 25% of current rage
+            spend( rage_loss, "rage" )
+        end,
+    },
+    
+    defensive_stance = {
+        id = 71,
+        cast = 0,
+        cooldown = 1.5,
+        gcd = "spell",
+        
+        spend = 0,
+        spendType = "rage",
+        
+        startsCombat = false,
+        texture = 132341,
+        
+        usable = function() return not buff.defensive_stance.up end,
+        
+        handler = function()
+            -- Remove other stances
+            removeBuff( "battle_stance" )
+            removeBuff( "berserker_stance" )
+            
+            -- Apply Defensive Stance
+            applyBuff( "defensive_stance" )
+            
+            -- MoP: Stance switching incurs rage loss
+            local rage_loss = rage.current * 0.25
+            spend( rage_loss, "rage" )
+        end,
+    },
+    
+    berserker_stance = {
+        id = 2458,
+        cast = 0,
+        cooldown = 1.5,
+        gcd = "spell",
+        
+        spend = 0,
+        spendType = "rage",
+        
+        startsCombat = false,
+        texture = 132275,
+        
+        usable = function() return not buff.berserker_stance.up end,
+        
+        handler = function()
+            -- Remove other stances
+            removeBuff( "battle_stance" )
+            removeBuff( "defensive_stance" )
+            
+            -- Apply Berserker Stance
+            applyBuff( "berserker_stance" )
+            
+            -- MoP: Stance switching incurs rage loss
+            local rage_loss = rage.current * 0.25
+            spend( rage_loss, "rage" )
+        end,
+    },
+    
 } )
 
 -- Range
@@ -1754,6 +1941,117 @@ spec:RegisterOptions( {
     package = "Arms",
 } )
 
-spec:RegisterPack( "Arms", 20250515, [[Hekili:TznBVTTnu4FlXjHjMjENnWUYJaUcMLf8KvAm7nYjPPQonGwX2jzlkiuQumzkaLRQiQOeH9an1Y0YnpYoWgwlYFltwGtRJ(aiCN9tobHNVH)8TCgF)(5ElyJlFNlcDnPXD5A8j0)(MNZajDa3aNjp2QphnPtoKvyF)GcKKOzjI08QjnOVOCXMj3nE)waT58Pw(aFm0P)MM]] )
+local NewFeature = "|TInterface\\OptionsFrame\\UI-OptionsFrame-NewFeatureIcon:0|t"
 
--- Register pack selector for Arms
+spec:RegisterSetting( "spell_reflection_filter", true, {
+    name = format( "%s Filter M+ |T132361:0|t Spell Reflection", NewFeature ),
+    desc = "If checked, then the addon will only suggest |T132361:0|t Spell Reflection on reflectable spells that target the player.",
+    type = "toggle",
+    width = "full",
+} )
+
+-- State Expressions for MoP Arms Warrior
+spec:RegisterStateExpr( "rage_deficit", function()
+    return (rage.max or 100) - (rage.current or 0)
+end )
+
+spec:RegisterStateExpr( "current_rage", function()
+    return rage.current or 0
+end )
+
+spec:RegisterStateExpr( "rage_time_to_max", function()
+    return rage.time_to_max
+end )
+
+spec:RegisterStateExpr( "rage_per_second", function()
+    return rage.per_second
+end )
+
+spec:RegisterStateExpr( "should_use_execute", function()
+    return target.health_pct <= 20
+end )
+
+spec:RegisterStateExpr( "colossus_smash_remains", function()
+    return debuff.colossus_smash.remains
+end )
+
+spec:RegisterStateExpr( "mortal_strike_remains", function()
+    return cooldown.mortal_strike.remains
+end )
+
+spec:RegisterStateExpr( "overpower_charges", function()
+    return buff.taste_for_blood.stack or 0
+end )
+
+spec:RegisterStateExpr( "sweeping_strikes_active", function()
+    return buff.sweeping_strikes.up
+end )
+
+spec:RegisterStateExpr( "deep_wounds_remains", function()
+    return debuff.deep_wounds.remains
+end )
+
+spec:RegisterStateExpr( "active_enemies", function()
+    return active_enemies or 1
+end )
+
+spec:RegisterStateExpr( "incoming_damage_3s", function()
+    return damage.incoming_damage_3s or 0
+end )
+
+spec:RegisterStateExpr( "movement_distance", function()
+    return movement.distance or 0
+end )
+
+spec:RegisterStateExpr( "movement_moving", function()
+    return movement.moving or false
+end )
+
+spec:RegisterStateExpr( "target_time_to_die", function()
+    return target.time_to_die or 0
+end )
+
+spec:RegisterStateExpr( "target_health_pct", function()
+    return target.health_pct or 100
+end )
+
+spec:RegisterStateExpr( "health_pct", function()
+    return health.pct or 100
+end )
+
+spec:RegisterStateExpr( "target_casting", function()
+    return target.casting or false
+end )
+
+spec:RegisterStateExpr( "target_cast_interruptible", function()
+    return target.cast_interruptible or false
+end )
+
+spec:RegisterStateExpr( "tank", function()
+    -- Return tank information for group scenarios
+    return {
+        health = {
+            pct = function()
+                -- Find the tank in the group/raid
+                local tank = nil
+                if IsInGroup() then
+                    for i = 1, GetNumGroupMembers() do
+                        local unit = IsInRaid() and "raid" .. i or "party" .. i
+                        if UnitExists(unit) and UnitGroupRolesAssigned(unit) == "TANK" then
+                            tank = unit
+                            break
+                        end
+                    end
+                end
+                
+                if tank then
+                    return UnitHealth(tank) / UnitHealthMax(tank) * 100
+                end
+                return 100 -- Default if no tank found
+            end
+        }
+    }
+end )
+
+spec:RegisterPack( "Arms", 20250721, [[Hekili:vZXFZPnY1plEUPKKR(OagC8DJXZqCijKgdEmK7A7FGqGwmQwiPkjmN74Hp7992vR0UR2vsKKj31RZ1dK299E773V3(mZBpF28Po2jK5J70QtVwVUt7MD60d(N5ttEkKmFAO9QhSVh(GV9w4)pHeNGp8jVaBhCZXb7IwbVy(0L7C9sg5pFPEi2bwBiz18XVU98PBCDCiSLsIxnF6SnUXhwG)R9HfPO8WIG1W3xL4g4FyHNBCc861brhw8bYdUEUnNpL(qKkSdiwrbj24AHVpMEUi(2l9ioZFd8EkuakypHe66FVvCsK7dKyg(JCdzVUFX)5WIbV9xhm(6HVf(0KHhwC3KzdMnAY4dl(TrZ(WHfVD4WBHpp5ZJF70dlU9UrtUB0S)5HfAG18PaQsirU2ZNEYHfl3TEDtvkQ5UWdlAWo3psSi(KTUe4GFfqjDMNaCvLJMeiDcsA6aa0AFWoFN4MjUREaaUriEg9nj2Ee)KMl9ccCSS9DSs2a7Me1KJMm(x6lSw5zhIeZzgjghc94TkWlioExSv8w74nnJiBTD9bKFjCA0svxcu155iuE)ik7AeLhf)eXt3C8Snic4cPBcrtpdAql9SbvMKGOTk6odcaLJ3AVLQ5oyjOGM4Iky50Nobqxzbah2zCEGso34bUsjQtK99b(GLHTgzPWlr086Jcnm6wvDtu821SwZf1gvxMHktcxbvfpI9Juz3pBY63ZwRuBk88dl27MSb(CkkGpXWXHfXp5tIU)PVyvnQPl9nruLd637HeA7whP9tjy4SIyq(GJ4ZKFrYVtwTd8zRH58oxF34nKO4IN)DOtClhIDIrkdfGNrrTz)wMf6StdOmDrRCAn4rsuyWEcvRTTzpq6ys9uysNja39BCJ8276tn6AB2ntgrHFO5w7F)WIFcHKzjJG3d7KepIv8MGDjZX)hNZBfUXoMuwOlfpH1iW1W)XWR)8mqeE7hgmf(ptUD2OBg9VsJE9YoT(la967a2weVG9VQYqw1WLE1bOyWi1Dl1Tbv155N1)orOFwjURp2arPQR61e4wd1iAdZeiDdCOQ7vgoicOsnIJQghsLTBPNmnhJOMh)o9Kn4Kqe39H5qeuCKzy2mobsHlZXhkBR2s2CqbrHKr(RtWEFTSg1GbAmKfL9GNUa3vqgqrb7zwOoK1278s0zBwTn4ndgnUyoJdh)H0ukVzcK84NM8(rxBW8Jtx27scSaVhaJTCJSe3TWPcqDlgNFlWL3stgasw22FfYkbXGGJLn2r3R1iIVIWDB3s8uoUJ8begTleZkN6fz4wikjXF1tq6p0nkfXibrcMTatD0oobICcwfaosZyr37D5iXfOPYTh)gGa66aNuRcc8q9PMSdoceNNKYRYnMUhm2p6kxtYvkROCd8VmApIS2JSkbHNGTAiXZZk9v4t04DqsoonvP4gBFWEa1usRY6oQ5X7Hqzr2PAksMoa5S2DLBcvFQBloZJsIlH8firpa58X054oCorqFe(aCkq9VGai0xASrHtcDN687OScb6AdX2dsgje5BGH9RzuLR)QGTOOWHMEU1zXuAoDX0i4)iyV0SJaXWpa6CnvB8RWvaggXpgZpiJRKJXSxQZPLKeBiZ5gKHAqiu3muJhuUTd3QdCNqRkoJkJ25BX(SfwVSi5Q33qpwH1wSk(5RrB(Qz(qSbLojKiabU5uS2uqlyfOWd70QKJIawKtK64Y4eJSwpSedQrqcCms9lib0o1dns9Zqx6O1IXNPsfZIKLjkljnZ04FqTuH1k(2K3m6t0(Dmymeo72jthHb6gn(9vMoj3PMOQx7kYGu3EUqYgJfntUWqJb4QGyywV3hfK79kgYJkhY0Ohpcc46fAQivNgpHwZV1YapnrsYFx9IHizjlML3HfNxAEoHreWnj4fUm1dPcyQH(XVn4oSJy)cOFC3ntPvkDZOPZGpn5DG6cO0m4UrdeZikpxP3agYGBn0LwYg4eer2haUKHhXpIXpfNq2MM)HnTNlqCAqE7FpAW93jW3UM9TFHxMp2Kr)G9yubemjP7omYDRDeSEN0w4KcUtbcMwSbVHaGcblKiIbK1cRGtryQqrK04Nm2(9zXppvBZfaVvOMwCEwhAnCm8WBVB41tU5ndMbqC4SpFlpbZPZqUPAjFAaHs5zSmRtISSV31c0UfIBZIRli(rBSQk3lfE2q0xBvybkBBbwFEsus2SkVuR1BLjoOysQX(H1K79ud5yRLU6lNITQLEqY3wHKWqiVMi3LX0ELgVb0Cc1LMIhjzJnnTzBhVNesLpm07jRWa3y8B(b(8fI2sHEysrudY84MLyqcgTp4rIJ9H)TogKtNC7hadWrxpygATD9KjF6Tt(TXyLkJh8(H3mC8SkvuQOraONgwThVml1vSQelOcghxwjxP1BAU60xvUU13hsixK9ODcRnPLfcjVl6lXwILUkkwEPje9nMKLO6msP8WtuGr8z50tDazQ1B5P1JVU84rcrDQGOfQRIAPybj1Svtjv5VuNnkFzGJv)hijTX2weKi(9CAZO0G3kQSkal)(lEfx2sHLOPyrij9wrPENwuHMKP7mgrZlT(AOy6DBXJACz1dLEu78N9JQKGPJUkSuuo1IoJ2i5mKWaEc0MUsa2DETEx0tksG7Sx5Ib91EtoM4OARrQgBt1aJfcOSAL03e6Uc2Q2rRS9rotueV6TJ1DAMZGmjRuFx5I2CC65E)MKyR)9oN7Zkz8y7m7rJ0L23BfS2cE7Qhsl0rUkTVTnvplr1PqroFcYXA2G7E)WzIjUQzJvFU)(1h9YU2ttTauZvNXsN(2i3GiAA3tttg)L3YtLw(2qF6vvZe00x6YJDLVYlY61s1Mz8gAB6sE1FDyz9DH6tEcV51IToRGNlD3rwXxiF5aAcUPav9DApN(LASU5U2N5e5CH(QRf2TnaBZDglROvfLgOgtFhQ2Xr5zTIQL14H)4G5XCt5FbE4Li)nbREyV9Jen16ZFLwV)LylY6v7B2565arqs1qFNRNNY92MBUK2AsDbrXC2QiEr1xNtj(9Z2CpL2JkidKckkFPPvF3SxjtxAVshEJXkj4aWmSw(eSpa37dICQt4H8Hf6TdF3WXth9R4idnC6TtgpD40kdnO2P6EM6unRqaLwLEERYJBOc9UgGExDaVN4fcUXL45yT32ZR8AIuGXzhD)4ZYSWooH21CNYJhO284Ev1cVi4m8eslRGualTGM6kBAZWjIGs6(RdbI9A75(FLAXHz)(6VzbTiHFqLV1O1efZkxFWQ31Xw(sQmhTqvw2tY4Lv)OJvejVJxsOt3ckp1)csTupw(pOEhb9Aj6G9r37D9O3VsbhSzVQ8igfuBfDMGVccbXA6BjXc0FxuuM1JURGyypzfTtjXeXxWCvTlHM7uz(PIztxLDeOrvhFuFEMyl7N(5BVDYDq(RdUgZETAFu5zyjIyHU7L(wYVhgetKFRHWnT7v3eElA20S0bMSc7nZEUKu(sdQxOFLsVNvkziGWk7KPz)xfrRslxLE3MGiFS2hw)lllOjvxAVDKpqhX482cmE3THq6)PDR(fs1m9cSB7)NDUr0UThGtuaoacBzx0yAd2BE4JFY1hEv7U)cOv5hVlebiUcgvaqvm27lGnqr86apVG90(GBVlcBaoK0a88D0(97Y73phi4nAHh4e(68dOu9oFPv74Glg8NzV0oM8lh(iTKyXQGGh9rnNCPBo84o5)8)3CWXhjpYmg4gPJ7YXXhABKpim3kViB59mUC1XxiFpNBEp0(9NVYxx7vErnwPwMe)MupoUK5J9F4AlS7i1WPn7MbpUJ7z1G7wLet8UsmknYUOKJJ(mR0k2VXCQSDhJBqPXxc7XmtqQVvgpBItcWXD8mRCZMu6ArKzdfRrcmVwQJJ8mZmfQU4f1qzkV0G64GPyEa1XftXCLRJYRUuEf46TmUrX0a)dXDawSq6hfPfdQaP5OECYFZwFIPv(IAOVOxK(DNNLN)x6detao9rYjSLfwo)8IC4rB5hXFwM0qM3CCsq3Gj6pD7U1rUpGdUrWAx8cW)b9tjWh)HVQ5Wa3(x7OyGW4730yGy7B5az8rtmwZV5hoYzZWiGyY)4MzXG)R9)BI52FQ76(NWQgtASnACI2Qh0cp1sueHjF0nsHNUIG0ctg))u2mA0NrggwPVDialQp8Ky9Rzn4K)HtXXWOV4SAyyXGDiBTLnXg63Ry(gNYMlJ(SlE(0Sb1O)k(CAuHgWrm83vj)rslptAXhZYCdfzyv19B98ZfMQZRUiLqRXmBlcA24ptbT5buUrDgSAbGQoz0FdaFJt0oX2nQyATfPk16o(YOkHjYoLJx7PRwIy0y7GeK4uxFv3wCt8IZADJtuMY6sGoF3icYBz1LVUvJITP9Q8MD(JTA2XmuZskubQzeTMrHoLJvRPBweZkZr7P4SV2NF(r8x0EONKbKYi0YaqwnfvIkP2hiO3iCS70QsOi1(fek4kY7Nv)2vcbXkfkcGR63P6dDEU8v4zRotrwvU0AMXIXtKqfxiXx6DKF15p)8ll2kXl70RHPlG7v6rlBUU(oIWSrYIPOOFIXA8YV5uJjYrAGUqAsOz(0rXOb(PlVOL(9lmtwChuxDElJKrdZZ5vQcN5bFspbajYBbjcS9uCMI6ZN1lKwmWd3f(8ZvmYtx25vnEjDVkZDKWo1nItx1PLb2SwQSZF2Os20sLPeuaSAv5sLBfgxQsu)PJBLzBoXmk1ORc(jp(9kpmuCv1l5dp1p11G(TsFDmJyQPs5tSKHtLyxG(kHFPUSp2)AGR09TuCpmKIefxPp1l7ygusNpA1i6N3PNFUKzD6YZmJG0VxMIe1X3v9pRvTGcRAj1)AGBO7Xhh5XOI2TkHmW5bPgNei8avPVuyLndhzhkL5bcGZZpxiMqLhGZAPLxWkV2eue7kEMnlkqkxrV6j0RsDBPSX(60Tvb13gD7U86lo6HWZmLvB9OQbbBLxaz7B2pTC2(MNPoZyZG9hFy7Au8HAS9ubADSaQ5UP6RNNQ5xakT5IqnJexjC4SHFRurLXrLZmKfg)Q6aAntmxjunFW2QdKlmGCz5yyEi3QRkjuaAX0yU68JrGk63tD1QDMJUHEzf9knGBMHIo)ExDrv(9(Y(DQQsxHILvIStLF0BOEWygAf)5WPbce91GQcxXFJGyEf1)tzvbqEwJKk(5RYiopAV6ki)Y(NBe2fCZxtE0L95U21)dkLreM)JhfInvUu3CUK6VXugHOIdbJm(s9euHyUiDA43ukmINjXi96mlcnGv2WexxKhxVF(NmBrK6GPMcyWiqtGudW0ORYIcJCyMFYY(TBYiIQkeQkh9mJqsYrzrbrbxNkBp7IM1Pv0ttY4QQ)688MvFhK(zbowvnV38Fz7v6ZK3XXCF54Fp9izX7BmVtKT7ODxcn1xzdxWVig(FN7A3F2Fy6AXzRg0XmRXj0HQu3(LZYOinuJ0lkYdYINPcVuX751pcN2HRUsXsE7nrVBkt3nsyfhXxLoE3RHqxDpVLbqlmad6GAxfO2veO9mb08XCaHPWoo7y6uVmmfh(zfOchvTkjY8Wc38ED4IT7vwEbsiO4CxOqMDlAy3PXjY3ot6KpBaf6gsdvoCVuJodd5SbiNnSXi4eyMnugHzmbrtJUSbqlmfYf0gmsn5ZXHYEEDAjkkJLCfwJvmgXvAnMo1iO9IWaqWY9JKgmsA(IZkMuzYI1LrF7E6qKE9voy1oBXLPQMdyD3GEQepnaEHRnNF7DItnSoqRgyteSk3UF6tlovW40)o))b]] )
+

@@ -1,60 +1,90 @@
-# Hunter Survival - MoP 
+# Hunter Survival - MoP
 
 # PRECOMBAT PREPARATION
 actions.precombat+=/aspect_of_the_cheetah,if=!buff.aspect_of_the_cheetah.up&!mounted&moving
-actions.precombat+=/aspect_of_the_hawk,if=!buff.aspect_of_the_hawk.up&!buff.aspect_of_the_cheetah.up
-actions.precombat+=/call_pet
+actions.precombat+=/aspect_of_the_hawk,if=!buff.aspect_of_the_hawk.up&!talent.aspect_of_the_iron_hawk.enabled
+actions.precombat+=/aspect_of_the_iron_hawk,if=!buff.aspect_of_the_hawk.up&!buff.aspect_of_the_iron_hawk.up&!moving
+actions.precombat+=/call_pet_1,if=!pet_alive
 actions.precombat+=/hunters_mark,if=(settings.mark_any|target.is_boss)&active_dot.hunters_mark=0&target.time_to_die>15
 
-# Hunter's Mark maintenance (important for damage)
-actions+=/hunters_mark,if=(settings.mark_any|target.is_boss)&active_dot.hunters_mark=0target.time_to_die>8
+# MAIN ROTATION PRIORITY LIST
+actions+=/call_action_list,name=cooldowns,if=time>=3
+# 1. AOE Rotation (3+ targets) - TOP PRIORITY
+actions+=/call_action_list,name=aoe,if=active_enemies>3
 
-# Aspect management
-actions+=/call_action_list,name=aspects
+# 2. Burst Phase (when Explosive Shot is ready and cooldowns available)
+actions+=/call_action_list,name=burst,if=buff.lock_and_load.up
 
-# Feign Death emergency
-actions+=/feign_death,if=health.pct<20
+# 3. MAIN ROTATION - Cast and maintain Serpent Sting
+actions+=/serpent_sting,if=!debuff.serpent_sting.up&target.time_to_die>15
 
-# Pause rotation conditions - halt for special situations
-actions+=/wait,sec=0.1,if=buff.drink.up|buff.food.up
+# 4. Explosive Shot (Lock and Load priority - cast all 3 free shots)
+actions+=/explosive_shot,if=buff.lock_and_load.up&lock_and_load_shots>0
 
-# Defensive and utility
+# 5. Explosive Shot (normal usage)
+actions+=/explosive_shot,if=focus>=40
+
+# 6. Kill Shot in execute range (20% health)
+actions+=/kill_shot,if=target.health.pct<=20
+
+# 7. A Murder of Crows (if talented)
+actions+=/a_murder_of_crows,if=talent.a_murder_of_crows.enabled&cooldown.a_murder_of_crows.ready&focus>=30
+
+# 8. Black Arrow (maintain)
+actions+=/black_arrow,if=!debuff.black_arrow.up&focus>=35&target.time_to_die>=8
+
+# 9. Glaive Toss (if talented)
+actions+=/glaive_toss,if=talent.glaive_toss.enabled&cooldown.glaive_toss.ready&focus>=15
+
+# 10. Arcane Shot (when focus >= 55 or Thrill of the Hunt is active)
+actions+=/arcane_shot,if=(focus>=55|buff.thrill_of_the_hunt.up)&target.time_to_die>6
+
+# 11. Optimal shot rotation using state expressions
+actions+=/cobra_shot,if=should_cobra_shot&focus>=14
+actions+=/steady_shot,if=should_steady_shot&focus>=14
+
+
+# 13. Defensive and Utility - BOTTOM PRIORITY
 actions+=/call_action_list,name=defensive
 
-# AoE branching
-actions+=/call_action_list,name=aoe,if=spell_targets.multi_shot>=3
+# 14. Aspect Management - BOTTOM PRIORITY
+actions+=/call_action_list,name=aspects
 
-# Cooldowns and major abilities
-actions+=/call_action_list,name=cooldowns
-
-# Core rotation
-actions+=/call_action_list,name=rotation
-
-
+# BURST PHASE (when Explosive Shot is ready and cooldowns available)
+actions.burst+=/explosive_shot,if=buff.lock_and_load.up&lock_and_load_shots>0
+actions.burst+=/stampede,if=cooldown.stampede.ready
+actions.burst+=/rapid_fire,if=cooldown.rapid_fire.ready
+actions.burst+=/kill_shot,if=target.health.pct<=20
+actions.burst+=/black_arrow,if=!debuff.black_arrow.up&focus>=35&target.time_to_die>=8
+actions.burst+=/arcane_shot,if=(focus>=55|buff.thrill_of_the_hunt.up)&target.time_to_die>6
+actions.burst+=/cobra_shot,if=should_cobra_shot&focus>=14
+actions.burst+=/steady_shot,if=should_steady_shot&focus>=14
 
 # ASPECT MANAGEMENT
-actions.aspects+=/aspect_of_the_hawk,if=!buff.aspect_of_the_hawk.up
+actions.aspects+=/aspect_of_the_hawk,if=!buff.aspect_of_the_hawk.up&!talent.aspect_of_the_iron_hawk.enabled
+actions.aspects+=/aspect_of_the_iron_hawk,if=!buff.aspect_of_the_hawk.up&!buff.aspect_of_the_iron_hawk.up
 
 # DEFENSIVE AND UTILITY
-actions.defensive+=/exhilaration,if=health.pct<50
+actions.defensive+=/exhilaration,if=talent.exhilaration.enabled&health.pct<50
 actions.defensive+=/healthstone,if=health.pct<40
 actions.defensive+=/misdirection,if=threat.situation>=2
-
-# Tranquilizing Shot for magic buffs/enrages
 actions.defensive+=/tranquilizing_shot,if=target.dispellable
-
+actions.defensive+=/silencing_shot,if=talent.silencing_shot.enabled&target.casting
+actions.defensive+=/wyvern_sting,if=talent.wyvern_sting.enabled&cooldown.wyvern_sting.ready&focus>=25
+actions.defensive+=/intimidation,if=talent.intimidation.enabled&cooldown.intimidation.ready&focus>=25
 
 # COOLDOWN MANAGEMENT
-# Major DPS cooldowns for special units only
 actions.cooldowns+=/rapid_fire,if=cooldown.rapid_fire.ready&!buff.rapid_fire.up&!bloodlust.up
 actions.cooldowns+=/stampede,if=(buff.rapid_fire.up|buff.bloodlust.up)&cooldown.stampede.ready
-actions.cooldowns+=/readiness,if=cooldown.rapid_fire.remains>2
+actions.cooldowns+=/lynx_rush,if=talent.lynx_rush.enabled&cooldown.lynx_rush.ready&focus>=25
+actions.cooldowns+=/dire_beast,if=talent.dire_beast.enabled&cooldown.dire_beast.ready&focus>=25
+actions.cooldowns+=/fervor,if=talent.fervor.enabled&cooldown.fervor.ready&focus<50
 
-# Trinkets for special units
+# Trinkets
 actions.cooldowns+=/use_item,slot=trinket1
 actions.cooldowns+=/use_item,slot=trinket2
 
-# Racial abilities during special encounters
+# Racial abilities
 actions.cooldowns+=/arcane_torrent,if=focus<35
 actions.cooldowns+=/berserking
 actions.cooldowns+=/blood_fury
@@ -62,57 +92,10 @@ actions.cooldowns+=/blood_fury
 # Agility potion during heroism/bloodlust
 actions.cooldowns+=/potion,name=virmens_bite,if=buff.bloodlust.up
 
-# TALENT ABILITIES
-# Tier 4 talents
-actions.cooldowns+=/fervor,if=talent.fervor.enabled&focus<=40&!buff.fervor.up
-actions.cooldowns+=/dire_beast,if=talent.dire_beast.enabled
-
-# Tier 5 talents  
-actions.cooldowns+=/a_murder_of_crows,if=talent.a_murder_of_crows.enabled&!debuff.a_murder_of_crows.up
-actions.cooldowns+=/blink_strike,if=talent.blink_strike.enabled
-actions.cooldowns+=/lynx_rush,if=talent.lynx_rush.enabled&!debuff.lynx_rush.up
-
-# Tier 6 talents
-actions.cooldowns+=/glaive_toss,if=talent.glaive_toss.enabled
-actions.cooldowns+=/powershot,if=talent.powershot.enabled
-actions.cooldowns+=/barrage,if=talent.barrage.enabled
-
 # AOE ROTATION (3+ TARGETS)
-actions.aoe+=/explosive_shot,if=buff.lock_and_load.up
-actions.aoe+=/barrage,if=talent.barrage.enabled&focus>=70
-actions.aoe+=/glaive_toss,if=talent.glaive_toss.enabled&focus>=70
-actions.aoe+=/multi_shot,if=focus>=70&spell_targets.multi_shot>=3
+actions.aoe+=/explosive_shot,if=buff.lock_and_load.up&lock_and_load_shots>0
 actions.aoe+=/serpent_sting,if=!debuff.serpent_sting.up&target.time_to_die>15
 actions.aoe+=/explosive_shot,if=focus>=40
 actions.aoe+=/multi_shot,if=focus>=50
-actions.aoe+=/cobra_shot,if=focus<35
-
-
-# CORE ROTATION 
-
-# Lock and Load Explosive Shot (HIGHEST priority when active)
-actions.rotation+=/explosive_shot,if=buff.lock_and_load.up
-
-# Serpent Sting application and refresh 
-actions.rotation+=/serpent_sting,if=!debuff.serpent_sting.up&target.time_to_die>15
-
-# Kill Shot in execute range (20% health)
-actions.rotation+=/kill_shot,if=target.health.pct<=20
-
-# Black Arrow for focus generation and DoT
-actions.rotation+=/black_arrow,if=!debuff.black_arrow.up&focus>=35
-
-# Explosive Shot priority (when not Lock and Load)
-actions.rotation+=/explosive_shot,if=!buff.lock_and_load.up&cooldown.explosive_shot.ready&focus>=40
-
-# Serpent Sting refresh with Cobra Shot
-actions.rotation+=/cobra_shot,if=debuff.serpent_sting.up&debuff.serpent_sting.remains<6&target.time_to_die>15
-
-# Arcane Shot for focus dump (improved conditions)
-actions.rotation+=/arcane_shot,if=(focus>=85|buff.thrill_of_the_hunt.up)&target.time_to_die>6
-
-# Cobra Shot for focus generation 
-actions.rotation+=/cobra_shot,if=focus<35&!buff.lock_and_load.up&!cooldown.explosive_shot.ready&!cooldown.black_arrow.ready
-
-# FINAL FILLER
-actions+=/cobra_shot,if=focus>=25
+actions.aoe+=/cobra_shot,if=should_cobra_shot&focus>=14
+actions.aoe+=/steady_shot,if=should_steady_shot&focus>=14

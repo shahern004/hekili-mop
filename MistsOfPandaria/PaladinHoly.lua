@@ -58,32 +58,33 @@ spec:RegisterGear( "tier15", 95290, 95292, 95288, 95291, 95289 ) -- T15 Holy Pal
 -- Talents (MoP 6-tier talent system)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Movement
-    speed_of_light            = { 2199, 1, 85499  }, -- +70% movement speed for 8 sec
-    long_arm_of_the_law       = { 2200, 1, 114158 }, -- Judgments increase movement speed by 45% for 3 sec
-    pursuit_of_justice        = { 2201, 1, 26023  }, -- +15% movement speed per Holy Power charge
+    speed_of_light            = { 1, 1, 85499 }, -- +70% movement speed for 8 sec
+    long_arm_of_the_law       = { 1, 2, 87172 }, -- Judgments increase movement speed by 45% for 3 sec
+    pursuit_of_justice        = { 1, 3, 26023 }, -- +15% movement speed per Holy Power charge
 
     -- Tier 2 (Level 30) - Control
-    fist_of_justice           = { 2202, 1, 105593 }, -- Reduces Hammer of Justice cooldown by 50%
-    repentance                = { 2203, 1, 20066  }, -- Incapacitates target for up to 1 min
-    blinding_light            = { 2204, 1, 115750 }, -- Blinds nearby enemies for 6 sec    -- Tier 3 (Level 45) - Healing
-    selfless_healer           = { 2205, 1, 85804  }, -- Holy Power reduces Flash of Light cast time and cost
-    eternal_flame             = { 2206, 1, 114163 }, -- Holy flame heals over 30 sec based on Holy Power
-    sacred_shield             = { 2207, 1, 20925  }, -- Absorb shield every 6 sec for 30 sec
+    fist_of_justice           = { 2, 1, 105593 }, -- Reduces Hammer of Justice cooldown by 50%
+    repentance                = { 2, 2, 20066 }, -- Incapacitates target for up to 1 min
+    blinding_light            = { 2, 3, 115750 }, -- Blinds nearby enemies for 6 sec   
+    -- Tier 3 (Level 45) - Healing
+    selfless_healer           = { 3, 1, 85804  }, -- Holy Power reduces Flash of Light cast time and cost
+    eternal_flame             = { 3, 2, 114163 }, -- Holy flame heals over 30 sec based on Holy Power
+    sacred_shield             = { 3, 3, 20925  }, -- Absorb shield every 6 sec for 30 sec
 
     -- Tier 4 (Level 60) - Utility
-    hand_of_purity            = { 2208, 1, 114039 }, -- Reduces periodic effects by 70% for 6 sec
-    unbreakable_spirit        = { 2209, 1, 114154 }, -- Reduces major cooldowns by 50%
-    clemency                  = { 2210, 1, 105622 }, -- +1 charge on Hand spells
+    hand_of_purity            = { 4, 1, 114039 }, -- Reduces periodic effects by 70% for 6 sec
+    unbreakable_spirit        = { 4, 2, 114154 }, -- Reduces major cooldowns by 50%
+    clemency                  = { 4, 3, 105622 }, -- +1 charge on Hand spells
 
     -- Tier 5 (Level 75) - Holy Power
-    divine_purpose            = { 2211, 1, 86172  }, -- 15% chance for free and improved Holy Power ability
-    holy_avenger              = { 2212, 1, 105809 }, -- Abilities generate 3 Holy Power for 18 sec
-    sanctified_wrath          = { 2213, 1, 53376  }, -- Holy Shock cooldown reduced by 50% during Avenging Wrath
+    divine_purpose            = { 5, 1, 86172  }, -- 15% chance for free and improved Holy Power ability
+    holy_avenger              = { 5, 2, 105809 }, -- Abilities generate 3 Holy Power for 18 sec
+    sanctified_wrath          = { 5, 3, 53376  }, -- Holy Shock cooldown reduced by 50% during Avenging Wrath
 
     -- Tier 6 (Level 90) - Ultimate
-    holy_prism                = { 2214, 1, 114165 }, -- Light beam splits to 5 targets
-    lights_hammer             = { 2215, 1, 114158 }, -- Hammer damages and heals for 14 sec
-    execution_sentence        = { 2216, 1, 114157 }  -- Hammer deals damage or healing after 10 sec
+    holy_prism                = { 6, 1, 114165 }, -- Light beam splits to 5 targets
+    lights_hammer             = { 6, 2, 114158 }, -- Hammer damages and heals for 14 sec
+    execution_sentence        = { 6, 3, 114157 }  -- Hammer deals damage or healing after 10 sec
 } )
 
 -- Holy-specific Glyphs

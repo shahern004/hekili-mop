@@ -1,11 +1,14 @@
-if not Hekili or not Hekili.NewSpecialization then return end
 -- HunterMarksmanship.lua
 -- Updated July 05, 2025 - by Smufrik
 
-if not Hekili or not Hekili.NewSpecialization then return end
+-- Early return if not a Hunter
 if select(2, UnitClass('player')) ~= 'HUNTER' then return end
+
 local addon, ns = ...
 local Hekili = _G[ "Hekili" ]
+
+-- Early return if Hekili is not available
+if not Hekili or not Hekili.NewSpecialization then return end
 local class = Hekili.Class
 local state = Hekili.State
 
@@ -67,84 +70,60 @@ local function RegisterMarksmanshipSpec()
 
 -- Enhanced Resource System for Marksmanship
 spec:RegisterResource( 2, { -- Focus = 2 in MoP
-    -- Steady Shot focus generation (Marksmanship signature focus builder)
+    -- Steady Shot focus generation (standard MoP cast time for all specs)
     steady_shot = {
-        aura = "steady_focus",
-        debuff = false,
-        
+        resource = "focus",
         last = function()
-            local app = state.buff.steady_focus.applied
+            local app = (state.last_cast_time and state.last_cast_time.steady_shot) or 0
             local t = state.query_time
-            return app + floor( ( t - app ) / 1.5 ) * 1.5
+            return app + floor( ( t - app ) / 2.0 ) * 2.0
         end,
-        
-        interval = function() return 1.5 / state.haste end,
+        interval = function() return 2.0 / state.haste end, -- Standard 2.0s cast time in MoP
         value = 14, -- Steady Shot generates 14 focus in MoP
     },
     
     -- Cobra Shot focus generation (alternative builder for MM)
     cobra_shot = {
-        aura = "cobra_shot_regen",
-        debuff = false,
-        
+        resource = "focus",
         last = function()
-            local app = state.buff.cobra_shot_regen.applied
+            local app = (state.last_cast_time and state.last_cast_time.cobra_shot) or 0
             local t = state.query_time
-            return app + floor( ( t - app ) / 1.5 ) * 1.5
+            return app + floor( ( t - app ) / 2.0 ) * 2.0
         end,
-        
-        interval = function() return 1.5 / state.haste end,
+        interval = function() return 2.0 / state.haste end,
         value = 14, -- Cobra Shot generates 14 focus in MoP
     },
     
     -- Dire Beast focus generation (if talented)
     dire_beast = {
+        resource = "focus",
         aura = "dire_beast",
-        debuff = false,
-        
         last = function()
             local app = state.buff.dire_beast.applied
             local t = state.query_time
             return app + floor( ( t - app ) / 2 ) * 2
         end,
-        
         interval = 2,
         value = 2, -- Dire Beast generates 2 focus every 2 seconds
     },
     
-    -- Rapid Recuperation focus regen (talent enhancement)
-    rapid_recuperation = {
-        aura = "rapid_recuperation",
-        debuff = false,
-        
+    -- Fervor talent focus restoration
+    fervor = {
+        resource = "focus",
+        aura = "fervor",
         last = function()
-            local app = state.buff.rapid_recuperation.applied
+            local app = state.buff.fervor.applied
             local t = state.query_time
-            return app + floor( ( t - app ) / 3 ) * 3
+            return app + floor( ( t - app ) / 1 ) * 1
         end,
-        
-        interval = 3,
-        value = function() return state.buff.rapid_recuperation.up and 6 or 0 end,
-    },
-    
-    -- Thrill of the Hunt proc focus
-    thrill_proc = {
-        aura = "thrill_of_the_hunt",
-        debuff = false,
-        
-        last = function()
-            return state.buff.thrill_of_the_hunt.applied
-        end,
-        
-        interval = 60,
-        value = function() return state.buff.thrill_of_the_hunt.up and 20 or 0 end,
+        interval = 1,
+        value = function() return state.buff.fervor.up and 50 or 0 end, -- Instant 50 focus
     },
 }, {
-    -- Base focus regeneration with haste scaling (MoP mechanic)
-    haste_scaling = true,
+    -- Enhanced base focus regeneration for MoP Marksmanship
     base_regen = 6, -- Base 6 focus per second in MoP
+    haste_scaling = true,
     
-    -- Enhanced focus regen calculation
     regenerates = function()
         local base = 6 * state.haste
         local bonus = 0
@@ -152,12 +131,18 @@ spec:RegisterResource( 2, { -- Focus = 2 in MoP
         -- Aspect bonuses
         if state.buff.aspect_of_the_iron_hawk.up then
             bonus = bonus + 0.3 -- 30% increased focus regen
+        elseif state.buff.aspect_of_the_hawk.up then
+            bonus = bonus + 0.15 -- 15% increased focus regen
         end
-          -- Talent bonuses (MoP proper talents only)
         
-        -- Rapid Fire bonus
+        -- Rapid Fire bonus (MM signature cooldown)
         if state.buff.rapid_fire.up then
             bonus = bonus + 0.5 -- 50% increased focus regen during Rapid Fire
+        end
+        
+        -- Steady Focus talent bonus (MM specific)
+        if state.buff.steady_focus.up then
+            bonus = bonus + 0.2 -- 20% increased focus regen with Steady Focus
         end
         
         return base * (1 + bonus)
@@ -201,34 +186,39 @@ spec:RegisterGear( "heroic_weapon", 87164, 87183, 89678 )
 -- Enhanced Talent System - MoP Complete Integration
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Movement/Escape Talents
-    posthaste              = { 109248, 109248, 1 }, -- Disengage also frees you from all movement impairing effects and increases your movement speed by 50% for 4 sec.
-    narrow_escape          = { 109259, 109259, 1 }, -- When you Disengage, you leave behind a web trap that snares all targets within 8 yards, reducing their movement speed by 70% for 8 sec.
-    crouching_tiger        = { 120679, 120679, 1 }, -- Reduces the cooldown of Disengage by 6 sec and reduces the cooldown of Deterrence by 10 sec.
+    posthaste              = { 1, 1, 109215 }, -- Disengage also frees you from all movement impairing effects and increases your movement speed by 50% for 4 sec.
+    narrow_escape          = { 1, 2, 109298 }, -- When you Disengage, you leave behind a web trap that snares all targets within 8 yards, reducing their movement speed by 70% for 8 sec.
+    crouching_tiger        = { 1, 3, 118675 }, -- Reduces the cooldown of Disengage by 6 sec and reduces the cooldown of Deterrence by 10 sec.
     
     -- Tier 2 (Level 30) - Crowd Control Talents
-    silencing_shot         = { 109297, 34490, 1 }, -- Silences the target, preventing any spellcasting for 3 sec.
-    wyvern_sting           = { 109304, 19386, 1 }, -- A stinging shot that puts the target to sleep for 30 sec. Any damage will cancel the effect. When the target wakes up, the Sting causes 2,345 Nature damage over 6 sec. Only one Sting can be active on the target at a time.
-    binding_shot           = { 109301, 109248, 1 }, -- Fires a magical projectile, tethering the enemy and any other enemies within 5 yds for 10 sec, stunning them for 5 sec if they move more than 5 yds from the arrow.
+    silencing_shot         = { 2, 1, 34490 }, -- Silences the target, preventing any spellcasting for 3 sec.
+    wyvern_sting           = { 2, 2, 19386 }, -- A stinging shot that puts the target to sleep for 30 sec. Any damage will cancel the effect. When the target wakes up, the Sting causes 2,345 Nature damage over 6 sec. Only one Sting can be active on the target at a time.
+    binding_shot           = { 2, 3, 109248 }, -- Fires a magical projectile, tethering the enemy and any other enemies within 5 yds for 10 sec, stunning them for 5 sec if they move more than 5 yds from the arrow.
     
     -- Tier 3 (Level 45) - Defensive/Utility Talents
-    exhilaration           = { 109298, 109304, 1 }, -- Instantly heals you and your pet for 22% of total health.
-    aspect_of_the_iron_hawk = { 109260, 109260, 1 }, -- You take 15% less damage and your Aspect of the Hawk increases attack power by an additional 10%.
-    spirit_bond            = { 120361, 117902, 1 }, -- You and your pet heal for 2% of total health every 10 sec. This effect persists for 10 sec after your pet dies.
+    exhilaration           = { 3, 1, 109304 }, -- Instantly heals you and your pet for 22% of total health.
+    aspect_of_the_iron_hawk = { 3, 2, 109260 }, -- You take 15% less damage and your Aspect of the Hawk increases attack power by an additional 10%.
+    spirit_bond            = { 3, 3, 117902 }, -- You and your pet heal for 2% of total health every 10 sec. This effect persists for 10 sec after your pet dies.
     
     -- Tier 4 (Level 60) - Pet Enhancement Talents
-    murder_of_crows        = { 131894, 131894, 1 }, -- Summons a murder of crows to attack your target over the next 30 sec. If your target dies while under attack, the cooldown on this ability will reset.
-    blink_strikes          = { 117050, 130392, 1 }, -- Your pet's Basic Attacks deal 50% more damage, have a 30 yard range, and instantly teleport your pet behind the target.
-    lynx_rush              = { 120697, 120697, 1 }, -- Commands your pet to attack your target 9 times over 4 sec for 115% normal damage.
+    murder_of_crows        = { 4, 1, 131894 }, -- Summons a murder of crows to attack your target over the next 30 sec. If your target dies while under attack, the cooldown on this ability will reset.
+    blink_strikes          = { 4, 2, 130392 }, -- Your pet's Basic Attacks deal 50% more damage, have a 30 yard range, and instantly teleport your pet behind the target.
+    lynx_rush              = { 4, 3, 120697 }, -- Commands your pet to attack your target 9 times over 4 sec for 115% normal damage.
     
     -- Tier 5 (Level 75) - Focus Management Talents
-    fervor                 = { 109306, 82726, 1 }, -- Instantly restores 50 Focus to you and your pet, and then an additional 50 Focus over 10 sec.
-    dire_beast             = { 120364, 120679, 1 }, -- Summons a powerful wild beast that attacks the target for 15 sec. Each time the beast deals damage, you gain 2 Focus.
-    thrill_of_the_hunt     = { 118455, 34720, 1 }, -- Your Arcane Shot and Multi-Shot have a 30% chance to instantly restore 20 Focus.
+    fervor                 = { 5, 1, 82726 }, -- Instantly restores 50 Focus to you and your pet, and then an additional 50 Focus over 10 sec.
+    dire_beast             = { 5, 2, 120679 }, -- Summons a powerful wild beast that attacks the target for 15 sec. Each time the beast deals damage, you gain 2 Focus.
+    thrill_of_the_hunt     = { 5, 3, 34720 }, -- Your Arcane Shot and Multi-Shot have a 30% chance to instantly restore 20 Focus.
     
     -- Tier 6 (Level 90) - AoE/Ranged Talents
-    glaive_toss            = { 109215, 109215, 1 }, -- Throw a glaive at your target and another nearby enemy within 10 yards for 7,750 to 8,750 damage, and reduce their movement speed by 70% for 3 sec.
-    powershot              = { 117049, 109259, 1 }, -- A powerful attack that deals 100% weapon damage to all targets in front of you, knocking them back.
-    barrage                = { 121818, 120360, 1 }, -- Rapidly fires a spray of shots for 3 sec, dealing 60% weapon damage to all enemies in front of you.
+    glaive_toss            = { 6, 1, 109215 }, -- Throw a glaive at your target and another nearby enemy within 10 yards for 7,750 to 8,750 damage, and reduce their movement speed by 70% for 3 sec.
+    powershot              = { 6, 2, 109259 }, -- A powerful attack that deals 100% weapon damage to all targets in front of you, knocking them back.
+    barrage                = { 6, 3, 120360 }, -- Rapidly fires a spray of shots for 3 sec, dealing 60% weapon damage to all enemies in front of you.
+    
+    -- Additional talents
+    piercing_shots         = { 7, 1, 82924 }, -- Your critical strikes have a chance to apply Piercing Shots, dealing damage over time.
+    lock_and_load          = { 7, 2, 56453 }, -- Your critical strikes have a chance to reset the cooldown on Aimed Shot.
+    careful_aim            = { 7, 3, 82926 }, -- After killing a target, your next 2 shots deal increased damage.
 } )
 
 -- Enhanced Glyphs System (MoP Complete)
@@ -386,6 +376,14 @@ spec:RegisterAuras( {
             t.applied = 0
             t.caster = "nobody"
         end,
+    },
+    
+    -- Fallback for lock_and_load if not properly registered
+    lock_and_load_fallback = {
+        id = 82914,
+        duration = 3600,
+        max_stack = 1,
+        copy = "lock_and_load" -- This ensures both names work
     },
     
     steady_focus = {
@@ -586,6 +584,12 @@ spec:RegisterAuras( {
         tick_time = 3,
         max_stack = 1,
     },
+
+    explosive_trap = {
+        id = 13813,
+        duration = 10,
+        max_stack = 1,
+    },
     
     concussive_shot = {
         id = 5116,
@@ -593,12 +597,7 @@ spec:RegisterAuras( {
         max_stack = 1,
     },
     
-    explosive_shot = {
-        id = 53301,
-        duration = 2,
-        tick_time = 1,
-        max_stack = 1,
-    },
+    -- explosive_shot aura removed - Survival-only ability in MoP
     
     wyvern_sting = {
         id = 19386,
@@ -633,6 +632,37 @@ spec:RegisterAuras( {
             t.applied = 0
             t.caster = "nobody"
         end
+    },
+
+    -- === TIER SET BONUSES ===
+    tier14_4pc = {
+        id = 123157,
+        duration = 10,
+        max_stack = 1,
+    },
+
+    tier15_2pc = {
+        id = 138368,
+        duration = 10,
+        max_stack = 1,
+    },
+
+    tier15_4pc = {
+        id = 138369,
+        duration = 10,
+        max_stack = 1,
+    },
+
+    tier16_2pc = {
+        id = 144659,
+        duration = 5,
+        max_stack = 1,
+    },
+
+    tier16_4pc = {
+        id = 144660,
+        duration = 5,
+        max_stack = 1,
     },
     
     call_pet = {
@@ -734,6 +764,70 @@ spec:RegisterAuras( {
             t.applied = 0
             t.caster = "nobody"
         end,
+    },
+    
+    -- === DEBUFFS ===
+    -- Marksmanship: Wing Clip (Debuff version)
+    wing_clip = {
+        id = 2974,
+        duration = 10,
+        max_stack = 1
+    },
+    
+    -- Marksmanship: Entrapment (Debuff version)
+    entrapment = {
+        id = 135373,
+        duration = 4,
+        mechanic = "root",
+        max_stack = 1
+    },
+
+    -- === PET ABILITY AURAS ===
+    -- Pet basic abilities
+    pet_dash = {
+        id = 61684,
+        duration = 16,
+        max_stack = 1,
+        generate = function( t )
+            if state.pet.alive then
+                t.count = 1
+                t.expires = 0
+                t.applied = 0
+                t.caster = "pet"
+                return
+            end
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    pet_prowl = {
+        id = 24450,
+        duration = 3600,
+        max_stack = 1,
+        generate = function( t )
+            if state.pet.alive and state.pet.family == "cat" then
+                t.count = 1
+                t.expires = 0
+                t.applied = 0
+                t.caster = "pet"
+                return
+            end
+            t.count = 0
+            t.expires = 0
+            t.applied = 0
+            t.caster = "nobody"
+        end,
+    },
+    
+    -- Pet debuffs on targets
+    growl = {
+        id = 2649,
+        duration = 3,
+        max_stack = 1,
+        type = "Taunt",
     },
 } )
 
@@ -859,7 +953,7 @@ spec:RegisterAbilities( {
     -- === FOCUS BUILDERS ===
     steady_shot = {
         id = 56641,
-        cast = function() return 1.5 / haste end,
+        cast = function() return 2.0 / haste end,
         cooldown = 0,
         gcd = "spell",
         school = "physical",
@@ -992,7 +1086,7 @@ spec:RegisterAbilities( {
         school = "physical",
         
         spend = function()
-            local cost = 40
+            local cost = 40 -- Standard MoP Multi-Shot cost
             if talent.improved_multi_shot.enabled then
                 cost = cost - (talent.improved_multi_shot.rank * 5) -- Reduces cost by 5/10/15
             end
@@ -1012,13 +1106,13 @@ spec:RegisterAbilities( {
         startsCombat = true,
         
         handler = function ()
-            -- Thrill of the Hunt proc chance
+            -- Thrill of the Hunt proc chance (30% chance in MoP)
             if talent.thrill_of_the_hunt.enabled and math.random() <= 0.3 then
-                gain( 20, "focus" )
-                addStack( "thrill_of_the_hunt" )
+                applyBuff( "thrill_of_the_hunt", 20 ) -- 20-second duration, not focus gain
             end
             
             -- Scattered Shots damage bonus per target (handled by talent system)
+            -- Multi-Shot hits all enemies within 8 yards of target
         end,
     },
     
@@ -1052,23 +1146,7 @@ spec:RegisterAbilities( {
         end,
     },
     
-    explosive_shot = {
-        id = 53301,
-        cast = 0,
-        cooldown = 30,
-        gcd = "spell",
-        school = "fire",
-        
-        spend = 40,
-        spendType = "focus",
-        
-        talent = "explosive_shot",
-        startsCombat = true,
-        
-        handler = function ()
-            applyDebuff( "target", "explosive_shot", 2 )
-        end,
-    },    
+    -- Explosive Shot removed - This is a Survival-only ability in MoP Classic    
     -- === TALENT ABILITIES ===
     -- Tier 4 (Level 60) Talents
     a_murder_of_crows = {
@@ -1077,15 +1155,11 @@ spec:RegisterAbilities( {
         cooldown = 120,
         gcd = "spell",
         school = "shadow",
-        
         spend = 60,
         spendType = "focus",
-        
         talent = "murder_of_crows",
         startsCombat = true,
-        
         toggle = "cooldowns",
-        
         handler = function ()
             applyDebuff( "target", "a_murder_of_crows", 30 )
             summonPet( "murder_of_crows", 30 )
@@ -1098,14 +1172,10 @@ spec:RegisterAbilities( {
         cooldown = 90,
         gcd = "spell",
         school = "physical",
-        
         talent = "lynx_rush",
         startsCombat = true,
-        
         toggle = "cooldowns",
-        
         usable = function() return pet.alive, "requires active pet" end,
-        
         handler = function ()
             applyBuff( "lynx_rush" )
         end,
@@ -1154,10 +1224,9 @@ spec:RegisterAbilities( {
         cooldown = 30,
         gcd = "spell",
         school = "nature",
-        
         talent = "dire_beast",
         startsCombat = true,
-        
+        toggle = "cooldowns",
         handler = function ()
             applyBuff( "dire_beast", 15 )
             summonPet( "dire_beast_cat", 15 )
@@ -1171,13 +1240,11 @@ spec:RegisterAbilities( {
         cooldown = 15,
         gcd = "spell",
         school = "physical",
-        
         spend = 15,
         spendType = "focus",
-        
         talent = "glaive_toss",
         startsCombat = true,
-        
+        toggle = "cooldowns",
         handler = function ()
             -- Hits primary target + 1 additional within 10 yards
         end,
@@ -1189,12 +1256,10 @@ spec:RegisterAbilities( {
         cooldown = 45,
         gcd = "spell",
         school = "physical",
-        
         talent = "powershot",
         startsCombat = true,
-        
+        toggle = "cooldowns",
         usable = function() return active_enemies > 2, "more effective with multiple targets" end,
-        
         handler = function ()
             -- AoE knockback effect
         end,
@@ -1206,15 +1271,12 @@ spec:RegisterAbilities( {
         cooldown = 30,
         gcd = "spell",
         school = "physical",
-        
         spend = 60,
         spendType = "focus",
-        
         talent = "barrage",
         startsCombat = true,
-        
+        toggle = "cooldowns",
         usable = function() return active_enemies > 3, "most effective with 4+ targets" end,
-        
         handler = function ()
             -- Channel for 3 seconds, AoE damage
         end,
@@ -1281,14 +1343,10 @@ spec:RegisterAbilities( {
         cooldown = 20,
         gcd = "off",
         school = "physical",
-        
         talent = "silencing_shot",
         startsCombat = true,
-        
         toggle = "interrupts",
-        
         usable = function() return target.casting, "target must be casting" end,
-        
         handler = function ()
             interrupt()
             applyDebuff( "target", "silencing_shot", 3 )
@@ -1301,10 +1359,9 @@ spec:RegisterAbilities( {
         cooldown = 45,
         gcd = "spell",
         school = "nature",
-        
         talent = "wyvern_sting",
         startsCombat = true,
-        
+        toggle = "interrupts",
         handler = function ()
             applyDebuff( "target", "wyvern_sting", 30 )
         end,
@@ -1316,10 +1373,9 @@ spec:RegisterAbilities( {
         cooldown = 45,
         gcd = "spell",
         school = "nature",
-        
         talent = "binding_shot",
         startsCombat = false,
-        
+        toggle = "interrupts",
         handler = function ()
             -- Tether effect not directly modeled
         end,
@@ -1350,24 +1406,12 @@ spec:RegisterAbilities( {
             end
             return cd
         end,
-        charges = 2,
-        recharge = function() 
-            local cd = 180
-            if talent.crouching_tiger.enabled then
-                cd = cd - 10
-            end
-            return cd
-        end,
         gcd = "off",
         school = "physical",
-        
-        toggle = "defensives",
-        defensive = true,
-        
         startsCombat = false,
-        
+        toggle = "defensives",
         handler = function ()
-            applyBuff( "deterrence", 5 )
+            applyBuff( "deterrence" )
         end,
     },
     
@@ -1423,11 +1467,10 @@ spec:RegisterAbilities( {
         cooldown = 30,
         gcd = "off",
         school = "physical",
-        
         startsCombat = false,
-        
+        toggle = "defensives",
         handler = function ()
-            applyBuff( "feign_death", 6 )
+            applyBuff( "feign_death" )
         end,
     },
     
@@ -1636,6 +1679,88 @@ spec:RegisterAbilities( {
             dismissPet()
         end,
     },
+
+    -- === BASIC PET ABILITIES ===
+    pet_growl = {
+        id = 2649,
+        cast = 0,
+        cooldown = 5,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = true,
+
+        usable = function() return pet.alive, "requires a living pet" end,
+
+        handler = function ()
+            -- Pet taunt - forces target to attack pet
+            applyDebuff( "target", "growl", 3 )
+        end,
+    },
+
+    pet_claw = {
+        id = 16827,
+        cast = 0,
+        cooldown = 6,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = true,
+
+        usable = function() return pet.alive and pet.family == "cat", "requires cat pet" end,
+
+        handler = function ()
+            -- Basic cat attack
+        end,
+    },
+
+    pet_bite = {
+        id = 17253,
+        cast = 0,
+        cooldown = 6,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = true,
+
+        usable = function() return pet.alive and (pet.family == "wolf" or pet.family == "dog"), "requires wolf or dog pet" end,
+
+        handler = function ()
+            -- Basic canine attack
+        end,
+    },
+
+    pet_dash = {
+        id = 61684,
+        cast = 0,
+        cooldown = 30,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = false,
+
+        usable = function() return pet.alive, "requires a living pet" end,
+
+        handler = function ()
+            applyBuff( "pet_dash", 16 )
+        end,
+    },
+
+    pet_prowl = {
+        id = 24450,
+        cast = 0,
+        cooldown = 0,
+        gcd = "off",
+        school = "physical",
+
+        startsCombat = false,
+
+        usable = function() return pet.alive and pet.family == "cat", "requires cat pet" end,
+
+        handler = function ()
+            applyBuff( "pet_prowl" )
+        end,
+    },
     
     -- === TRAPS ===
     freezing_trap = {
@@ -1800,7 +1925,7 @@ spec:RegisterAbilities( {
 
 -- Enhanced State Expressions for Marksmanship optimization
 spec:RegisterStateExpr( "current_focus", function()
-    return focus.current
+    return focus.current or 0
 end )
 
 spec:RegisterStateExpr( "focus_deficit", function()
@@ -1813,7 +1938,7 @@ spec:RegisterStateExpr( "focus_time_to_max", function()
     if buff.rapid_fire.up then regen_rate = regen_rate * 1.5 end
     if talent.improved_tracking.enabled then regen_rate = regen_rate * (1 + talent.improved_tracking.rank * 0.02) end
     
-    return math.max( 0, ( focus.max - focus.current ) / regen_rate )
+    return math.max( 0, ( (focus.max or 100) - (focus.current or 0) ) / regen_rate )
 end )
 
 spec:RegisterStateExpr( "master_marksman_ready", function()
@@ -1821,11 +1946,11 @@ spec:RegisterStateExpr( "master_marksman_ready", function()
 end )
 
 spec:RegisterStateExpr( "aimed_shot_ready", function()
-    return cooldown.aimed_shot.remains == 0 and (focus.current >= 50 or master_marksman_ready)
+    return cooldown.aimed_shot.remains == 0 and ((focus.current or 0) >= 50 or master_marksman_ready)
 end )
 
 spec:RegisterStateExpr( "chimera_shot_ready", function()
-    return cooldown.chimera_shot.remains == 0 and focus.current >= 35
+    return cooldown.chimera_shot.remains == 0 and (focus.current or 0) >= 35
 end )
 
 spec:RegisterStateExpr( "serpent_sting_refreshable", function()
@@ -1845,11 +1970,11 @@ spec:RegisterStateExpr( "careful_aim_available", function()
 end )
 
 spec:RegisterStateExpr( "rapid_fire_optimal", function()
-    return not buff.rapid_fire.up and cooldown.rapid_fire.remains == 0 and focus.current < 30
+    return not buff.rapid_fire.up and cooldown.rapid_fire.remains == 0 and (focus.current or 0) < 30
 end )
 
 spec:RegisterStateExpr( "focus_dump_ready", function()
-    return focus.current > 80 and not focus_time_to_max <= 3
+    return (focus.current or 0) > 80 and not focus_time_to_max <= 3
 end )
 
 spec:RegisterStateExpr( "pet_focus_available", function()
@@ -1858,6 +1983,97 @@ end )
 
 spec:RegisterStateExpr( "thrill_proc_available", function()
     return talent.thrill_of_the_hunt.enabled and buff.thrill_of_the_hunt.stack > 0
+end )
+
+spec:RegisterStateExpr( "threat", function()
+    -- Threat situation for misdirection logic
+    return {
+        situation = 0 -- Default to no threat situation
+    }
+end )
+
+spec:RegisterStateExpr( "pet_alive", function()
+    return pet.alive
+end )
+
+spec:RegisterStateExpr( "bloodlust", function()
+    return buff.bloodlust
+end )
+
+-- === SHOT ROTATION STATE EXPRESSIONS ===
+
+-- For Marksmanship, Steady Shot is primary focus generator with special buffs
+spec:RegisterStateExpr( "should_steady_shot", function()
+    -- Steady Shot is preferred for Marksmanship when:
+    -- 1. We need to maintain Steady Focus buff
+    -- 2. We need reliable focus generation
+    -- 3. We can benefit from Improved Steady Shot
+    
+    if focus.current > 86 then return false end -- Don't cast if we'll cap focus
+    
+    -- High priority if Steady Focus is down or expiring soon
+    if not buff.steady_focus.up or buff.steady_focus.remains < 3 then
+        return true
+    end
+    
+    -- Use for general focus generation
+    return true
+end )
+
+-- Cobra Shot is secondary for MM, used mainly for Serpent Sting maintenance
+spec:RegisterStateExpr( "should_cobra_shot", function()
+    -- Cobra Shot for Marksmanship when:
+    -- 1. Serpent Sting needs maintenance
+    -- 2. Steady Shot isn't optimal
+    
+    if focus.current > 86 then return false end -- Don't cast if we'll cap focus
+    
+    -- Use for Serpent Sting maintenance
+    if debuff.serpent_sting.up and debuff.serpent_sting.remains < 6 then
+        return true
+    end
+    
+    -- Otherwise prefer Steady Shot for MM
+    return not should_steady_shot
+end )
+
+-- Focus management optimized for Aimed Shot usage
+spec:RegisterStateExpr( "focus_spender_threshold", function()
+    -- Marksmanship focus priorities:
+    -- Aimed Shot: 50 focus (highest priority when proc'd)
+    -- Chimera Shot: 35 focus
+    -- Arcane Shot: 20 focus
+    
+    -- During Careful Aim, prioritize Aimed Shot
+    if buff.careful_aim.up then return 60 end
+    
+    -- With Master Marksman, save focus for instant Aimed Shot
+    if buff.master_marksman.stack >= 3 then return 70 end
+    
+    -- Normal threshold
+    return 75
+end )
+
+-- Determines if we should use focus builders or wait for abilities
+spec:RegisterStateExpr( "optimal_shot_window", function()
+    -- Optimal windows for MM shot rotation:
+    -- 1. When major abilities are on cooldown
+    -- 2. When we have focus room
+    -- 3. When building/maintaining buffs
+    
+    if focus.current < 30 then return false end
+    
+    -- Don't build focus if Aimed Shot is ready and we have proc
+    if cooldown.aimed_shot.ready and (buff.master_marksman.stack >= 5 or buff.careful_aim.up) then
+        return false
+    end
+    
+    -- Don't build if Chimera Shot is ready and Serpent Sting is up
+    if cooldown.chimera_shot.ready and debuff.serpent_sting.up then
+        return false
+    end
+    
+    return true
 end )
 
 -- Combat Log Event Tracking for Marksmanship mechanics
@@ -2001,3 +2217,7 @@ if not TryRegister() then
         end
     end)
 end
+
+
+
+-- Enhanced Pet System for Marksmanship

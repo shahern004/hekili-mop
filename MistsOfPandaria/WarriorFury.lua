@@ -36,9 +36,87 @@ end
 
 local spec = Hekili:NewSpecialization( 72 ) -- Fury spec ID for MoP
 
--- Register resources
-local ResourceInfo = ns.GetResourceInfo()
-spec:RegisterResource( ResourceInfo.rage )
+-- Enhanced resource registration for Fury Warrior with signature mechanics
+spec:RegisterResource( 1, { -- Rage with Fury-specific enhancements
+    -- Bloodthirst rage generation (Fury signature ability)
+    bloodthirst_regen = {
+        last = function ()
+            return state.last_cast_time.bloodthirst or 0
+        end,
+        interval = 3, -- Bloodthirst cooldown
+        value = function()
+            -- Bloodthirst generates rage on crit in Fury
+            return state.last_ability == "bloodthirst" and 5 or 0
+        end,
+    },
+    
+    -- Berserker Rage enhancement (Fury gets more benefit)
+    berserker_rage = {
+        aura = "berserker_rage",
+        last = function ()
+            local app = state.buff.berserker_rage.applied
+            local t = state.query_time
+            return app + floor( ( t - app ) / 1 ) * 1
+        end,
+        interval = 1,
+        value = function()
+            -- Berserker Rage grants extra rage for Fury
+            return state.buff.berserker_rage.up and 7 or 0 -- Higher than Arms/Prot
+        end,
+    },
+    
+    -- Enrage rage generation (when enraged from Bloodthirst)
+    enrage_regen = {
+        aura = "enrage",
+        last = function ()
+            local app = state.buff.enrage.applied
+            local t = state.query_time
+            return app + floor( ( t - app ) / 2 ) * 2
+        end,
+        interval = 2,
+        value = function()
+            -- Extra rage generation while enraged
+            return state.buff.enrage.up and 3 or 0
+        end,
+    },
+    
+    -- Bloodsurge proc efficiency (reduces Wild Strike cost effectively)
+    bloodsurge_efficiency = {
+        aura = "bloodsurge",
+        last = function ()
+            return state.query_time
+        end,
+        interval = 1,
+        value = function()
+            -- Bloodsurge makes next Wild Strike cost no rage (effective generation)
+            return state.buff.bloodsurge.up and 30 or 0 -- Wild Strike base cost in rage
+        end,
+    },
+}, {
+    -- Enhanced base rage generation for Fury (dual-wield mechanics)
+    base_regen = function ()
+        local base = 0
+        local weapon_bonus = 0
+        
+        -- Dual-wield rage generation from auto attacks
+        local mainhand_speed = state.main_hand.speed or 2.6
+        local offhand_speed = state.off_hand.speed or 2.6
+        
+        if state.combat then
+            weapon_bonus = (3.5 / mainhand_speed) * 2.0  -- Mainhand
+            if state.dual_wield then
+                weapon_bonus = weapon_bonus + (3.5 / offhand_speed) * 1.0  -- Offhand (50% rate)
+            end
+        end
+        
+        return base + weapon_bonus
+    end,
+    
+    -- Wild Strike rage efficiency when dual-wielding
+    wild_strike_proc = function ()
+        return state.dual_wield and 1 or 0 -- Extra rage generation from dual-wield mastery
+    end,
+} )
 
 -- ===================
 -- ENHANCED COMBAT LOG EVENT TRACKING
@@ -178,34 +256,34 @@ end, 144329 )
 -- Talents (MoP talent system - ID, enabled, spell_id)
 spec:RegisterTalents( {
     -- Tier 1 (Level 15) - Mobility
-    juggernaut                 = { 2047, 1, 103156 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and generates 15 Rage.
-    double_time                = { 2048, 1, 103827 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and no longer generates Rage.
-    warbringer                 = { 2049, 1, 103828 }, -- Charge also roots the target for 4 sec, and Hamstring generates more Rage.
+    juggernaut                 = { 1, 1, 103826 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and generates 15 Rage.
+    double_time                = { 1, 2, 103827 }, -- Your Charge ability has 2 charges, shares charges with Intervene, and no longer generates Rage.
+    warbringer                 = { 1, 3, 103828 }, -- Charge also roots the target for 4 sec, and Hamstring generates more Rage.
 
     -- Tier 2 (Level 30) - Healing/Survival
-    second_wind                = { 2050, 1, 29838  }, -- While below 35% health, you regenerate 3% of your maximum health every 1 sec. Cannot be triggered if you were reduced below 35% by a creature that rewards experience or honor.
-    enraged_regeneration       = { 2051, 1, 55694  }, -- Instantly heals you for 10% of your total health and regenerates an additional 10% over 5 sec. Usable whilst stunned, frozen, incapacitated, feared, or asleep. 1 min cooldown.
-    impending_victory          = { 2052, 1, 103840 }, -- Instantly attack the target causing damage and healing you for 10% of your maximum health. Replaces Victory Rush. 30 sec cooldown.
+    second_wind                = { 2, 1, 29838  }, -- While below 35% health, you regenerate 3% of your maximum health every 1 sec. Cannot be triggered if you were reduced below 35% by a creature that rewards experience or honor.
+    enraged_regeneration       = { 2, 2, 55694  }, -- Instantly heals you for 10% of your total health and regenerates an additional 10% over 5 sec. Usable whilst stunned, frozen, incapacitated, feared, or asleep. 1 min cooldown.
+    impending_victory          = { 2, 3, 103840 }, -- Instantly attack the target causing damage and healing you for 10% of your maximum health. Replaces Victory Rush. 30 sec cooldown.
 
     -- Tier 3 (Level 45) - Utility
-    staggering_shout           = { 2053, 1, 107566 }, -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec. 40 sec cooldown.
-    piercing_howl              = { 2054, 1, 12323  }, -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec. 30 sec cooldown.
-    disrupting_shout           = { 2055, 1, 102060 }, -- Interrupts all enemy spell casts and prevents any spell in that school from being cast for 4 sec. 40 sec cooldown.
+    staggering_shout           = { 3, 1, 107566 }, -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec. 40 sec cooldown.
+    piercing_howl              = { 3, 2, 12323  }, -- Causes all enemies within 10 yards to have their movement speed reduced by 50% for 15 sec. 30 sec cooldown.
+    disrupting_shout           = { 3, 3, 102060 }, -- Interrupts all enemy spell casts and prevents any spell in that school from being cast for 4 sec. 40 sec cooldown.
 
     -- Tier 4 (Level 60) - Burst DPS
-    bladestorm                 = { 2056, 1, 46924  }, -- You become a whirlwind of steel, attacking all enemies within 8 yards for 6 sec, but you cannot use Auto Attack, Slam, or Execute during this time. Increases your chance to dodge by 30% for the duration. 1.5 min cooldown.
-    shockwave                  = { 2057, 1, 46968  }, -- Sends a wave of force in a frontal cone, causing damage and stunning enemies for 4 sec. This ability is usable in all stances. 40 sec cooldown. Cooldown reduced by 20 sec if it strikes at least 3 targets.
-    dragon_roar                = { 2058, 1, 118000 }, -- Roar powerfully, dealing damage to all enemies within 8 yards, knockback and disarming all enemies for 4 sec. The damage is always a critical hit. 1 min cooldown.
+    bladestorm                 = { 4, 1, 46924  }, -- You become a whirlwind of steel, attacking all enemies within 8 yards for 6 sec, but you cannot use Auto Attack, Slam, or Execute during this time. Increases your chance to dodge by 30% for the duration. 1.5 min cooldown.
+    shockwave                  = { 4, 2, 46968  }, -- Sends a wave of force in a frontal cone, causing damage and stunning enemies for 4 sec. This ability is usable in all stances. 40 sec cooldown. Cooldown reduced by 20 sec if it strikes at least 3 targets.
+    dragon_roar                = { 4, 3, 118000 }, -- Roar powerfully, dealing damage to all enemies within 8 yards, knockback and disarming all enemies for 4 sec. The damage is always a critical hit. 1 min cooldown.
 
     -- Tier 5 (Level 75) - Survivability
-    mass_spell_reflection      = { 2059, 1, 114028 }, -- Reflects the next spell cast on you and all allies within 20 yards back at the caster. 1 min cooldown.
-    safeguard                  = { 2060, 1, 114029 }, -- Intervene also reduces all damage taken by the target by 20% for 6 sec.
-    vigilance                  = { 2061, 1, 114030 }, -- Focus your protective gaze on a group member, transferring 30% of damage taken to you. In addition, each time the target takes damage, cooldown on your next Taunt is reduced by 3 sec. Lasts 12 sec.
+    mass_spell_reflection      = { 5, 1, 114028 }, -- Reflects the next spell cast on you and all allies within 20 yards back at the caster. 1 min cooldown.
+    safeguard                  = { 5, 2, 114029 }, -- Intervene also reduces all damage taken by the target by 20% for 6 sec.
+    vigilance                  = { 5, 3, 114030 }, -- Focus your protective gaze on a group member, transferring 30% of damage taken to you. In addition, each time the target takes damage, cooldown on your next Taunt is reduced by 3 sec. Lasts 12 sec.
 
     -- Tier 6 (Level 90) - Damage
-    avatar                     = { 2062, 1, 107574 }, -- You transform into an unstoppable avatar, increasing damage done by 20% and removing and granting immunity to movement imparing effects for 24 sec. 3 min cooldown.
-    bloodbath                  = { 2063, 1, 12292  }, -- Increases damage by 30% and causes your auto attacks and damaging abilities to cause the target to bleed for an additional 30% of the damage you initially dealt over 6 sec. Lasts 12 sec. 1 min cooldown.
-    storm_bolt                 = { 2064, 1, 107570 }, -- Throws your weapon at the target, causing damage and stunning for 3 sec. This ability is usable in all stances. 30 sec cooldown.
+    avatar                     = { 6, 1, 107574 }, -- You transform into an unstoppable avatar, increasing damage done by 20% and removing and granting immunity to movement imparing effects for 24 sec. 3 min cooldown.
+    bloodbath                  = { 6, 2, 12292  }, -- Increases damage by 30% and causes your auto attacks and damaging abilities to cause the target to bleed for an additional 30% of the damage you initially dealt over 6 sec. Lasts 12 sec. 1 min cooldown.
+    storm_bolt                 = { 6, 3, 107570 }, -- Throws your weapon at the target, causing damage and stunning for 3 sec. This ability is usable in all stances. 30 sec cooldown.
 } )
 
 -- ===================

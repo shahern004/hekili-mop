@@ -81,6 +81,19 @@ state.encounterDifficulty = 0
 state.aggro = false
 state.tanking = false
 
+-- Threat state variables
+state.threat_situation = 0
+state.threat_percent = 0
+state.has_aggro = false
+state.losing_aggro = false
+state.gaining_aggro = false
+state.no_threat = false
+state.threat_above_tank = false
+state.threat_safe = false
+
+-- Dispellable state variable
+state.dispellable = false
+
 state.delay = 0
 state.delayMin = 0
 state.delayMax = 15
@@ -2146,6 +2159,20 @@ do
 
             -- Calculated from real event data.
             elseif k == "aggro" then t[k] = ( UnitThreatSituation( "player" ) or 0 ) > 1
+            elseif k == "threat_situation" then t[k] = UnitThreatSituation( "player" ) or 0
+            elseif k == "threat_percent" then 
+                local status, percent = UnitThreatSituation( "player" )
+                t[k] = percent or 0
+            elseif k == "has_aggro" then t[k] = ( UnitThreatSituation( "player" ) or 0 ) >= 3
+            elseif k == "losing_aggro" then t[k] = ( UnitThreatSituation( "player" ) or 0 ) == 2
+            elseif k == "gaining_aggro" then t[k] = ( UnitThreatSituation( "player" ) or 0 ) == 1
+            elseif k == "no_threat" then t[k] = ( UnitThreatSituation( "player" ) or 0 ) == 0
+            elseif k == "threat_above_tank" then
+                local playerThreat = UnitThreatSituation( "player" ) or 0
+                local tankThreat = 0
+                -- Check if we're above tank threat (simplified logic)
+                t[k] = playerThreat > 1
+            elseif k == "threat_safe" then t[k] = ( UnitThreatSituation( "player" ) or 0 ) <= 1
             elseif k == "boss" then
                 t[k] = t.encounterID > 0 or UnitCanAttack( "player", "target" ) and ( UnitClassification( "target" ) == "worldboss" or UnitLevel( "target" ) == -1 )
             elseif k == "encounter" then t[k] = t.encounterID > 0
@@ -2173,7 +2200,26 @@ do
             elseif k == "moving" then t[k] = ( GetUnitSpeed("player") > 0 )
             elseif k == "raid" then t[k] = IsInRaid() and t.group_members > 5
             elseif k == "solo" then t[k] = t.group_members == 1
-            elseif k == "tanking" then t[k] = t.role.tank and t.aggro            elseif k == "group_health" then
+            elseif k == "tanking" then t[k] = t.role.tank and t.aggro
+            elseif k == "dispellable" then
+                -- Check if target has any dispellable debuffs
+                local hasDispellable = false
+                if UnitExists and UnitExists("target") then
+                    local i = 1
+                    while true do
+                        local name, _, _, _, _, dispelType = UnitDebuff("target", i)
+                        if not name then break end
+                        
+                        -- Check if the debuff is dispellable (Magic, Curse, Poison, Disease)
+                        if dispelType and (dispelType == "Magic" or dispelType == "Curse" or dispelType == "Poison" or dispelType == "Disease") then
+                            hasDispellable = true
+                            break
+                        end
+                        i = i + 1
+                    end
+                end
+                t[k] = hasDispellable
+            elseif k == "group_health" then
                 local UnitGetTotalAbsorbs = UnitGetTotalAbsorbs or function() return 0 end
                 local health, maxHealth, absorbs = UnitHealth( "player" ), UnitHealthMax( "player" ), UnitGetTotalAbsorbs( "player" )
                 local count = 1                for i = 2, 5 do
@@ -3278,7 +3324,7 @@ do
                 local start, duration = 0, 0
 
                 if id > 0 then
-                    start, duration = GetCooldown( id )
+                    start, duration = GetSpellCooldown( id )
                     local lossStart, lossDuration = GetSpellLossOfControlCooldown( id )
                     if lossStart and lossDuration and lossStart + lossDuration > start + duration then
                         start = lossStart

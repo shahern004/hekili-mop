@@ -4,6 +4,9 @@
 local addon, ns = ...
 local Hekili = _G[ addon ]
 
+-- Global display frame declarations
+_G.HekiliDisplayAOE = _G.HekiliDisplayAOE or {}
+
 local class = Hekili.Class
 local state = Hekili.State
 local scripts = Hekili.Scripts
@@ -128,6 +131,10 @@ local function GetDataText()
     end
 
     if LDB then
+        ---@class MinimapDataObject
+        ---@field text string
+        ---@field RefreshDataText fun(self: MinimapDataObject)
+        
         ns.UI.Minimap = ns.UI.Minimap or LDB:NewDataObject( "Hekili", {
             type = "data source",
             text = "Hekili",
@@ -2174,7 +2181,7 @@ function Hekili.Update()
                             Hekili:Debug( resInfo )
                         end
                     else
-                        if i < 5 and not hasSnapped and profile.autoSnapshot and InCombatLockdown() and state.level >= 70 and ( dispName == "Primary" or dispName == "AOE" ) then
+                        if i < 5 and not hasSnapped and profile.autoSnapshot and InCombatLockdown() and state.level >= 70 and ( dispName == "Primary" or dispName == "AOE" ) and state.this_action ~= "wait" then
                             Hekili:Print( "Unable to make recommendation for " .. dispName .. " #" .. i .. "; triggering auto-snapshot..." )
                             hasSnapped = dispName
                             UI:SetThreadLocked( false )
