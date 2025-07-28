@@ -1,5 +1,5 @@
 -- PriestShadow.lua
--- Updated May 28, 2025
+-- Updated July 25, 2025
 -- Mists of Pandaria module for Priest: Shadow spec
 
 -- MoP: Use UnitClass instead of UnitClassBase
@@ -7,7 +7,7 @@ local _, playerClass = UnitClass('player')
 if playerClass ~= 'PRIEST' then return end
 
 local addon, ns = ...
-local Hekili = _G[ "Hekili" ]
+local Hekili = _G[ addon ]
 local class = Hekili.Class
 local state = Hekili.State
 
@@ -1336,26 +1336,14 @@ spec:RegisterAuras( {
     surge_of_darkness = {
         id = 87160,
         duration = 10,
-        max_stack = 3,
+        max_stack = 2,
         generate = function( aura )
-            local applied = action.mind_spike.lastCast or 0
-            local stacks = 0
+            local buff = FindUnitBuffByID("player", 87160)
 
-            -- Advanced proc tracking based on DoT damage
-            if debuff.shadow_word_pain.up then
-                local pain_ticks = floor( ( query_time - debuff.shadow_word_pain.applied ) / 3 )
-                stacks = min( 3, pain_ticks * 0.15 ) -- 15% chance per tick
-            end
-
-            if debuff.vampiric_touch.up then
-                local vt_ticks = floor( ( query_time - debuff.vampiric_touch.applied ) / 3 )
-                stacks = min( 3, stacks + vt_ticks * 0.15 )
-            end
-
-            if stacks > 0 and query_time - applied < 10 then
-                aura.count = stacks
-                aura.applied = applied
-                aura.expires = applied + 10
+            if buff then
+                aura.count = buff.stack or 1
+                aura.applied = buff.applied or query_time
+                aura.expires = buff.expires or (query_time + 10)
                 aura.caster = "player"
             else
                 aura.count = 0
@@ -1858,6 +1846,8 @@ spec:RegisterAbilities( {
         cast = 0,
         cooldown = 180,
         gcd = "spell",
+
+        toggle = "cooldowns",
     },
 
     -- Fade
