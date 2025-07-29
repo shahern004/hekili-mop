@@ -1,26 +1,21 @@
 # Monk: Brewmaster
 
 # PRECOMBAT
-# Applies long-term buffs before entering combat.
+# Applies long-term buffs and prepares for the pull.
 actions.precombat+=/legacy_of_the_emperor,if=!buff.stats.up
-actions.precombat+=/potion,name=virmen_bite
-actions.precombat+=/chi_brew,if=talent.chi_brew.enabled&chi<=chi.max-2
-
 
 # INTERRUPTS
-# Used when the Interrupts toggle is enabled.
+# Interrupts enemy casts.
 actions.interrupts+=/spear_hand_strike,if=target.casting
 
-
 # DEFENSIVES
-# Reactive abilities used to survive incoming damage.
-actions.defensives+=/purifying_brew,if=stagger_level>=settings.purify_level&chi>=1
-actions.defensives+=/guard,if=health.percent<=settings.guard_health_threshold&chi>=2
-actions.defensives+=/elusive_brew,if=elusive_brew_stacks>=settings.elusive_brew_threshold
-actions.defensives+=/fortifying_brew,if=health.percent<=settings.fortify_health_pct
+# Reactive abilities used for survival.
+actions.defensives+=/purifying_brew,if=(stagger_level="moderate"|stagger_level="heavy")&chi>=1
+actions.defensives+=/guard,if=health.percent<=50&chi>=2
+actions.defensives+=/elusive_brew,if=elusive_brew_stacks>=8
+actions.defensives+=/fortifying_brew,if=health.percent<=30
 actions.defensives+=/dampen_harm,if=talent.dampen_harm.enabled&health.percent<=60
 actions.defensives+=/diffuse_magic,if=talent.diffuse_magic.enabled&incoming_magic_damage_5s>0
-
 
 # COOLDOWNS
 # Major offensive and resource cooldowns.
@@ -28,27 +23,25 @@ actions.cooldowns+=/use_items
 actions.cooldowns+=/invoke_xuen,if=talent.invoke_xuen.enabled
 actions.cooldowns+=/energizing_brew,if=energy.current<=40&chi.current<=1
 actions.cooldowns+=/chi_brew,if=talent.chi_brew.enabled&chi.current<=chi.max-2
-actions.cooldowns+=/blood_fury
-actions.cooldowns+=/berserking
-
 
 # AOE ROTATION
-# Used when multiple targets are present.
+# This list is used automatically in AoE situations.
 actions.aoe+=/keg_smash
 actions.aoe+=/rushing_jade_wind,if=talent.rushing_jade_wind.enabled&chi>=3
 actions.aoe+=/breath_of_fire,if=chi>=2
 actions.aoe+=/spinning_crane_kick,if=active_enemies>=4&chi>=2&!talent.rushing_jade_wind.enabled
 actions.aoe+=/blackout_kick,if=buff.shuffle.remains<3&chi>=2
+actions.aoe+=/chi_burst,if=talent.chi_burst.enabled
 actions.aoe+=/expel_harm,if=health.percent<=90&chi<chi.max-1
 actions.aoe+=/jab,if=chi<chi.max-1
 actions.aoe+=/tiger_palm
 
-# SINGLE TARGET ROTATION
-# This is the primary, default action list.
+# SINGLE TARGET ROTATION (DEFAULT)
+# The addon uses this 'actions' list for its main recommendation.
 actions+=/blackout_kick,if=buff.shuffle.remains<3&chi>=2
 actions+=/keg_smash
 actions+=/expel_harm,if=health.percent<=90&chi<chi.max-1
 actions+=/blackout_kick,if=chi>=chi.max-1
 actions+=/jab,if=chi<chi.max-1
-actions+=/chi_wave,if=talent.chi_wave.enabled
+actions+=/chi_burst,if=talent.chi_burst.enabled
 actions+=/tiger_palm
