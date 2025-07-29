@@ -1,5 +1,6 @@
 -- MonkBrewmaster.lua July 2025
--- by Smufrik,
+-- by Smufrik, Tacodilla 
+
 local addon, ns = ...
 local _, playerClass = UnitClass('player')
 if playerClass ~= 'MONK' then return end
@@ -31,19 +32,20 @@ local function RegisterBrewmasterSpec()
     local function UpdateChi()
         local chi = UnitPower("player", 12) or 0
         local maxChi = UnitPowerMax("player", 12) or (state.talent.ascension.enabled and 5 or 4)
-        if not state.chi then
-            state.chi = {
-                actual = chi,
-                max = maxChi,
-                regen = 0
-            }
-        else
-            state.chi.actual = chi
-            state.chi.max = maxChi
-        end
+
+        state.chi = state.chi or {}
+        state.chi.current = chi
+        state.chi.max = maxChi
+
+        return chi, maxChi
     end
 
     UpdateChi() -- Initial Chi sync
+
+    -- Ensure Chi stays in sync, but not so often it overwrites prediction.
+    for _, fn in pairs({ "resetState", "refreshResources" }) do
+        spec:RegisterStateFunction(fn, UpdateChi)
+    end
 
     -- Register Chi resource (ID 12 in MoP)
     spec:RegisterResource(12, {}, {
@@ -85,32 +87,284 @@ local function RegisterBrewmasterSpec()
 
     -- Auras for Brewmaster Monk
     spec:RegisterAuras({
-        shuffle = { id = 115307, duration = 6, max_stack = 1, emulated = true },
-        elusive_brew = { id = 115308, duration = 30, max_stack = 15, emulated = true },
-        fortifying_brew = { id = 115203, duration = 15, max_stack = 1, emulated = true },
-        guard = { id = 115295, duration = 30, max_stack = 1, emulated = true },
-        dampen_harm = { id = 122278, duration = 10, max_stack = 1, emulated = true },
-        diffuse_magic = { id = 122783, duration = 6, max_stack = 1, emulated = true },
-        breath_of_fire_dot = { id = 123725, duration = 8, tick_time = 2, max_stack = 1, emulated = true },
-        heavy_stagger = { id = 124273, duration = 10, tick_time = 1, max_stack = 1, emulated = true },
-        moderate_stagger = { id = 124274, duration = 10, tick_time = 1, max_stack = 1, emulated = true },
-        light_stagger = { id = 124275, duration = 10, tick_time = 1, max_stack = 1, emulated = true },
-        zen_sphere = { id = 124081, duration = 16, tick_time = 2, emulated = true },
-        rushing_jade_wind = { id = 116847, duration = 6, emulated = true },
-        tigers_lust = { id = 116841, duration = 6, emulated = true }
+        legacy_of_the_emperor = { 
+            id = 115921, 
+            duration = 3600, 
+            max_stack = 1, 
+            emulated = true,
+            generate = function(t)
+                local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 115921)
+                if name then
+                    t.name = name; t.count = count; t.expires = expirationTime; t.applied = expirationTime - duration; t.caster = caster; return
+                end
+                t.count = 0; t.expires = 0; t.applied = 0; t.caster = "nobody"
+            end
+        },
+        shuffle = { 
+            id = 115307, 
+            duration = 6, 
+            max_stack = 1, 
+            emulated = true,
+            generate = function(t)
+                local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 115307)
+                if name then
+                    t.name = name; t.count = count; t.expires = expirationTime; t.applied = expirationTime - duration; t.caster = caster; return
+                end
+                t.count = 0; t.expires = 0; t.applied = 0; t.caster = "nobody"
+            end
+        },
+        elusive_brew = { 
+            id = 115308, 
+            duration = 6, 
+            max_stack = 1, 
+            emulated = true,
+            generate = function(t)
+                local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 115308)
+                if name then
+                    t.name = name; t.count = count; t.expires = expirationTime; t.applied = expirationTime - duration; t.caster = caster; return
+                end
+                t.count = 0; t.expires = 0; t.applied = 0; t.caster = "nobody"
+            end
+        },
+        fortifying_brew = { 
+            id = 115203, 
+            duration = 15, 
+            max_stack = 1, 
+            emulated = true,
+            generate = function(t)
+                local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 115203)
+                if name then
+                    t.name = name; t.count = count; t.expires = expirationTime; t.applied = expirationTime - duration; t.caster = caster; return
+                end
+                t.count = 0; t.expires = 0; t.applied = 0; t.caster = "nobody"
+            end
+        },
+        guard = { 
+            id = 115295, 
+            duration = 30, 
+            max_stack = 1, 
+            emulated = true,
+            generate = function(t)
+                local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 115295)
+                if name then
+                    t.name = name; t.count = count; t.expires = expirationTime; t.applied = expirationTime - duration; t.caster = caster; return
+                end
+                t.count = 0; t.expires = 0; t.applied = 0; t.caster = "nobody"
+            end
+        },
+        dampen_harm = { 
+            id = 122278, 
+            duration = 10, 
+            max_stack = 1, 
+            emulated = true,
+            generate = function(t)
+                local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 122278)
+                if name then
+                    t.name = name; t.count = count; t.expires = expirationTime; t.applied = expirationTime - duration; t.caster = caster; return
+                end
+                t.count = 0; t.expires = 0; t.applied = 0; t.caster = "nobody"
+            end
+        },
+        diffuse_magic = { 
+            id = 122783, 
+            duration = 6, 
+            max_stack = 1, 
+            emulated = true,
+            generate = function(t)
+                local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 122783)
+                if name then
+                    t.name = name; t.count = count; t.expires = expirationTime; t.applied = expirationTime - duration; t.caster = caster; return
+                end
+                t.count = 0; t.expires = 0; t.applied = 0; t.caster = "nobody"
+            end
+        },
+        breath_of_fire_dot = { 
+            id = 123725, 
+            duration = 8, 
+            tick_time = 2, 
+            max_stack = 1, 
+            emulated = true,
+            generate = function(t)
+                local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID("target", 123725)
+                if name then
+                    t.name = name; t.count = count; t.expires = expirationTime; t.applied = expirationTime - duration; t.caster = caster; return
+                end
+                t.count = 0; t.expires = 0; t.applied = 0; t.caster = "nobody"
+            end
+        },
+        heavy_stagger = { 
+            id = 124273, 
+            duration = 10, 
+            tick_time = 1, 
+            max_stack = 1, 
+            emulated = true,
+            generate = function(t)
+                local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID("player", 124273)
+                if name then
+                    t.name = name; t.count = count; t.expires = expirationTime; t.applied = expirationTime - duration; t.caster = caster; return
+                end
+                t.count = 0; t.expires = 0; t.applied = 0; t.caster = "nobody"
+            end
+        },
+        moderate_stagger = { 
+            id = 124274, 
+            duration = 10, 
+            tick_time = 1, 
+            max_stack = 1, 
+            emulated = true,
+            generate = function(t)
+                local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID("player", 124274)
+                if name then
+                    t.name = name; t.count = count; t.expires = expirationTime; t.applied = expirationTime - duration; t.caster = caster; return
+                end
+                t.count = 0; t.expires = 0; t.applied = 0; t.caster = "nobody"
+            end
+        },
+        light_stagger = { 
+            id = 124275, 
+            duration = 10, 
+            tick_time = 1, 
+            max_stack = 1, 
+            emulated = true,
+            generate = function(t)
+                local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitDebuffByID("player", 124275)
+                if name then
+                    t.name = name; t.count = count; t.expires = expirationTime; t.applied = expirationTime - duration; t.caster = caster; return
+                end
+                t.count = 0; t.expires = 0; t.applied = 0; t.caster = "nobody"
+            end
+        },
+        zen_sphere = { 
+            id = 124081, 
+            duration = 16, 
+            max_stack = 1, 
+            emulated = true,
+            generate = function(t)
+                local name, icon, count, debuffType, duration, expirationTime, caster = FindUnitBuffByID("player", 124081)
+                if name then
+                    t.name = name; t.count = count; t.expires = expirationTime; t.applied = expirationTime - duration; t.caster = caster; return
+                end
+                t.count = 0; t.expires = 0; t.applied = 0; t.caster = "nobody"
+            end
+        }
     })
 
     -- State Expressions
+    state.elusive_brew_manual_stacks = 0
+
+    spec:RegisterStateExpr("elusive_brew_stacks", function()
+        return state.elusive_brew_manual_stacks or 0
+    end)
+
     spec:RegisterStateExpr("stagger_level", function()
-        if state.buff.heavy_stagger and state.buff.heavy_stagger.up then return "heavy" end
-        if state.buff.moderate_stagger and state.buff.moderate_stagger.up then return "moderate" end
-        if state.buff.light_stagger and state.buff.light_stagger.up then return "light" end
+        if state.buff.heavy_stagger and state.buff.heavy_stagger.up then
+            return "heavy"
+        elseif state.buff.moderate_stagger and state.buff.moderate_stagger.up then
+            return "moderate"
+        elseif state.buff.light_stagger and state.buff.light_stagger.up then
+            return "light"
+        end
         return "none"
     end)
 
     -- Abilities for Brewmaster Monk
     spec:RegisterAbilities({
-        -- Core Abilities
+        spear_hand_strike = {
+            id = 116705,
+            cast = 0,
+            cooldown = 10,
+            gcd = "off",
+            toggle = "interrupts",
+            startsCombat = true,
+            handler = function() end
+        },
+        legacy_of_the_emperor = {
+            id = 115921,
+            cast = 0,
+            cooldown = 0,
+            gcd = "spell",
+            toggle = "buffs",
+            startsCombat = false,
+            handler = function() state.applyBuff("player", "legacy_of_the_emperor", 3600) end,
+            generate = function(t) end
+        },
+        chi_burst = {
+            id = 123986,
+            cast = 1,
+            cooldown = 30,
+            gcd = "spell",
+            spend = 2,
+            spendType = "chi",
+            talent = "chi_burst",
+            startsCombat = true,
+            handler = function() state.spend(2, "chi") end,
+            generate = function(t) end
+        },
+        zen_sphere = {
+            id = 124081,
+            cast = 0,
+            cooldown = 10,
+            gcd = "spell",
+            talent = "zen_sphere",
+            startsCombat = true,
+            handler = function() state.applyBuff("player", "zen_sphere", 16) end,
+            generate = function(t) end
+        },
+        invoke_xuen = {
+            id = 123904,
+            cast = 0,
+            cooldown = 180,
+            gcd = "off",
+            talent = "invoke_xuen",
+            toggle = "cooldowns",
+            startsCombat = true,
+            handler = function() end,
+            generate = function(t) end
+        },
+        dampen_harm = {
+            id = 122278,
+            cast = 0,
+            cooldown = 90,
+            gcd = "off",
+            talent = "dampen_harm",
+            toggle = "defensives",
+            startsCombat = false,
+            handler = function() state.applyBuff("player", "dampen_harm", 10) end,
+            generate = function(t) end
+        },
+        diffuse_magic = {
+            id = 122783,
+            cast = 0,
+            cooldown = 90,
+            gcd = "off",
+            talent = "diffuse_magic",
+            toggle = "defensives",
+            startsCombat = false,
+            handler = function() state.applyBuff("player", "diffuse_magic", 6) end,
+            generate = function(t) end
+        },
+        chi_wave = {
+            id = 115098,
+            cast = 0,
+            cooldown = 15,
+            gcd = "spell",
+            talent = "chi_wave",
+            startsCombat = true,
+            handler = function() end,
+            generate = function(t) end
+        },
+        elusive_brew = {
+            id = 115308,
+            cast = 0,
+            cooldown = 0,
+            gcd = "off",
+            startsCombat = false,
+            handler = function()
+                state.elusive_brew_manual_stacks = 0
+                state.applyBuff("player", "elusive_brew", 6)
+            end,
+            generate = function(t) end
+        },
         jab = {
             id = 100780,
             cast = 0,
@@ -124,8 +378,8 @@ local function RegisterBrewmasterSpec()
                 if state.talent.power_strikes.enabled and math.random() <= 0.2 then
                     state.gain(1, "chi")
                 end
-                UpdateChi()
-            end
+            end,
+            generate = function(t) end
         },
         keg_smash = {
             id = 121253,
@@ -138,8 +392,8 @@ local function RegisterBrewmasterSpec()
             handler = function()
                 state.gain(2, "chi")
                 state.applyDebuff("target", "breath_of_fire_dot", 8)
-                UpdateChi()
-            end
+            end,
+            generate = function(t) end
         },
         tiger_palm = {
             id = 100787,
@@ -149,7 +403,8 @@ local function RegisterBrewmasterSpec()
             spend = 25,
             spendType = "energy",
             startsCombat = true,
-            handler = function() end
+            handler = function() end,
+            generate = function(t) end
         },
         blackout_kick = {
             id = 100784,
@@ -160,53 +415,10 @@ local function RegisterBrewmasterSpec()
             spendType = "chi",
             startsCombat = true,
             handler = function()
-                state.spend(2, "chi")
                 state.applyBuff("player", "shuffle", 6)
-                UpdateChi()
-            end
+            end,
+            generate = function(t) end
         },
-        spinning_crane_kick = {
-            id = 101546,
-            cast = 0,
-            cooldown = 0,
-            gcd = "spell",
-            spend = 1,
-            spendType = "chi",
-            startsCombat = true,
-            handler = function()
-                state.spend(1, "chi")
-                UpdateChi()
-            end
-        },
-        expel_harm = {
-            id = 115072,
-            cast = 0,
-            cooldown = 15,
-            gcd = "spell",
-            spend = 40,
-            spendType = "energy",
-            startsCombat = true,
-            handler = function()
-                state.gain(1, "chi")
-                UpdateChi()
-            end
-        },
-        breath_of_fire = {
-            id = 115181,
-            cast = 0,
-            cooldown = 0,
-            gcd = "spell",
-            spend = 2,
-            spendType = "chi",
-            startsCombat = true,
-            handler = function()
-                state.spend(2, "chi")
-                state.applyDebuff("target", "breath_of_fire_dot", 8)
-                UpdateChi()
-            end
-        },
-
-        -- Defensive & Utility Abilities
         purifying_brew = {
             id = 119582,
             cast = 0,
@@ -216,12 +428,11 @@ local function RegisterBrewmasterSpec()
             spendType = "chi",
             startsCombat = false,
             handler = function()
-                state.spend(1, "chi")
                 state.removeDebuff("player", "heavy_stagger")
                 state.removeDebuff("player", "moderate_stagger")
                 state.removeDebuff("player", "light_stagger")
-                UpdateChi()
-            end
+            end,
+            generate = function(t) end
         },
         guard = {
             id = 115295,
@@ -232,132 +443,22 @@ local function RegisterBrewmasterSpec()
             spendType = "chi",
             startsCombat = false,
             handler = function()
-                state.spend(2, "chi")
                 state.applyBuff("player", "guard", 30)
-                UpdateChi()
-            end
+            end,
+            generate = function(t) end
         },
-        fortifying_brew = {
-            id = 115203,
+        breath_of_fire = {
+            id = 115181,
             cast = 0,
-            cooldown = 180,
-            gcd = "off",
-            toggle = "defensives",
-            startsCombat = false,
-            handler = function()
-                state.applyBuff("player", "fortifying_brew", 15)
-            end
-        },
-        energizing_brew = {
-            id = 115288,
-            cast = 0,
-            cooldown = 60,
-            gcd = "off",
-            startsCombat = false,
-            handler = function() end
-        },
-
-        -- Talent Abilities
-        tigers_lust = {
-            id = 116841,
-            cast = 0,
-            cooldown = 30,
-            gcd = "off",
-            talent = "tigers_lust",
-            toggle = "movement",
-            handler = function()
-                state.applyBuff("player", "tigers_lust", 6)
-            end
-        },
-        chi_wave = {
-            id = 115098,
-            cast = 0,
-            cooldown = 15,
+            cooldown = 0,
             gcd = "spell",
-            talent = "chi_wave",
             spend = 2,
             spendType = "chi",
+            startsCombat = true,
             handler = function()
-                state.spend(2, "chi")
-                UpdateChi()
-            end
-        },
-        zen_sphere = {
-            id = 124081,
-            cast = 0,
-            cooldown = 10,
-            gcd = "spell",
-            talent = "zen_sphere",
-            spend = 2,
-            spendType = "chi",
-            handler = function()
-                state.spend(2, "chi")
-                state.applyBuff("player", "zen_sphere", 16)
-                UpdateChi()
-            end
-        },
-        chi_burst = {
-            id = 123986,
-            cast = 1,
-            cooldown = 30,
-            gcd = "spell",
-            talent = "chi_burst",
-            spend = 2,
-            spendType = "chi",
-            handler = function()
-                state.spend(2, "chi")
-                UpdateChi()
-            end
-        },
-        chi_brew = {
-            id = 115399,
-            cast = 0,
-            cooldown = 90,
-            gcd = "off",
-            talent = "chi_brew",
-            startsCombat = false,
-            handler = function()
-                state.gain(2, "chi")
-                UpdateChi()
-            end
-        },
-        charging_ox_wave = {
-            id = 119392,
-            cast = 0,
-            cooldown = 30,
-            gcd = "spell",
-            talent = "charging_ox_wave",
-            handler = function() end
-        },
-        leg_sweep = {
-            id = 119381,
-            cast = 0,
-            cooldown = 45,
-            gcd = "spell",
-            talent = "leg_sweep",
-            handler = function() end
-        },
-        dampen_harm = {
-            id = 122278,
-            cast = 0,
-            cooldown = 90,
-            gcd = "off",
-            talent = "dampen_harm",
-            toggle = "defensives",
-            handler = function()
-                state.applyBuff("player", "dampen_harm", 10)
-            end
-        },
-        diffuse_magic = {
-            id = 122783,
-            cast = 0,
-            cooldown = 90,
-            gcd = "off",
-            talent = "diffuse_magic",
-            toggle = "defensives",
-            handler = function()
-                state.applyBuff("player", "diffuse_magic", 6)
-            end
+                state.applyDebuff("target", "breath_of_fire_dot", 8)
+            end,
+            generate = function(t) end
         },
         rushing_jade_wind = {
             id = 116847,
@@ -371,49 +472,82 @@ local function RegisterBrewmasterSpec()
             handler = function()
                 state.spend(1, "chi")
                 state.applyBuff("player", "rushing_jade_wind", 6)
-                UpdateChi()
-            end
+            end,
+            generate = function(t) end
         },
-        invoke_xuen = {
-            id = 123904,
+        fortifying_brew = {
+            id = 115203,
             cast = 0,
             cooldown = 180,
             gcd = "off",
-            talent = "invoke_xuen",
-            toggle = "cooldowns",
-            handler = function() end
+            toggle = "defensives",
+            startsCombat = false,
+            handler = function()
+                state.applyBuff("player", "fortifying_brew", 15)
+            end,
+            generate = function(t) end
         },
-        chi_torpedo = {
-            id = 115008,
+        chi_brew = {
+            id = 115399,
             cast = 0,
-            cooldown = 0, -- Uses Roll charges
+            cooldown = 90,
             gcd = "off",
-            talent = "chi_torpedo",
-            toggle = "movement",
-            handler = function() end
+            talent = "chi_brew",
+            startsCombat = false,
+            handler = function()
+                state.gain(2, "chi")
+            end,
+            generate = function(t) end
+        },
+        spinning_crane_kick = {
+            id = 101546,
+            cast = 0,
+            cooldown = 0,
+            gcd = "spell",
+            spend = 1,
+            spendType = "chi",
+            startsCombat = true,
+            handler = function()
+                state.spend(1, "chi")
+            end,
+            generate = function(t) end
+        },
+        expel_harm = {
+            id = 115072,
+            cast = 0,
+            cooldown = 15,
+            gcd = "spell",
+            spend = 40,
+            spendType = "energy",
+            startsCombat = true,
+            handler = function()
+                state.gain(1, "chi")
+            end,
+            generate = function(t) end
+        },
+        energizing_brew = {
+            id = 115288,
+            cast = 0,
+            cooldown = 60,
+            gcd = "off",
+            startsCombat = false,
+            handler = function() end,
+            generate = function(t) end
         }
     })
 
-    -- Register combat log event for Elusive Brew stacks and Chi updates
+    -- Register combat log event for Elusive Brew stacks
     bmCombatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
     bmCombatLogFrame:SetScript("OnEvent", function(self, event, ...)
-        local _, subevent, _, sourceGUID, _, _, _, _, _, _, _, spellID, _, _, _, critical = select(2, ...)
-        if subevent == "SPELL_DAMAGE" and sourceGUID == state.GUID and critical and (spellID == 100780 or spellID == 115072 or spellID == 121253) then
-            state.addStack(115308, nil, 1) -- Elusive Brew stack
-        elseif subevent == "UNIT_POWER_UPDATE" and sourceGUID == state.GUID and select(12, ...) == "CHI" then
-            UpdateChi() -- Sync Chi on power update
-        end
-    end)
+        local timestamp, subevent, _, sourceGUID, _, _, _, destGUID, _, _, _, spellID, _, _, amount, critical = ...
 
-    -- Periodic Chi sync (every 1 second in combat)
-    local lastChiUpdate = 0
-    bmCombatLogFrame:SetScript("OnUpdate", function(self, elapsed)
-        if InCombatLockdown() then
-            lastChiUpdate = lastChiUpdate + elapsed
-            if lastChiUpdate >= 1 then
-                UpdateChi()
-                lastChiUpdate = 0
-            end
+        -- Build stacks on crits
+        if subevent == "SPELL_DAMAGE" and sourceGUID == state.GUID and critical and (spellID == 100780 or spellID == 115072 or spellID == 121253) then
+            state.elusive_brew_manual_stacks = math.min((state.elusive_brew_manual_stacks or 0) + 1, 15)
+
+        -- Reset stacks on Elusive Brew cast
+        elseif subevent == "SPELL_CAST_SUCCESS" and sourceGUID == state.GUID and spellID == 115308 then
+            state.elusive_brew_manual_stacks = 0
         end
     end)
 
@@ -443,9 +577,7 @@ local function RegisterBrewmasterSpec()
         width = "full"
     })
 
-    -- Default APL Pack is intentionally left minimal.
-    -- Import the APL text provided separately using the Hekili in-game interface.
-    spec:RegisterPack("Brewmaster", 20250728, [[Hekili:LIvAVTnoq0FmlGBl2wvhL4KUDJdqB6E0I2IGvz)0IktAjklwljkqszhxeWF77qQlQR42g0dyto89Mz4WzEW(N4FRVxiws8)S7C3fZVW9voUZp9C3l89KhYj(E54GT4nWhYWPW))wozFkwijC9whsy4qnecwbpa223BDbnr((m)1JH7IfGP5Kay1ZFLVxmnmKuAkre47DBmvOq6)HvOkIviwe89ajLLPqjuHe2oIXvO)MSLMqDa)GZIOja7)Ic9Psd0N5gCwiMtXVwHA9AWcw2w1hatFZnFuHwJfKqWEaBpAArcwZZ1CCKeiJTHgur2nyzqScTW5mN7uFWC(B4Kaw6AmyPhP0)(qPFkCYR37xx(YGy6Q1Gd8CA0sjoHKjDQxYHKHxNqcNblC5s4)CsX39c3XXjNvYHH8pHPGl)MQ0YnCkJtLhuOpcXVXG3rIizc6osDYtNv5W3IPBIjGrO8Qd50qNMKcon6anBtJllisj8DHtHGSQ72ZEQqI3SHWxLq2rsw(KycE3HNC)99xpLfs4q1WtMbwKiJDYjq5sM8YZN)SNztpKRL94V3jwmFMKTztcXjSocf2ieItZjzRIX8uReU1Qn58bUYraMgfPtbPyOQWgA71Nc8loc4BkW8qnOqnWvlDBUK)QU27AgljKTpRZjOz7yBjRURGKz5mwR24kvehmgkpIAt40KmcFd9B23wMLoC5PZRcHRz6AU)HjnpSWjqn7A4vRKcXp6PEXfrrjGbf5BjK8Y3(bqrjnaN0PWylzZkb8eo2EX1jqpcwHC1wAWwn7Rb4CeLG6WjPWJeXLUZAkHHof6tVJSQYOkV8wtOB7B9Yr7X7i9Yr6LSZrMRT2t9nOCtKht42NRDXENCMXZT2wFtn4IQGlK9VP0RnWnk7VX(JUz79XeOxHl0TdkQsnxmW1vQzttRbOBJaaUtINxiI1xWFfhswTNMfA5ad2RXrQYYvWFvBtemJu6LN05IKtWY4vSOvr0Ye2XbOt2wKtZY0UsahNrAQhM0pdPIFahTSsoMQq)LU(glz8oviK7YjjnTCM(9YxXRhyqh4FxrAoCz8sf6pPjjKUSmmjnmpm4fHXKZSnrs1nMZXjPTVxV6I5(E7a(aBANy77ThZ1zvr9O5QjTLVttPcbSPcjkYZH(2vtk3OHup3uYPzBjsHJcPqVxwEiZ8SuswOEQRmwp8egrWp0oocSlliPiuxvsOs41WRHue6fk0)9VcIgjsQ4lpxH2ht1JKBTgNDOLvfkJPb)U8eAavM0IBO(tAYjTK(7Mhfv0CBjek0jFrdAO9sUwmVhUJSIOkiL1MAYgMLYksxdpQblejmjmV99P6eMEb3EABGn99WfYygiW6wCat3y13ZSNrRgjcxKiHp(zJ2TQhC(VfoLbhqouNz0LAR408YnFqDd)iIg8909PHBAmiPBAjck0mOZde42ccuOLkuLybf6(7NYIgzdgu6osvHUuHoFUc9m4V(sOQTx6O19g5GlMBGCWm52SypLiAgoDsgMwLXd55pSdybMM8Zok5JPdzk6V440BdN2bwmPdeOBDDfCH52ECJGg9XoFIQulLkdkr7Q6zKyDezo2XtJuhTdCXXsC9f8yqYetxU08bDFAtNbR4R(qAgE1Kmu2D1KXpDE7H7PBsJXV1dJozKhJiQwwBKqP57K5t60JjIYecUMmZ0IPAPQZyidDt1SQwjvViEGGSjU3SfH1EVvwlQPD6MctQiRhmMVoM6S2yODddNhTnXaDB998UvzAlna3VfqTvdK30lz(ZleCeNFsnFMGORCQY4Xwsv3i9etynDJLFm0SYBDLkzyPFFOVJaRwK4pvK14lJin14q97l10COrmz)UaDfGoOd8WUvAAMU50OhYYXb1Qge63AAIK8io7a5Stm1qp9E6(rngE2d0GXTFdMHnHVsp2RfIwDW(6NxEn)ulpK2QM2(9gz999Ro9i(jNg5xB6rokRwYuJSrw9WP6Ow28h)))p]])
+    spec:RegisterPack("Brewmaster", 20250728, [[Hekili:1I12YTTnq0VfpDg7hAIQS8TKowEgNe1uNjrkJPs7BKeIeKerKeSaGYr5b(T3fauKGxDSt7dXrCbWzxS7zxSa2NAV22YhjW2lNnD2ftVA2RMm7SPtp9kBlX(mSTvgYBlke(rkkb(lcjfTpMI8LlLtZzEGyBRn5KyXDP2B6I3SlE9SxbZnd7bIVe(zeX3hRNlM7zBToIWlCL)dv4wQXcxAa8TNGqtlCJjCbmCaLv4(N4TKyYeWqy0asmO(FPW9t00T)EH7By4hsqCbMv8bq6kwikL8DSpGEQGw4YXzigyF9JS16xu4ElDb833sPX(0hs5WVrPW6FhoaNYj7W8jfFqb(NVFXBx9P3C7A1x3MLftWasX00WxcgqsH7M8GaqYgmGoOsCkiMKgw46rt2GeaqARGpjJH1Y(15)wmoe5T3Hg4iIWo4KmmJYEbjy(rs8MWfibFsEw)loJkL9cz0A(oclbN6SHa73puA03TC9I7V)lFETL6ZVWL(MhIWGNa0gmU0gz5zsFIGgggJ1bgCkAtm23WKjvZeuleCrmNiWt5WfmYwS0EfiwiwmXdIhYD9bt4Dl(JflTU7VwOnH7Xse3jdjBG4Qq5eZv2LkILZ2PgLKcBsL3ZhLaeedtXVk2i9a5msWEyIoBaYG0oapwyiM5eJ3HJVzohlK2d43uZul(yViYnZpDamdZrmFjuryuSiAces8GO511yPMHJEyiUXW8iGaPrD2aOIJZL)SYon)gCJqEa3WABmALggaAGWjA5fg00lN7bJpZtmaOGFpd4triwIo8gdanXq6KswYXT11LthcssqaeRDGakXZeut5vWEGcOf7O5boxWVzAf56TRw9X3T6VxQ5wFc9vzEnnOuLL5YGVtv4sMiwMMBWMQKb2N0gG0NeE)dts3r3ID(woo1W4nKEW07F54umlK8DZOKs0(jE5mMYZD(ujhQ(7t7hjyovquAfhev59AGJ8Je03E5S(XBtmL67eKZ2pW4yghZ2AMwF7QfqY8Q13U(Uvl7uCjjpwqYKvt0vfK16L1eHAxCP1wRgefdkylo0HdvYJApalNhjDyFf5JDEGK6BSL7mM5E)M5N1glW9GagpuPnGWuLSANVQNhpJKMkb2JHsXoBjEBLtwx3YbczjqrRBMFEz6(Xh9y2thdjgs2P5IkO1v6JG)gJNWWjisk)6Z6uorVA83YWXvPLTZ9ETIbD9Ha(PTx9xrBk35dphbrw)mdfNugSTUB57)ieVxF79VFX6wX96JZvhPKXiji2E4Gui1hb8GMh(wh6F(oIEjmpFptFgIsJ9o1rDGL5MpG2HBLBkf1Hp0WxBB9aIj5DCzlsYJatYGA1LnRCs9bWNilP9p5ahgY340ezDUCbnbA0be4bhlhQAB5JKuyOtH(K(skpptcMCchIgN05u8tu96CxYHzEzR(MGHTTu)s1iPo8c)CPQXYYnN9BST8yezVpizJIDdOfUxx4EwH7XsJLu4EZ8c3zqZMkvblXmwO7zKrY0Jnir8PYcTfqZPsR(GwRiuMBeysNn4wRj)c2uW241tR3wxR(FjbPW9LqCOwx18uPgoFqnu5DgaNMEkaQlghQHTiGulx)LdU(byY1iCyejmxz6ynj4MEwHSJ(YozhNdDKU16QwHRXU3ENBrz6EvH)VUNGXveEw3pOItA4f03dZO1(6nVU3FTNeQB3NpSHJO5j2pPJR7lnPhJTdDz4teBK8Fwn(DwX45G9w)OXX8JNH18mDnuN3QYK6ZJKUMX3t1wqpnqmE25pDvYrZD)VQq1v)KvxE1pyzHQopFukDD7)pLE)RnIQ(9)HyZ90OFnugdooLTzl)6OX5vrJMYndfnV8W406bUtq)kXmOnRzb9dA6cZix9LfADu5LnMv1vg6eFRVs4419BCrEDcqVxMVzoIHpR5Bd0I7y8Uep)hLyCEtFjEpYtimy(UA6pcZQ7dk0YR1)JkyqYmgFCg2OBTUpXqTkA9ufJxxC43Cq5N6ZiUCATUmw3pu3n9(meknn0tra(3cxtnAIGMTx33(4S9MpFM5HjT6sVfp24j(E6VVNYeLrNCrKSZP1ipAzyryB)Vd]])
 end
 
 -- Deferred loading mechanism
