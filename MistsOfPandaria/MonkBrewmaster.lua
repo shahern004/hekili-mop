@@ -1,6 +1,5 @@
 -- MonkBrewmaster.lua July 2025
--- by Smufrik, updated to fix Chi tracking and stagger_level warnings
-
+-- by Smufrik,
 local addon, ns = ...
 local _, playerClass = UnitClass('player')
 if playerClass ~= 'MONK' then return end
@@ -24,8 +23,8 @@ local function RegisterBrewmasterSpec()
     spec.primaryStat = 2 -- Agility
 
     -- Ensure state is properly initialized
-    if not state then 
-        state = Hekili.State 
+    if not state then
+        state = Hekili.State
     end
 
     -- Force Chi initialization with fallback
@@ -42,8 +41,6 @@ local function RegisterBrewmasterSpec()
             state.chi.actual = chi
             state.chi.max = maxChi
         end
-        print("UpdateChi: Actual =", state.chi.actual, "Max =", state.chi.max) -- Debug
-        return state.chi.actual, state.chi.max
     end
 
     UpdateChi() -- Initial Chi sync
@@ -88,88 +85,32 @@ local function RegisterBrewmasterSpec()
 
     -- Auras for Brewmaster Monk
     spec:RegisterAuras({
-        shuffle = {
-            id = 115307,
-            duration = 6,
-            max_stack = 1,
-            emulated = true
-        },
-        elusive_brew = {
-            id = 115308,
-            duration = 30,
-            max_stack = 15,
-            emulated = true
-        },
-        fortifying_brew = {
-            id = 115203,
-            duration = 15,
-            max_stack = 1,
-            emulated = true
-        },
-        guard = {
-            id = 115295,
-            duration = 30,
-            max_stack = 1,
-            emulated = true
-        },
-        dampen_harm = {
-            id = 122278,
-            duration = 10,
-            max_stack = 1,
-            emulated = true
-        },
-        diffuse_magic = {
-            id = 122783,
-            duration = 6,
-            max_stack = 1,
-            emulated = true
-        },
-        breath_of_fire_dot = {
-            id = 123725,
-            duration = 8,
-            tick_time = 2,
-            max_stack = 1,
-            emulated = true
-        },
-        heavy_stagger = {
-            id = 124273,
-            duration = 10,
-            tick_time = 1,
-            max_stack = 1,
-            emulated = true
-        },
-        moderate_stagger = {
-            id = 124274,
-            duration = 10,
-            tick_time = 1,
-            max_stack = 1,
-            emulated = true
-        },
-        light_stagger = {
-            id = 124275,
-            duration = 10,
-            tick_time = 1,
-            max_stack = 1,
-            emulated = true
-        }
+        shuffle = { id = 115307, duration = 6, max_stack = 1, emulated = true },
+        elusive_brew = { id = 115308, duration = 30, max_stack = 15, emulated = true },
+        fortifying_brew = { id = 115203, duration = 15, max_stack = 1, emulated = true },
+        guard = { id = 115295, duration = 30, max_stack = 1, emulated = true },
+        dampen_harm = { id = 122278, duration = 10, max_stack = 1, emulated = true },
+        diffuse_magic = { id = 122783, duration = 6, max_stack = 1, emulated = true },
+        breath_of_fire_dot = { id = 123725, duration = 8, tick_time = 2, max_stack = 1, emulated = true },
+        heavy_stagger = { id = 124273, duration = 10, tick_time = 1, max_stack = 1, emulated = true },
+        moderate_stagger = { id = 124274, duration = 10, tick_time = 1, max_stack = 1, emulated = true },
+        light_stagger = { id = 124275, duration = 10, tick_time = 1, max_stack = 1, emulated = true },
+        zen_sphere = { id = 124081, duration = 16, tick_time = 2, emulated = true },
+        rushing_jade_wind = { id = 116847, duration = 6, emulated = true },
+        tigers_lust = { id = 116841, duration = 6, emulated = true }
     })
 
     -- State Expressions
     spec:RegisterStateExpr("stagger_level", function()
-        local level = "none"
-        if state.buff.heavy_stagger and state.buff.heavy_stagger.up then
-            level = "heavy"
-        elseif state.buff.moderate_stagger and state.buff.moderate_stagger.up then
-            level = "moderate"
-        elseif state.buff.light_stagger and state.buff.light_stagger.up then
-            level = "light"
-        end
-        print("Stagger Level Evaluated:", level, "Chi:", state.chi and state.chi.actual or "nil") -- Debug
-        return level
+        if state.buff.heavy_stagger and state.buff.heavy_stagger.up then return "heavy" end
+        if state.buff.moderate_stagger and state.buff.moderate_stagger.up then return "moderate" end
+        if state.buff.light_stagger and state.buff.light_stagger.up then return "light" end
+        return "none"
     end)
 
     -- Abilities for Brewmaster Monk
     spec:RegisterAbilities({
+        -- Core Abilities
         jab = {
             id = 100780,
             cast = 0,
@@ -179,13 +120,11 @@ local function RegisterBrewmasterSpec()
             spendType = "energy",
             startsCombat = true,
             handler = function()
-                print("Jab: Gaining 1 Chi, Current:", state.chi.actual) -- Debug
                 state.gain(1, "chi")
                 if state.talent.power_strikes.enabled and math.random() <= 0.2 then
-                    print("Power Strikes: Gaining 1 extra Chi") -- Debug
                     state.gain(1, "chi")
                 end
-                UpdateChi() -- Sync with UnitPower
+                UpdateChi()
             end
         },
         keg_smash = {
@@ -197,10 +136,9 @@ local function RegisterBrewmasterSpec()
             spendType = "energy",
             startsCombat = true,
             handler = function()
-                print("Keg Smash: Gaining 2 Chi, Current:", state.chi.actual) -- Debug
                 state.gain(2, "chi")
                 state.applyDebuff("target", "breath_of_fire_dot", 8)
-                UpdateChi() -- Sync with UnitPower
+                UpdateChi()
             end
         },
         tiger_palm = {
@@ -211,9 +149,7 @@ local function RegisterBrewmasterSpec()
             spend = 25,
             spendType = "energy",
             startsCombat = true,
-            handler = function()
-                -- No Chi generation
-            end
+            handler = function() end
         },
         blackout_kick = {
             id = 100784,
@@ -224,42 +160,35 @@ local function RegisterBrewmasterSpec()
             spendType = "chi",
             startsCombat = true,
             handler = function()
-                print("Blackout Kick: Spending 2 Chi, Current:", state.chi.actual) -- Debug
                 state.spend(2, "chi")
                 state.applyBuff("player", "shuffle", 6)
-                UpdateChi() -- Sync with UnitPower
+                UpdateChi()
             end
         },
-        purifying_brew = {
-            id = 119582,
+        spinning_crane_kick = {
+            id = 101546,
             cast = 0,
-            cooldown = 1,
-            gcd = "off",
+            cooldown = 0,
+            gcd = "spell",
             spend = 1,
             spendType = "chi",
-            startsCombat = false,
+            startsCombat = true,
             handler = function()
-                print("Purifying Brew: Spending 1 Chi, Current:", state.chi.actual) -- Debug
                 state.spend(1, "chi")
-                state.removeDebuff("player", "heavy_stagger")
-                state.removeDebuff("player", "moderate_stagger")
-                state.removeDebuff("player", "light_stagger")
-                UpdateChi() -- Sync with UnitPower
+                UpdateChi()
             end
         },
-        guard = {
-            id = 115295,
+        expel_harm = {
+            id = 115072,
             cast = 0,
-            cooldown = 30,
-            gcd = "off",
-            spend = 2,
-            spendType = "chi",
-            startsCombat = false,
+            cooldown = 15,
+            gcd = "spell",
+            spend = 40,
+            spendType = "energy",
+            startsCombat = true,
             handler = function()
-                print("Guard: Spending 2 Chi, Current:", state.chi.actual) -- Debug
-                state.spend(2, "chi")
-                state.applyBuff("player", "guard", 30)
-                UpdateChi() -- Sync with UnitPower
+                state.gain(1, "chi")
+                UpdateChi()
             end
         },
         breath_of_fire = {
@@ -271,26 +200,41 @@ local function RegisterBrewmasterSpec()
             spendType = "chi",
             startsCombat = true,
             handler = function()
-                print("Breath of Fire: Spending 2 Chi, Current:", state.chi.actual) -- Debug
                 state.spend(2, "chi")
                 state.applyDebuff("target", "breath_of_fire_dot", 8)
-                UpdateChi() -- Sync with UnitPower
+                UpdateChi()
             end
         },
-        rushing_jade_wind = {
-            id = 116847,
+
+        -- Defensive & Utility Abilities
+        purifying_brew = {
+            id = 119582,
             cast = 0,
-            cooldown = 6,
-            gcd = "spell",
+            cooldown = 1,
+            gcd = "off",
             spend = 1,
             spendType = "chi",
-            talent = "rushing_jade_wind",
-            startsCombat = true,
+            startsCombat = false,
             handler = function()
-                print("Rushing Jade Wind: Spending 1 Chi, Current:", state.chi.actual) -- Debug
                 state.spend(1, "chi")
-                state.applyBuff("player", "rushing_jade_wind", 6)
-                UpdateChi() -- Sync with UnitPower
+                state.removeDebuff("player", "heavy_stagger")
+                state.removeDebuff("player", "moderate_stagger")
+                state.removeDebuff("player", "light_stagger")
+                UpdateChi()
+            end
+        },
+        guard = {
+            id = 115295,
+            cast = 0,
+            cooldown = 30,
+            gcd = "off",
+            spend = 2,
+            spendType = "chi",
+            startsCombat = false,
+            handler = function()
+                state.spend(2, "chi")
+                state.applyBuff("player", "guard", 30)
+                UpdateChi()
             end
         },
         fortifying_brew = {
@@ -304,6 +248,67 @@ local function RegisterBrewmasterSpec()
                 state.applyBuff("player", "fortifying_brew", 15)
             end
         },
+        energizing_brew = {
+            id = 115288,
+            cast = 0,
+            cooldown = 60,
+            gcd = "off",
+            startsCombat = false,
+            handler = function() end
+        },
+
+        -- Talent Abilities
+        tigers_lust = {
+            id = 116841,
+            cast = 0,
+            cooldown = 30,
+            gcd = "off",
+            talent = "tigers_lust",
+            toggle = "movement",
+            handler = function()
+                state.applyBuff("player", "tigers_lust", 6)
+            end
+        },
+        chi_wave = {
+            id = 115098,
+            cast = 0,
+            cooldown = 15,
+            gcd = "spell",
+            talent = "chi_wave",
+            spend = 2,
+            spendType = "chi",
+            handler = function()
+                state.spend(2, "chi")
+                UpdateChi()
+            end
+        },
+        zen_sphere = {
+            id = 124081,
+            cast = 0,
+            cooldown = 10,
+            gcd = "spell",
+            talent = "zen_sphere",
+            spend = 2,
+            spendType = "chi",
+            handler = function()
+                state.spend(2, "chi")
+                state.applyBuff("player", "zen_sphere", 16)
+                UpdateChi()
+            end
+        },
+        chi_burst = {
+            id = 123986,
+            cast = 1,
+            cooldown = 30,
+            gcd = "spell",
+            talent = "chi_burst",
+            spend = 2,
+            spendType = "chi",
+            handler = function()
+                state.spend(2, "chi")
+                UpdateChi()
+            end
+        },
         chi_brew = {
             id = 115399,
             cast = 0,
@@ -312,59 +317,90 @@ local function RegisterBrewmasterSpec()
             talent = "chi_brew",
             startsCombat = false,
             handler = function()
-                print("Chi Brew: Gaining 2 Chi, Current:", state.chi.actual) -- Debug
                 state.gain(2, "chi")
-                UpdateChi() -- Sync with UnitPower
+                UpdateChi()
             end
         },
-        spinning_crane_kick = {
-            id = 101546,
+        charging_ox_wave = {
+            id = 119392,
             cast = 0,
-            cooldown = 0,
+            cooldown = 30,
+            gcd = "spell",
+            talent = "charging_ox_wave",
+            handler = function() end
+        },
+        leg_sweep = {
+            id = 119381,
+            cast = 0,
+            cooldown = 45,
+            gcd = "spell",
+            talent = "leg_sweep",
+            handler = function() end
+        },
+        dampen_harm = {
+            id = 122278,
+            cast = 0,
+            cooldown = 90,
+            gcd = "off",
+            talent = "dampen_harm",
+            toggle = "defensives",
+            handler = function()
+                state.applyBuff("player", "dampen_harm", 10)
+            end
+        },
+        diffuse_magic = {
+            id = 122783,
+            cast = 0,
+            cooldown = 90,
+            gcd = "off",
+            talent = "diffuse_magic",
+            toggle = "defensives",
+            handler = function()
+                state.applyBuff("player", "diffuse_magic", 6)
+            end
+        },
+        rushing_jade_wind = {
+            id = 116847,
+            cast = 0,
+            cooldown = 6,
             gcd = "spell",
             spend = 1,
             spendType = "chi",
+            talent = "rushing_jade_wind",
             startsCombat = true,
             handler = function()
-                print("Spinning Crane Kick: Spending 1 Chi, Current:", state.chi.actual) -- Debug
                 state.spend(1, "chi")
-                UpdateChi() -- Sync with UnitPower
+                state.applyBuff("player", "rushing_jade_wind", 6)
+                UpdateChi()
             end
         },
-        expel_harm = {
-            id = 115072,
+        invoke_xuen = {
+            id = 123904,
             cast = 0,
-            cooldown = 15,
-            gcd = "spell",
-            spend = 40,
-            spendType = "energy",
-            startsCombat = true,
-            handler = function()
-                print("Expel Harm: Gaining 1 Chi, Current:", state.chi.actual) -- Debug
-                state.gain(1, "chi")
-                UpdateChi() -- Sync with UnitPower
-            end
-        },
-        energizing_brew = {
-            id = 115288,
-            cast = 0,
-            cooldown = 60,
+            cooldown = 180,
             gcd = "off",
-            startsCombat = false,
-            handler = function()
-                print("Energizing Brew: Activating") -- Debug
-            end
+            talent = "invoke_xuen",
+            toggle = "cooldowns",
+            handler = function() end
+        },
+        chi_torpedo = {
+            id = 115008,
+            cast = 0,
+            cooldown = 0, -- Uses Roll charges
+            gcd = "off",
+            talent = "chi_torpedo",
+            toggle = "movement",
+            handler = function() end
         }
     })
 
     -- Register combat log event for Elusive Brew stacks and Chi updates
     bmCombatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
     bmCombatLogFrame:SetScript("OnEvent", function(self, event, ...)
-        local timestamp, subevent, _, sourceGUID, _, _, _, destGUID, _, _, _, spellID, _, _, amount, critical = ...
+        local _, subevent, _, sourceGUID, _, _, _, _, _, _, _, spellID, _, _, _, critical = select(2, ...)
         if subevent == "SPELL_DAMAGE" and sourceGUID == state.GUID and critical and (spellID == 100780 or spellID == 115072 or spellID == 121253) then
-            print("Elusive Brew: Adding stack, Chi:", state.chi.actual) -- Debug
-            state.addStack(128938, nil, 1)
-        elseif subevent == "UNIT_POWER_UPDATE" and sourceGUID == state.GUID and select(13, ...) == "CHI" then
+            state.addStack(115308, nil, 1) -- Elusive Brew stack
+        elseif subevent == "UNIT_POWER_UPDATE" and sourceGUID == state.GUID and select(12, ...) == "CHI" then
             UpdateChi() -- Sync Chi on power update
         end
     end)
@@ -407,20 +443,10 @@ local function RegisterBrewmasterSpec()
         width = "full"
     })
 
-    -- Default APL Pack
-spec:RegisterPack("Brewmaster", 20250724, [[Hekili:fJvZYTTnq43LCqojnrrswY2j10hAV0KPtUOKtDcjHiHeHniHkiOTvhp8zV7c(hifGKSBMPhIDm4I97d7FyX6p1)B(lJjkQ)xNnz2IjxoBX4PNp)JNFH)s1UTu)LBjr3r2a)Nmsk8tcbxAhxqIXTMlkKrWY(lxvW4QpN5VYU(MdYULgblFXv(ltyXX0kzP5r(l)wclVme)hPmSgXYqXA4VJumrwziNLRGpVwild)d6DmoBS)s9IinIecES4Hm8p(Q(mrZiR40y)Fd(OKPOsgqCfHtZuJzz3lUJg8ybnBCJClRaYFPXh9vaDDQmAgvUz34OcPeuAz41ELHZNugoQmmkH1F9PD6xVn2)WY2eSssFaX48JryqFAHByRDqM1bsZgaTRqB8Asbx1ABAKIuOebeLcS3M4B5u3QxcNhu9hbOXVYfeufA05eo4zQpVRohPKhldFFp70D0nb5PK8euBZpK2kdVbp9AJYRldxvSE948e4NC6yjnLWYYRmqxug(0tLH5uLcm)5J3kfiA3tdQfVm8nDeyfhSlIcvWDmW(aKyXXjXunjYvKnBOYao9EkVmewpvetLqwH(ZjucxLmElfYCQTbxwf30YSICAW2cjB9U24KwEnyDGyxCCIvzD0MMnfez8y0rzNnG0xnPdoT4ikxEQOet14aSJOsceRdwZK0GyHQd0AZoKlKYO51B2W03BRi4xDSuezrEcAtULetdEGLfpmxX0bP53(7aPxhj277ip(OtEy7iDUgnNmmMLBJIDuiFllld3tKKKrBdeNoXjlS6nxyPErBENrLPh3s5bjezQge3LrpXm4BjR0kYDjuJYBpqUNUFX4MVO1J7skdlfJMXlmIHvmmDClHN2wqKMLdURJCFX(jYG99(D2cPEHPUUTnp)IilM8tKyUn22cXUCa0wl3yPMI76669s5fOxstQGC8EQX6FwF(m8WMsE4A12OF912SSirkAeIjPqdiblQtJhUL3wgoz8IoWHMsuNCj56yEaIT0mD2wVkv2O3Ixa9M3rpdOoCD8gQXwVgdwaqyr9ixld0F6K4X5g8WuVvjIBLuqJRi73Bc4NZIO4vaQe4(zvHmExG4X(9PO1XdejwJmh7IeYnyPBb3rDNIN12tYzLHs6FxaxNahLCrkij2(tkKpfJbUKSn08XLF5pzzWNM(PYWVNLxSf1fkqtBONz0E4zTIpZP4d62d3s5xSWZUkspFI(7IS7Pv4k2IviaOXUPr87vfXZtx(AeKMEJ30rhOYaqcLyVTFY7UNH5zqVMkCJ6hkD9IjNcQw58)nv2EqM72dBu5Pt(lCkVr2yN4x6wCZKgCd6GN1coxa9qSbdoKeWC(avcRdsgxzAvOynAbBshlhRAKltOJ8kY6jDCmkm86nYkso9tqOkEJ((fHDhdJpZ45haB)KB86Kod1IJeq14tpT4QlNCkbuw15luLThKp68CBPPVUTnDI7aX223me3DLPMwR(FjMAVEHDes1E)WpRGkhxR0uxgNab8QW1m8TG4FKYYZ1MKALvtSnyDDweCiLSS7Oka6WYWpRQ2KM0P0SyeAvcbwgIzK7qDZeW1T70xLYlIXhkqzavKnwM)675uut008F8oW0MWIsmLMKTRd1AJo455SiMI3PxtFqdO)kKViBG5BvQaSv)avAS5sZmq(bgNBCIQvPQruT1qVuwr6kAL7Hdp1R8lFoTX6pFWyCGpQh(qIqcxAtIevnJwB49x(EGG6GHE()(bEYcmNxaotiiKc0a(DLO63Fl1OuTf8H(1QXZH)h9(DO27Y4(WYAMbfzfJZu6x6v5HZtef8yKmnPmWJy1VjKVZGkD62RFPH3Xw7nOS1R0x4(Qt4IkB6)x8(WXrOPm2REr3p6awD79iAd0P3L1kD2OHtIWUImV6b13bFuaW1jo0ZGg0TrT5tgTF)13mqS3cT97acJR1r17Ul)HgAVfNiYZDHSzhcMyBRn(rUAH3cGN3pRWSvAhjfPKBXFjwxtVpuOWSKDyQz9MnsfAxZZOPAJdGLX0AzZyys)MSrv0FIaA3RXulU2BQDn1m3udwmC2R91ZS9QCu3c0(wODIcTjcRllfkDBleEx55olJNrRpTlISBW0xFho3vVw(BkA70tXtIjJRNvZ7NAkDVrDwVdml912ML61Ex80tUNH6Bmv8(fGS3GM76qhUFktSAR6yVeZE5DxnPNjO3ihnuZHNM5O6dF9y)Ubdi6u6ET5yex5CGLn1DpWqknXWs7Iikd515Jo6yiRb2u5D9uARM5vlgzj0YC)3swDsbGnnJoiVZCOGMI3npV9Z1VX7Ij6bd4)Vd]])
-
+    -- Default APL Pack is intentionally left minimal.
+    -- Import the APL text provided separately using the Hekili in-game interface.
+    spec:RegisterPack("Brewmaster", 20250728, [[Hekili:LIvAVTnoq0FmlGBl2wvhL4KUDJdqB6E0I2IGvz)0IktAjklwljkqszhxeWF77qQlQR42g0dyto89Mz4WzEW(N4FRVxiws8)S7C3fZVW9voUZp9C3l89KhYj(E54GT4nWhYWPW))wozFkwijC9whsy4qnecwbpa223BDbnr((m)1JH7IfGP5Kay1ZFLVxmnmKuAkre47DBmvOq6)HvOkIviwe89ajLLPqjuHe2oIXvO)MSLMqDa)GZIOja7)Ic9Psd0N5gCwiMtXVwHA9AWcw2w1hatFZnFuHwJfKqWEaBpAArcwZZ1CCKeiJTHgur2nyzqScTW5mN7uFWC(B4Kaw6AmyPhP0)(qPFkCYR37xx(YGy6Q1Gd8CA0sjoHKjDQxYHKHxNqcNblC5s4)CsX39c3XXjNvYHH8pHPGl)MQ0YnCkJtLhuOpcXVXG3rIizc6osDYtNv5W3IPBIjGrO8Qd50qNMKcon6anBtJllisj8DHtHGSQ72ZEQqI3SHWxLq2rsw(KycE3HNC)99xpLfs4q1WtMbwKiJDYjq5sM8YZN)SNztpKRL94V3jwmFMKTztcXjSocf2ieItZjzRIX8uReU1Qn58bUYraMgfPtbPyOQWgA71Nc8loc4BkW8qnOqnWvlDBUK)QU27AgljKTpRZjOz7yBjRURGKz5mwR24kvehmgkpIAt40KmcFd9B23wMLoC5PZRcHRz6AU)HjnpSWjqn7A4vRKcXp6PEXfrrjGbf5BjK8Y3(bqrjnaN0PWylzZkb8eo2EX1jqpcwHC1wAWwn7Rb4CeLG6WjPWJeXLUZAkHHof6tVJSQYOkV8wtOB7B9Yr7X7i9Yr6LSZrMRT2t9nOCtKht42NRDXENCMXZT2wFtn4IQGlK9VP0RnWnk7VX(JUz79XeOxHl0TdkQsnxmW1vQzttRbOBJaaUtINxiI1xWFfhswTNMfA5ad2RXrQYYvWFvBtemJu6LN05IKtWY4vSOvr0Ye2XbOt2wKtZY0UsahNrAQhM0pdPIFahTSsoMQq)LU(glz8oviK7YjjnTCM(9YxXRhyqh4FxrAoCz8sf6pPjjKUSmmjnmpm4fHXKZSnrs1nMZXjPTVxV6I5(E7a(aBANy77ThZ1zvr9O5QjTLVttPcbSPcjkYZH(2vtk3OHup3uYPzBjsHJcPqVxwEiZ8SuswOEQRmwp8egrWp0oocSlliPiuxvsOs41WRHue6fk0)9VcIgjsQ4lpxH2ht1JKBTgNDOLvfkJPb)U8eAavM0IBO(tAYjTK(7Mhfv0CBjek0jFrdAO9sUwmVhUJSIOkiL1MAYgMLYksxdpQblejmjmV99P6eMEb3EABGn99WfYygiW6wCat3y13ZSNrRgjcxKiHp(zJ2TQhC(VfoLbhqouNz0LAR408YnFqDd)iIg8909PHBAmiPBAjck0mOZde42ccuOLkuLybf6(7NYIgzdgu6osvHUuHoFUc9m4V(sOQTx6O19g5GlMBGCWm52SypLiAgoDsgMwLXd55pSdybMM8Zok5JPdzk6V440BdN2bwmPdeOBDDfCH52ECJGg9XoFIQulLkdkr7Q6zKyDezo2XtJuhTdCXXsC9f8yqYetxU08bDFAtNbR4R(qAgE1Kmu2D1KXpDE7H7PBsJXV1dJozKhJiQwwBKqP57K5t60JjIYecUMmZ0IPAPQZyidDt1SQwjvViEGGSjU3SfH1EVvwlQPD6MctQiRhmMVoM6S2yODddNhTnXaDB998UvzAlna3VfqTvdK30lz(ZleCeNFsnFMGORCQY4Xwsv3i9etynDJLFm0SYBDLkzyPFFOVJaRwK4pvK14lJin14q97l10COrmz)UaDfGoOd8WUvAAMU50OhYYXb1Qge63AAIK8io7a5Stm1qp9E6(rngE2d0GXTFdMHnHVsp2RfIwDW(6NxEn)ulpK2QM2(9gz999Ro9i(jNg5xB6rokRwYuJSrw9WP6Ow28h)))p]])
 end
-
--- Register combat log event for Elusive Brew stacks on the frame
-bmCombatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-bmCombatLogFrame:SetScript("OnEvent", function(self, event, ...)
-    local timestamp, subevent, _, sourceGUID, _, _, _, destGUID, _, _, _, spellID, _, _, amount, critical = ...
-    if subevent == "SPELL_DAMAGE" and sourceGUID == state.GUID and critical and (spellID == 100780 or spellID == 115072 or spellID == 121253) then
-        print("Elusive Brew: Adding stack, Chi:", state.chi.actual) -- Debug
-        state.addStack(128938, nil, 1)
-    end
-end)
 
 -- Deferred loading mechanism
 local function TryRegister()
