@@ -1,42 +1,54 @@
-# Mists of Pandaria: Brewmaster Monk
-# APL based on SimulationCraft logic for Patch 5.4.x
+# Monk: Brewmaster
 
-# Precombat Section
+# PRECOMBAT
+# Applies long-term buffs before entering combat.
+actions.precombat+=/legacy_of_the_emperor,if=!buff.stats.up
+actions.precombat+=/potion,name=virmen_bite
 actions.precombat+=/chi_brew,if=talent.chi_brew.enabled&chi<=chi.max-2
-actions.precombat+=/potion
 
-# Main Action Priority List
-# Defensive actions are highest priority.
-actions+=/purifying_brew,if=settings.use_purifying_brew&(stagger_level='heavy'|(stagger_level='moderate'&health.percent<60))
-actions+=/fortifying_brew,if=health.percent<50&toggle.defensives
-actions+=/dampen_harm,if=talent.dampen_harm.enabled&health.percent<60&toggle.defensives
-actions+=/diffuse_magic,if=talent.diffuse_magic.enabled&health.percent<70&toggle.defensives
-actions+=/guard,if=chi>=2
 
-# Major Cooldowns
-actions+=/invoke_xuen,if=talent.invoke_xuen.enabled&toggle.cooldowns
-actions+=/chi_brew,if=talent.chi_brew.enabled&chi<=chi.max-2
-actions+=/energizing_brew,if=energy<30
+# INTERRUPTS
+# Used when the Interrupts toggle is enabled.
+actions.interrupts+=/spear_hand_strike,if=target.casting
 
-# Core Rotational Abilities (Shuffle upkeep is critical)
+
+# DEFENSIVES
+# Reactive abilities used to survive incoming damage.
+actions.defensives+=/purifying_brew,if=stagger_level>=settings.purify_level&chi>=1
+actions.defensives+=/guard,if=health.percent<=settings.guard_health_threshold&chi>=2
+actions.defensives+=/elusive_brew,if=elusive_brew_stacks>=settings.elusive_brew_threshold
+actions.defensives+=/fortifying_brew,if=health.percent<=settings.fortify_health_pct
+actions.defensives+=/dampen_harm,if=talent.dampen_harm.enabled&health.percent<=60
+actions.defensives+=/diffuse_magic,if=talent.diffuse_magic.enabled&incoming_magic_damage_5s>0
+
+
+# COOLDOWNS
+# Major offensive and resource cooldowns.
+actions.cooldowns+=/use_items
+actions.cooldowns+=/invoke_xuen,if=talent.invoke_xuen.enabled
+actions.cooldowns+=/energizing_brew,if=energy.current<=40&chi.current<=1
+actions.cooldowns+=/chi_brew,if=talent.chi_brew.enabled&chi.current<=chi.max-2
+actions.cooldowns+=/blood_fury
+actions.cooldowns+=/berserking
+
+
+# AOE ROTATION
+# Used when multiple targets are present.
+actions.aoe+=/keg_smash
+actions.aoe+=/rushing_jade_wind,if=talent.rushing_jade_wind.enabled&chi>=3
+actions.aoe+=/breath_of_fire,if=chi>=2
+actions.aoe+=/spinning_crane_kick,if=active_enemies>=4&chi>=2&!talent.rushing_jade_wind.enabled
+actions.aoe+=/blackout_kick,if=buff.shuffle.remains<3&chi>=2
+actions.aoe+=/expel_harm,if=health.percent<=90&chi<chi.max-1
+actions.aoe+=/jab,if=chi<chi.max-1
+actions.aoe+=/tiger_palm
+
+# SINGLE TARGET ROTATION
+# This is the primary, default action list.
+actions+=/blackout_kick,if=buff.shuffle.remains<3&chi>=2
 actions+=/keg_smash
-actions+=/blackout_kick,if=buff.shuffle.remains<2&settings.proactive_shuffle
-
-# Talent Abilities
-actions+=/chi_wave,if=talent.chi_wave.enabled&chi>=2
-actions+=/zen_sphere,if=talent.zen_sphere.enabled&chi>=2&buff.zen_sphere.down
-actions+=/chi_burst,if=talent.chi_burst.enabled&chi>=2
-
-# AoE Abilities (when 2 or more enemies are present)
-actions+=/rushing_jade_wind,if=talent.rushing_jade_wind.enabled&active_enemies>=settings.aoe&chi>=1
-actions+=/breath_of_fire,if=active_enemies>=settings.aoe&chi>=2
-actions+=/spinning_crane_kick,if=talent.rushing_jade_wind.disabled&active_enemies>=settings.aoe&chi>=1
-
-# Chi Generators
-actions+=/expel_harm,if=chi<=chi.max-2
-actions+=/jab,if=chi<=chi.max-1
-
-# Chi Dumps / Fillers
-actions+=/breath_of_fire,if=chi>=2
-actions+=/blackout_kick,if=chi>=4
-actions+=/tiger_palm,if=energy>70
+actions+=/expel_harm,if=health.percent<=90&chi<chi.max-1
+actions+=/blackout_kick,if=chi>=chi.max-1
+actions+=/jab,if=chi<chi.max-1
+actions+=/chi_wave,if=talent.chi_wave.enabled
+actions+=/tiger_palm
